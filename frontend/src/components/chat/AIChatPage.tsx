@@ -84,6 +84,9 @@ interface AIChatPageProps {
   onNavigateToEditor: () => void;
 }
 
+// Conversation Steps type
+type ChatStep = 'job_title' | 'skills' | 'experience' | 'complete';
+
 export function AIChatPage({ onResumeGenerated, onNavigateToEditor }: AIChatPageProps) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -91,6 +94,9 @@ export function AIChatPage({ onResumeGenerated, onNavigateToEditor }: AIChatPage
   const [isTyping, setIsTyping] = useState(false);
   const [uploadedCVText, setUploadedCVText] = useState('');
   const [resumeGenerated, setResumeGenerated] = useState(false);
+  
+  // Dynamic state machine to control quick replies deterministically
+  const [chatStep, setChatStep] = useState<ChatStep>('job_title');
   
   // Dynamic preview state
   const [currentCVData, setCurrentCVData] = useState<Partial<CVData> | null>(null);
@@ -110,6 +116,7 @@ export function AIChatPage({ onResumeGenerated, onNavigateToEditor }: AIChatPage
         timestamp: new Date(),
       },
     ]);
+    setChatStep('job_title'); // Always start at job_title
   }, [user]);
 
   // Auto-scroll
@@ -130,6 +137,15 @@ export function AIChatPage({ onResumeGenerated, onNavigateToEditor }: AIChatPage
     setInputText('');
     addMessage('user', text);
     setIsTyping(true);
+
+    // Progress the conversation step deterministically
+    if (chatStep === 'job_title') {
+      setChatStep('skills');
+    } else if (chatStep === 'skills') {
+      setChatStep('experience');
+    } else if (chatStep === 'experience') {
+      setChatStep('complete');
+    }
 
     try {
       // Build API history
@@ -169,6 +185,7 @@ export function AIChatPage({ onResumeGenerated, onNavigateToEditor }: AIChatPage
 
     addMessage('user', `📎 Uploaded: ${file.name}`);
     setIsTyping(true);
+    setChatStep('skills'); // Assume upload handles basic info, prompt next step
 
     try {
       const res = await aiApi.uploadResume(file);
@@ -201,16 +218,9 @@ export function AIChatPage({ onResumeGenerated, onNavigateToEditor }: AIChatPage
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  // --- Dynamic Quick Replies Helper ---
-  const getLastAssistantMessage = () => {
-    const assistantMessages = messages.filter((m) => m.role === 'assistant');
-    return assistantMessages[assistantMessages.length - 1]?.content || '';
-  };
-
+  // --- Deterministic Quick Replies Finder ---
   const getQuickReplies = () => {
-    const lastMsg = getLastAssistantMessage().toLowerCase();
-
-    if (lastMsg.includes('job title') || lastMsg.includes("target")) {
+    if (chatStep === 'job_title') {
       return [
         'Software Engineer',
         'Product Manager',
@@ -219,7 +229,7 @@ export function AIChatPage({ onResumeGenerated, onNavigateToEditor }: AIChatPage
       ];
     }
 
-    if (lastMsg.includes('skills')) {
+    if (chatStep === 'skills') {
       return [
         'React, TypeScript, Node.js, Tailwind CSS',
         'Figma, User Research, Prototyping, UI/UX',
@@ -228,7 +238,7 @@ export function AIChatPage({ onResumeGenerated, onNavigateToEditor }: AIChatPage
       ];
     }
 
-    if (lastMsg.includes('experience level') || lastMsg.includes('years of experience')) {
+    if (chatStep === 'experience') {
       return [
         'Entry Level (0-1 years)',
         'Mid-Level (2-4 years)',
@@ -308,7 +318,7 @@ export function AIChatPage({ onResumeGenerated, onNavigateToEditor }: AIChatPage
         {/* Input Area & Quick Reply Chips */}
         <div className="flex-none p-5 glass-panel border-t border-border/50 z-10">
           
-          {/* FLOATING QUICK REPLY CHIPS */}
+          {/* DETERMINISTIC FLOATING QUICK REPLY CHIPS */}
           {!isTyping && getQuickReplies() && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -319,7 +329,7 @@ export function AIChatPage({ onResumeGenerated, onNavigateToEditor }: AIChatPage
                 <button
                   key={idx}
                   onClick={() => handleSend(reply)}
-                  className="text-xs px-3 py-1.5 rounded-full border border-border bg-card hover:bg-accent hover:border-accent-foreground/20 transition-all text-left line-clamp-1 max-w-full shadow-sm cursor-pointer"
+                  className="text-xs px-3 py-1.5 rounded-full border border-border bg-card hover:bg-accent hover:border-accent-foreground/20 transition-all text-left line-clamp-1 max-w-full shadow-sm cursor-pointer font-medium"
                 >
                   {reply}
                 </button>
@@ -368,10 +378,15 @@ export function AIChatPage({ onResumeGenerated, onNavigateToEditor }: AIChatPage
         </div>
       </div>
 
-      {/* RIGHT COLUMN: Live Interactive Preview (Hidden on mobile, flex-1 on desktop) */}
+      {/* RIGHT COLUMN: Live Interactive Preview */}
       <div className="hidden md:flex md:flex-1 h-full items-start justify-center p-8 overflow-y-auto bg-muted/30 bg-[radial-gradient(var(--border)_1px,transparent_1px)] [background-size:20px_20px]">
         <div className="w-full max-w-4xl bg-card border border-border shadow-2xl rounded-2xl overflow-hidden p-6 scale-90 lg:scale-100 origin-top transition-transform">
-          <CVPreview data={currentCVData || DEFAULT_CV_DATA} templateId="modern" />
+          <CVPreview 
+            data={(currentCVData || DEFAULT_CV_DATA) as CVData} 
+            activeTemplateId="modern" 
+            cvId={null} 
+            onAutoSave={async () => null} 
+          />
         </div>
       </div>
 
