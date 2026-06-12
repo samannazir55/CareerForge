@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Sparkles, Mail, Lock, ArrowRight } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
-import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
+import { useAuth } from '../context/AuthContext';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
