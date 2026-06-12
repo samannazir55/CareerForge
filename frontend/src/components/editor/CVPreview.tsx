@@ -66,6 +66,48 @@ export function CVPreview({ data, activeTemplateId, cvId, onAutoSave }: CVPrevie
       templateCss = templateCss.replace(/:(\s*){{text_color}}/g, ': #{{text_color}}');
       const renderedCss = Mustache.render(templateCss, pData);
 
+      // --- DYNAMIC CUSTOM FIELDS INJECTION (Live Preview) ---
+      if (data.customFields && data.customFields.length > 0) {
+        let customHtml = '';
+        data.customFields.forEach(field => {
+          if (!field.label || !field.value) return;
+          const formattedValue = field.value.replace(/\n/g, '<br/>');
+          
+          if (activeTemplateId === 'classic') {
+            customHtml += `
+              <h3 style="background:#f0f0f0; padding:5px 10px; text-transform:uppercase; font-size:14px; font-weight:bold; border-left:5px solid #333; margin-top:20px;">${field.label}</h3>
+              <div class="content" style="font-size: 14px; line-height: 1.6; margin-bottom: 20px;">${formattedValue}</div>
+            `;
+          } else {
+            // Modern / Other layouts
+            customHtml += `
+              <div class="section" style="margin-top:20px;">
+                <h2 style="color: #${pData.accent_color}; border-bottom: 2px solid #${pData.accent_color}; padding-bottom: 5px; text-transform: uppercase; margin-top: 0;">${field.label}</h2>
+                <div class="text" style="font-size: 14px; line-height: 1.6; margin-bottom: 20px;">${formattedValue}</div>
+              </div>
+            `;
+          }
+        });
+
+        // Inject custom HTML directly into the template structures
+        if (activeTemplateId === 'classic' && htmlContent.includes("</div>")) {
+          const lastDivIdx = htmlContent.lastIndexOf("</div>");
+          htmlContent = htmlContent.substring(0, lastDivIdx) + customHtml + htmlContent.substring(lastDivIdx);
+        } else if (htmlContent.includes("main-content")) {
+          const startIdx = htmlContent.indexOf("main-content");
+          const remainingHtml = htmlContent.substring(startIdx);
+          const closingDivIdx = remainingHtml.indexOf("</div>");
+          if (closingDivIdx !== -1) {
+            const absoluteClosingIdx = startIdx + closingDivIdx;
+            htmlContent = htmlContent.substring(0, absoluteClosingIdx) + customHtml + htmlContent.substring(absoluteClosingIdx);
+          } else {
+            htmlContent += customHtml;
+          }
+        } else {
+          htmlContent += customHtml;
+        }
+      }
+
       scopedCss = `
         #cv-preview-iso {
           --primary: #${pData.accent_color};

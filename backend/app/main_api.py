@@ -122,6 +122,7 @@ def render_template_internal(html_content: str, css_content: str, data: Dict[str
     """
     Safe Internal Rendering of HTML using Jinja2.
     Templates have #{{accent_color}} syntax, so we provide colors WITHOUT #.
+    Also dynamically appends custom fields to keep database schemas clean.
     """
     mapped_data = normalize_cv_dict(data)
     
@@ -152,6 +153,52 @@ def render_template_internal(html_content: str, css_content: str, data: Dict[str
         rendered_body = t_html.render(**mapped_data)
         rendered_css = t_css.render(**mapped_data)
         
+        # --- DYNAMIC CUSTOM FIELDS INJECTION (Backend PDF) ---
+        custom_fields = data.get("customFields") or data.get("custom_fields") or []
+        if custom_fields and isinstance(custom_fields, list):
+            custom_html = ""
+            accent_color = mapped_data.get("accent_color") or "2c3e50"
+            for field in custom_fields:
+                if not isinstance(field, dict):
+                    continue
+                label = field.get("label", "")
+                value = field.get("value", "")
+                if not label or not value:
+                    continue
+                
+                formatted_value = value.replace("\n", "<br/>")
+                
+                # Render custom fields based on template styles
+                if "classic" in html_content.lower() or "classic" in rendered_body.lower():
+                    custom_html += f"""
+                    <h3 style="background:#f0f0f0; padding:5px 10px; text-transform:uppercase; font-size:14px; font-weight:bold; border-left:5px solid #333; margin-top:20px;">{label}</h3>
+                    <div class="content" style="font-size: 14px; line-height: 1.6; margin-bottom: 20px;">{formatted_value}</div>
+                    """
+                else:
+                    custom_html += f"""
+                    <div class="section" style="margin-top:20px;">
+                      <h2 style="color: #{accent_color}; border-bottom: 2px solid #{accent_color}; padding-bottom: 5px; text-transform: uppercase; margin-top: 0;">{label}</h2>
+                      <div class="text" style="font-size: 14px; line-height: 1.6; margin-bottom: 20px;">{formatted_value}</div>
+                    </div>
+                    """
+            
+            # Inject custom HTML into template structure
+            if "classic" in html_content.lower() and "</div>" in rendered_body:
+                last_div_idx = rendered_body.rfind("</div>")
+                rendered_body = rendered_body[:last_div_idx] + custom_html + rendered_body[last_div_idx:]
+            elif "main-content" in rendered_body:
+                main_content_keyword = "main-content"
+                start_idx = rendered_body.find(main_content_keyword)
+                remaining_html = rendered_body[start_idx:]
+                closing_div_idx = remaining_html.find("</div>")
+                if closing_div_idx != -1:
+                    absolute_closing_idx = start_idx + closing_div_idx
+                    rendered_body = rendered_body[:absolute_closing_idx] + custom_html + rendered_body[absolute_closing_idx:]
+                else:
+                    rendered_body += custom_html
+            else:
+                rendered_body += custom_html
+
         # CSS Cleanup
         rendered_css = re.sub(r'##+', '#', rendered_css)
         rendered_css = re.sub(r':\s*#\s*;', ': #333333;', rendered_css)
@@ -175,7 +222,6 @@ def render_template_internal(html_content: str, css_content: str, data: Dict[str
     except Exception as e:
         logger.error(f"Render Error: {e}")
         return f"<h1>Error generating preview</h1><pre>{e}</pre>"
-
 
 # ---------------------------------------------------------
 # AUTH ENDPOINTS
