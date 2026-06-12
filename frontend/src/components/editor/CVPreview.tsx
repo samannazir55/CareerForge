@@ -54,7 +54,11 @@ export function CVPreview({ data, activeTemplateId, cvId, onAutoSave }: CVPrevie
     certifications: Array.isArray(data.certifications)
       ? data.certifications
       : (data.certifications || '').split(',').map((s) => s.trim()).filter(Boolean),
-  }; // <-- CLOSED BRACE FIXED HERE!
+    accent_color: stripHash(data.accentColor || '#2c3e50'), // Restored
+    text_color: stripHash(data.textColor || '#333333'),     // Restored
+    font_family: data.fontFamily || 'sans-serif',           // Restored
+    profile_image: data.profileImage || '',                 // Restored
+  };
 
   let htmlContent = '';
   let scopedCss = '';
