@@ -1,35 +1,34 @@
-
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from .core.config import settings
+import re # Added for safe string replacement
 
-# --- DATABASE URL PATCHER ---
-# Render/Neon give "postgres://", but SQLAlchemy requires "postgresql://"
 connection_string = settings.DATABASE_URL
 
-if connection_string and connection_string.startswith("postgres://"):
-    connection_string = connection_string.replace("postgres://", "postgresql://", 1)
-
-# Ensure no surrounding quotes (User error protection)
 if connection_string:
+    # 1. Clean up surrounding quotes
     connection_string = connection_string.strip('"').strip("'")
+    
+    # 2. Correct "postgres://" to "postgresql://"
+    if connection_string.startswith("postgres://"):
+        connection_string = connection_string.replace("postgres://", "postgresql://", 1)
+        
+    # 3. Strip out "channel_binding" as older psycopg2 builds on Render will crash on it
+    connection_string = re.sub(r'[&?]channel_binding=[^&]+', '', connection_string)
 
 # Create Engine
-# Note: connect_args={'check_same_thread': False} is only for SQLite.
-# We need to detect if we are using SQLite or Postgres to apply correct args.
-
 connect_args = {}
-if "sqlite" in connection_string:
+# Added the 'connection_string and' check to prevent NoneType crash
+if connection_string and "sqlite" in connection_string:
     connect_args = {"check_same_thread": False}
 
 engine = create_engine(
     connection_string, 
     connect_args=connect_args,
-    pool_pre_ping=True # Helps keep connection alive
+    pool_pre_ping=True
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
 Base = declarative_base()
 
 # Dependency

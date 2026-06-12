@@ -177,7 +177,18 @@ export function CVForm({ data, setData, onSave, isSaving }: CVFormProps) {
             <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
           </select>
         </div>
-
+        {/* Save Button */}
+        <Button
+          variant="brand"
+          size="lg"
+          onClick={onSave}
+          isLoading={isSaving}
+          className="w-full mt-4"
+        >
+          <Save size={16} className="mr-2" />
+          {isSaving ? 'Saving...' : 'Save Resume'}
+        </Button>
+        
         {/* Save Button */}
         <Button
           variant="brand"
