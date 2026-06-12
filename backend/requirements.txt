@@ -37,3 +37,5 @@ pystache>=0.6.5
 # AI/OpenAI
 openai>=1.0.0
 httpx>=0.25.0
+# Groq native SDK (avoids OpenAI-client 403 on restricted IPs)
+groq>=0.9.0

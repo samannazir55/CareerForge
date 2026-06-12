@@ -10,7 +10,7 @@ interface AuthContextValue {
   register: (fullName: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   refreshUser: () => Promise<void>;
-}
+} 
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
