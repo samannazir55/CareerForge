@@ -468,6 +468,11 @@ def admin_create(t: template_schemas.TemplateCreate, db: Session = Depends(get_d
 # ==========================================
 from sqlalchemy import text
 
+# ==========================================
+# ⚡ SUPER SETUP ROUTE (Schema Migration + Seeding)
+# ==========================================
+from sqlalchemy import text
+
 @router.get("/setup_production")
 def setup_production_db(db: Session = Depends(get_db)):
     # Dynamically import database and engine to build missing tables
@@ -480,13 +485,12 @@ def setup_production_db(db: Session = Depends(get_db)):
     # 0. AUTO-CREATE TABLES (Bypasses "relation does not exist" crashes)
     try:
         Base.metadata.create_all(bind=engine)
-        log.append("✅ Database tables initialized successfully.")
+        log.append("✅ Database tables initialized/checked successfully.")
     except Exception as e:
-        log.append(f"⚠️ Table creation: {e}")
+        log.append(f"❌ Table creation failed: {e}")
     
     # 1. MIGRATE SCHEMA (Add 'credits' if missing)
     try:
-        # Check column existence
         check = db.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name='users' AND column_name='credits'"))
         if not check.fetchone():
             db.execute(text("ALTER TABLE users ADD COLUMN credits INTEGER DEFAULT 3"))
@@ -495,7 +499,7 @@ def setup_production_db(db: Session = Depends(get_db)):
         else:
             log.append("ℹ️ Wallet ready.")
     except Exception as e:
-        log.append(f"⚠️ Schema: {e}")
+        log.append(f"⚠️ Schema migration: {e}")
 
     # 2. SEED PACKAGES
     try:
@@ -510,7 +514,7 @@ def setup_production_db(db: Session = Depends(get_db)):
     except Exception as e:
         log.append(f"❌ Package Error: {e}")
 
-    # 3. SEED TEMPLATES
+    # 3. SEED TEMPLATES (Explicitly mapped to prevent keyword crashes)
     templates_data = [
         {
             "id": "modern", "name": "Modern Blue", "category": "professional", "is_premium": False,
@@ -529,16 +533,29 @@ def setup_production_db(db: Session = Depends(get_db)):
         }
     ]
 
-    for data in templates_data:
-        existing = db.query(Template).filter(Template.id == data["id"]).first()
-        if not existing:
-            db.add(Template(**data))
-            log.append(f"➕ Template {data['name']} added.")
-        else:
-            existing.html_content = data["html"]
-            existing.css_styles = data["css"]
-            
-    db.commit()
+    try:
+        for data in templates_data:
+            existing = db.query(Template).filter(Template.id == data["id"]).first()
+            if not existing:
+                # Map parameters explicitly to avoid keyword argument mismatches
+                db.add(Template(
+                    id=data["id"],
+                    name=data["name"],
+                    category=data["category"],
+                    is_premium=data["is_premium"],
+                    html_content=data["html"],
+                    css_styles=data["css"]
+                ))
+                log.append(f"➕ Template {data['name']} added.")
+            else:
+                existing.html_content = data["html"]
+                existing.css_styles = data["css"]
+                log.append(f"🔄 Template {data['name']} updated.")
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        log.append(f"❌ Seeding process error: {e}")
+        
     return {"status": "success", "logs": log}
 # Package CRUD endpoints
 @router.get("/admin/packages")
