@@ -117,7 +117,78 @@ def normalize_cv_dict(data: Dict[str, Any]) -> Dict[str, Any]:
     normalized.setdefault("text_color", "#333333")
     
     return normalized
+def camelize_cv_dict(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Converts database JSON (snake_case) back to React-Compliant (camelCase)
+    so the frontend can read the saved values correctly.
+    """
+    if not data:
+        return {}
+        
+    camelized: Dict[str, Any] = {}
+    
+    # Reverse Key Mapping (Snake -> Camel)
+    reverse_key_map = {
+        "full_name": "fullName",
+        "job_title": "jobTitle",
+        "phone": "phone",
+        "email": "email",
+        "summary": "summary",
+        "experience": "experience",
+        "education": "education",
+        "skills": "skills",
+        "location": "location",
+        "hobbies": "hobbies",
+        "languages": "languages",
+        "certifications": "certifications",
+        "linkedin": "linkedin",
+        "github": "github",
+        "portfolio": "portfolio",
+        "accent_color": "accentColor",
+        "text_color": "textColor",
+        "font_family": "fontFamily",
+        "profile_image": "profileImage",
+        "custom_fields": "customFields" # Supports our new custom sections!
+    }
+    
+    for k, v in data.items():
+        if k in reverse_key_map:
+            camelized[reverse_key_map[k]] = v
+        else:
+            camelized[k] = v
+            
+    return camelized
 
+def camelize_cv_record(db_cv: Any) -> Dict[str, Any]:
+    """
+    Converts a database SQLAlchemy CV record to a dictionary
+    and camelizes its nested JSON data for React.
+    """
+    if not db_cv:
+        return {}
+        
+    cv_dict = {
+        "id": db_cv.id,
+        "user_id": db_cv.user_id,
+        "title": db_cv.title,
+        "template_id": db_cv.template_id,
+        "created_at": db_cv.created_at,
+        "updated_at": db_cv.updated_at,
+        "data": {}
+    }
+    
+    raw_data = db_cv.data
+    if hasattr(raw_data, "model_dump"):
+        raw_dict = raw_data.model_dump()
+    elif hasattr(raw_data, "dict"):
+        raw_dict = raw_data.dict()
+    elif isinstance(raw_data, dict):
+        raw_dict = raw_data
+    else:
+        raw_dict = dict(raw_data) if raw_data else {}
+        
+    cv_dict["data"] = camelize_cv_dict(raw_dict)
+    return cv_dict
 def render_template_internal(html_content: str, css_content: str, data: Dict[str, Any]) -> str:
     """
     Safe Internal Rendering of HTML using Jinja2.
@@ -283,8 +354,7 @@ async def upload_endpoint(file: UploadFile = File(...), user: dict = Depends(get
 @router.post("/cvs")
 def create_cv_endpoint(payload: Dict[str, Any], db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     """
-    Creates a new CV. Accepts a raw Dict to allow backend normalizer to
-    convert CamelCase -> SnakeCase BEFORE strictly validating against CVData schema.
+    Creates a new CV.
     """
     raw_data = payload.get("data", {})
     clean_dict = normalize_cv_dict(raw_data)
@@ -302,30 +372,37 @@ def create_cv_endpoint(payload: Dict[str, Any], db: Session = Depends(get_db), u
     )
     
     user_id = int(user["user_id"])
-    return cv_crud.create_cv(db, cv_in, user_id)
+    created_cv = cv_crud.create_cv(db, cv_in, user_id)
+    return camelize_cv_record(created_cv) # Camelized for React
 
-@router.get("/cvs", response_model=List[cv_schemas.CVInDB])
+
+@router.get("/cvs")
 def list_cvs_endpoint(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
-    return cv_crud.get_all_user_cvs(db, int(user["user_id"]))
+    """
+    List all CVs for the authenticated user.
+    """
+    db_cvs = cv_crud.get_all_user_cvs(db, int(user["user_id"]))
+    return [camelize_cv_record(cv) for cv in db_cvs] # Camelized for React
+
 
 @router.get("/cvs/{cv_id}")
 def get_cv_endpoint(cv_id: int, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     """
-    Get a single CV by ID (with full data)
+    Get a single CV by ID
     """
     db_cv = cv_crud.get_cv(db, cv_id, int(user["user_id"]))
     if not db_cv:
         raise HTTPException(status_code=404, detail="CV not found")
-    return db_cv
+    return camelize_cv_record(db_cv) # Camelized for React
+
 
 @router.put("/cvs/{cv_id}")
 def update_cv_endpoint(cv_id: int, payload: Dict[str, Any], db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     """
-    🔥 THE MISSING ENDPOINT - Updates an existing CV
+    Updates an existing CV
     """
     logger.info(f"📝 UPDATE CV Request: cv_id={cv_id}, user={user['user_id']}")
     
-    # 1. Normalize the incoming data
     raw_data = payload.get("data", {})
     clean_dict = normalize_cv_dict(raw_data)
     
@@ -335,14 +412,12 @@ def update_cv_endpoint(cv_id: int, payload: Dict[str, Any], db: Session = Depend
         logger.error(f"Validation Error: {e}")
         raise HTTPException(status_code=422, detail=f"Invalid Data Structure: {str(e)}")
 
-    # 2. Create update schema
     cv_update = cv_schemas.CVUpdate(
         title=payload.get("title"),
         template_id=payload.get("template_id"),
         data=cv_data_obj
     )
     
-    # 3. Call CRUD update
     user_id = int(user["user_id"])
     updated_cv = cv_crud.update_cv(db, cv_id, cv_update, user_id)
     
@@ -350,7 +425,7 @@ def update_cv_endpoint(cv_id: int, payload: Dict[str, Any], db: Session = Depend
         raise HTTPException(status_code=404, detail="CV not found or you don't have permission")
     
     logger.info(f"✅ CV Updated: id={cv_id}, template={updated_cv.template_id}")
-    return updated_cv
+    return camelize_cv_record(updated_cv) # Camelized for React
 
 @router.delete("/cvs/{cv_id}")
 def delete_cv_endpoint(cv_id: int, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
