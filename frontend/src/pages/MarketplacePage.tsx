@@ -2,41 +2,42 @@ import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search,
-  Filter,
   Star,
   ShieldCheck,
-  Lock,
   Unlock,
   Coins } from
 'lucide-react';
 import { TEMPLATES, TemplateDef } from '../data/templates';
 import { useAppStore } from '../context/AppStore';
 import { Button } from '../components/ui/Button';
-interface MarketplaceProps {
-  onNavigate: (view: 'builder') => void;
+
+interface MarketplacePageProps {
+  onTemplateSelected: (templateId: string) => void;
+  onNavigateToEditor: () => void;
 }
-export function Marketplace({ onNavigate }: MarketplaceProps) {
-  const { ownedTemplateIds, pointsBalance, unlockTemplate, subscriptionTier } =
-  useAppStore();
+
+export function MarketplacePage({ onTemplateSelected, onNavigateToEditor }: MarketplacePageProps) {
+  const { ownedTemplateIds, unlockTemplate, subscriptionTier } = useAppStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [selectedTemplate, setSelectedTemplate] = useState<TemplateDef | null>(
-    null
-  );
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateDef | null>(null);
+
   const categories = [
-  'All',
-  ...Array.from(new Set(TEMPLATES.map((t) => t.category)))];
+    'All',
+    ...Array.from(new Set(TEMPLATES.map((t) => t.category)))
+  ];
 
   const filteredTemplates = useMemo(() => {
     return TEMPLATES.filter((t) => {
       const matchesSearch =
-      t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.description.toLowerCase().includes(searchQuery.toLowerCase());
+        t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.description.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesCategory =
-      selectedCategory === 'All' || t.category === selectedCategory;
+        selectedCategory === 'All' || t.category === selectedCategory;
       return matchesSearch && matchesCategory;
     }).sort((a, b) => b.popularity - a.popularity);
   }, [searchQuery, selectedCategory]);
+
   const handleUnlock = (template: TemplateDef) => {
     if (unlockTemplate(template.id, template.cost)) {
       setSelectedTemplate(null);
@@ -44,6 +45,7 @@ export function Marketplace({ onNavigate }: MarketplaceProps) {
       alert('Not enough points! Visit the Dashboard to upgrade your plan.');
     }
   };
+
   return (
     <div className="min-h-full bg-background p-6 md:p-10 overflow-y-auto">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -78,11 +80,11 @@ export function Marketplace({ onNavigate }: MarketplaceProps) {
         {/* Categories */}
         <div className="flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
           {categories.map((cat) =>
-          <button
-            key={cat}
-            onClick={() => setSelectedCategory(cat)}
-            className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${selectedCategory === cat ? 'bg-foreground text-background' : 'bg-card border border-border text-muted-foreground hover:text-foreground'}`}>
-            
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${selectedCategory === cat ? 'bg-foreground text-background' : 'bg-card border border-border text-muted-foreground hover:text-foreground'}`}
+            >
               {cat}
             </button>
           )}
@@ -93,36 +95,25 @@ export function Marketplace({ onNavigate }: MarketplaceProps) {
           <AnimatePresence>
             {filteredTemplates.map((template, i) => {
               const isOwned = ownedTemplateIds.includes(template.id);
-              const isFreeForUser =
-              template.cost === 0 || subscriptionTier === 'premium';
+              const isFreeForUser = template.cost === 0 || subscriptionTier === 'premium';
+              
               return (
                 <motion.div
                   layout
-                  initial={{
-                    opacity: 0,
-                    y: 20
-                  }}
-                  animate={{
-                    opacity: 1,
-                    y: 0
-                  }}
-                  exit={{
-                    opacity: 0,
-                    scale: 0.9
-                  }}
-                  transition={{
-                    duration: 0.3,
-                    delay: i * 0.05
-                  }}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.3, delay: i * 0.05 }}
                   key={template.id}
                   className="group glass-panel rounded-2xl overflow-hidden flex flex-col cursor-pointer hover:border-primary/30 transition-all"
-                  onClick={() => setSelectedTemplate(template)}>
+                  onClick={() => setSelectedTemplate(template)}
+                >
                   
                   {/* Preview Image Placeholder */}
                   <div className="aspect-[1/1.2] bg-muted relative overflow-hidden p-4">
                     <div
-                      className={`w-full h-full bg-card rounded-md shadow-sm border border-border/50 flex flex-col p-4 ${template.colorTheme === 'blue' ? 'border-blue-200 bg-blue-50/30' : ''}`}>
-                      
+                      className={`w-full h-full bg-card rounded-md shadow-sm border border-border/50 flex flex-col p-4 ${template.colorTheme === 'blue' ? 'border-blue-200 bg-blue-50/30' : ''}`}
+                    >
                       <div className="w-1/2 h-4 bg-muted-foreground/20 rounded mb-4" />
                       <div className="w-full h-2 bg-muted-foreground/10 rounded mb-2" />
                       <div className="w-3/4 h-2 bg-muted-foreground/10 rounded mb-6" />
@@ -139,26 +130,34 @@ export function Marketplace({ onNavigate }: MarketplaceProps) {
                     </div>
                     <div className="absolute top-3 right-3">
                       {isOwned ?
-                      <div className="bg-emerald-500 text-white text-xs font-bold px-2 py-1 rounded-md shadow-sm flex items-center gap-1">
+                        <div className="bg-emerald-500 text-white text-xs font-bold px-2 py-1 rounded-md shadow-sm flex items-center gap-1">
                           <Unlock size={12} /> Owned
                         </div> :
-
-                      <div className="bg-background/90 backdrop-blur text-xs font-bold px-2 py-1 rounded-md shadow-sm flex items-center gap-1">
-                          {isFreeForUser ?
-                        'Free' :
-
-                        <>
-                              <Coins size={12} className="text-amber-500" />{' '}
-                              {template.cost}
-                            </>
-                        }
+                        <div className="bg-background/90 backdrop-blur text-xs font-bold px-2 py-1 rounded-md shadow-sm flex items-center gap-1">
+                          {isFreeForUser ? 'Free' : (
+                            <div className="flex items-center gap-1.5 text-amber-500">
+                              <Coins size={12} /> {template.cost}
+                            </div>
+                          )}
                         </div>
                       }
                     </div>
 
                     {/* Hover Overlay */}
                     <div className="absolute inset-0 bg-background/60 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <Button variant="primary" className="shadow-xl">
+                      <Button 
+                        variant="primary" 
+                        className="shadow-xl"
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevent opening modal
+                          if (isOwned) {
+                            onTemplateSelected(template.id);
+                            onNavigateToEditor();
+                          } else {
+                            setSelectedTemplate(template);
+                          }
+                        }}
+                      >
                         {isOwned ? 'Use Template' : 'View Details'}
                       </Button>
                     </div>
@@ -177,16 +176,14 @@ export function Marketplace({ onNavigate }: MarketplaceProps) {
                     <div className="flex items-center justify-between text-xs text-muted-foreground font-medium">
                       <span>{template.category}</span>
                       <span className="flex items-center gap-1">
-                        <Star
-                          size={12}
-                          className="text-amber-500 fill-amber-500" />
+                        <Star size={12} className="text-amber-500 fill-amber-500" />
                         {' '}
                         {template.popularity}%
                       </span>
                     </div>
                   </div>
-                </motion.div>);
-
+                </motion.div>
+              );
             })}
           </AnimatePresence>
         </div>
@@ -195,38 +192,21 @@ export function Marketplace({ onNavigate }: MarketplaceProps) {
       {/* Unlock Modal */}
       <AnimatePresence>
         {selectedTemplate &&
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div
-            initial={{
-              opacity: 0
-            }}
-            animate={{
-              opacity: 1
-            }}
-            exit={{
-              opacity: 0
-            }}
-            className="absolute inset-0 bg-background/80 backdrop-blur-sm"
-            onClick={() => setSelectedTemplate(null)} />
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+              onClick={() => setSelectedTemplate(null)} 
+            />
           
             <motion.div
-            initial={{
-              opacity: 0,
-              scale: 0.95,
-              y: 20
-            }}
-            animate={{
-              opacity: 1,
-              scale: 1,
-              y: 0
-            }}
-            exit={{
-              opacity: 0,
-              scale: 0.95,
-              y: 20
-            }}
-            className="relative w-full max-w-lg glass-panel rounded-3xl overflow-hidden shadow-2xl border-border">
-            
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-lg glass-panel rounded-3xl overflow-hidden shadow-2xl border-border"
+            >
               <div className="p-8">
                 <div className="flex justify-between items-start mb-6">
                   <div>
@@ -244,7 +224,7 @@ export function Marketplace({ onNavigate }: MarketplaceProps) {
                     </div>
                   </div>
                   {!ownedTemplateIds.includes(selectedTemplate.id) &&
-                <div className="flex flex-col items-end">
+                    <div className="flex flex-col items-end">
                       <span className="text-xs text-muted-foreground uppercase tracking-wider font-bold mb-1">
                         Cost
                       </span>
@@ -253,7 +233,7 @@ export function Marketplace({ onNavigate }: MarketplaceProps) {
                         {selectedTemplate.cost}
                       </div>
                     </div>
-                }
+                  }
                 </div>
 
                 <p className="text-muted-foreground mb-8 leading-relaxed">
@@ -262,37 +242,42 @@ export function Marketplace({ onNavigate }: MarketplaceProps) {
 
                 <div className="flex gap-3">
                   <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => setSelectedTemplate(null)}>
-                  
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => setSelectedTemplate(null)}
+                  >
                     Cancel
                   </Button>
 
-                  {ownedTemplateIds.includes(selectedTemplate.id) ?
-                <Button
-                  className="flex-1"
-                  onClick={() => onNavigate('builder')}>
-                  
+                  {ownedTemplateIds.includes(selectedTemplate.id) ? (
+                    <Button
+                      className="flex-1"
+                      onClick={() => {
+                        onTemplateSelected(selectedTemplate.id);
+                        onNavigateToEditor();
+                        setSelectedTemplate(null);
+                      }}
+                    >
                       Use Template
-                    </Button> :
-
-                <Button
-                  className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 hover:opacity-90"
-                  onClick={() => handleUnlock(selectedTemplate)}>
-                  
+                    </Button>
+                  ) : (
+                    <Button
+                      className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 hover:opacity-90"
+                      onClick={() => handleUnlock(selectedTemplate)}
+                    >
                       <Unlock size={16} className="mr-2" />
                       {subscriptionTier === 'premium' ?
-                  'Unlock (Free with Premium)' :
-                  `Unlock for ${selectedTemplate.cost} Points`}
+                        'Unlock (Free with Premium)' :
+                        `Unlock for ${selectedTemplate.cost} Points`
+                      }
                     </Button>
-                }
+                  )}
                 </div>
               </div>
             </motion.div>
           </div>
         }
       </AnimatePresence>
-    </div>);
-
+    </div>
+  );
 }
