@@ -4,12 +4,12 @@ import {
   Star, Lock, Unlock, Crown, Zap, Coins,
   Search, Filter, ArrowRight, Loader2, CheckCircle2
 } from 'lucide-react';
-import { useAppStore } from '../../context/AppStore';
-import { templateApi, cvApi } from '../../services/api';
-import { Button } from '../ui/Button';
-import { titleCase } from '../../lib/utils';
-import type { BackendTemplate } from '../../types';
-import { useAuth } from '../../context/AuthContext';
+import { useAppStore } from '../context/AppStore';
+import { templateApi, cvApi } from '../services/api';
+import { Button } from '../components/ui/Button';
+import { titleCase } from '../lib/utils';
+import type { BackendTemplate } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 // Metadata overlay for backend templates (enriches the raw DB templates with UI info)
 const TEMPLATE_META: Record<string, { description: string; atsScore: number; points: number; tags: string[] }> = {

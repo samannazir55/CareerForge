@@ -4,12 +4,12 @@ import {
   Coins, Crown, Zap, History, Trophy, ArrowRight,
   Plus, Pencil, Trash2, FileText, CheckCircle2, Loader2
 } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
-import { useAppStore } from '../../context/AppStore';
-import { cvApi } from '../../services/api';
-import { Button } from '../ui/Button';
-import { formatDate, titleCase } from '../../lib/utils';
-import type { CVRecord } from '../../types';
+import { useAuth } from '../context/AuthContext';
+import { useAppStore } from '../context/AppStore';
+import { cvApi } from '../services/api';
+import { Button } from '../components/ui/Button';
+import { formatDate, titleCase } from '../lib/utils';
+import type { CVRecord } from '../types';
 
 interface DashboardPageProps {
   onNavigate: (view: 'chat' | 'editor' | 'marketplace') => void;

@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { MessageSquare, FileText, Layers } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
-import { cvApi, templateApi } from '../../services/api';
-import { CVForm } from '../editor/CVForm';
-import { CVPreview } from '../editor/CVPreview';
-import { Button } from '../ui/Button';
-import type { CVData, CVRecord, BackendTemplate } from '../../types';
-import { DEFAULT_CV_DATA } from '../../types';
+import { useAuth } from '../context/AuthContext';
+import { cvApi, templateApi } from '../services/api';
+import { CVForm } from '../components/editor/CVForm';
+import { CVPreview } from '../components/editor/CVPreview';
+import { Button } from '../components/ui/Button';
+import type { CVData, CVRecord, BackendTemplate } from '../types';
+import { DEFAULT_CV_DATA } from '../types';
 
 type MobileTab = 'form' | 'preview';
 
