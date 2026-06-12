@@ -55,7 +55,7 @@ function ChatBubble({ message }: ChatBubbleProps) {
           'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center mt-1',
           isAI
             ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400'
-            : 'bg-primary text-primary-foreground'
+            : 'bg-indigo-600 text-white' // Replaced bg-primary with high-contrast indigo
         )}
       >
         {isAI ? <Bot size={16} /> : <User size={16} />}
@@ -65,7 +65,7 @@ function ChatBubble({ message }: ChatBubbleProps) {
           'px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm',
           isAI
             ? 'bg-card border border-border rounded-tl-sm text-foreground'
-            : 'bg-primary text-primary-foreground rounded-tr-sm'
+            : 'bg-indigo-600 text-white rounded-tr-sm' // Replaced bg-primary with high-contrast indigo
         )}
       >
         {message.content.split('\n').map((line, i) => (
