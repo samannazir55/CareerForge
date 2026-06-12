@@ -144,10 +144,27 @@ export function CVForm({ data, setData, onSave, isSaving }: CVFormProps) {
         {/* Additional */}
         <SectionHeading>Additional Details</SectionHeading>
 
-        <Input label="Languages" name="languages" value={data.languages} onChange={handleChange} placeholder="English (Native), Spanish (Intermediate)" />
-        <Input label="Certifications" name="certifications" value={data.certifications} onChange={handleChange} placeholder="AWS Solutions Architect, PMP" />
-        <Input label="Hobbies / Interests" name="hobbies" value={data.hobbies} onChange={handleChange} placeholder="Photography, Open Source, Hiking" />
-
+        <Input 
+          label="Languages" 
+          name="languages" 
+          value={Array.isArray(data.languages) ? data.languages.join(', ') : data.languages} 
+          onChange={handleChange} 
+          placeholder="English (Native), Spanish (Intermediate)" 
+        />
+        <Input 
+          label="Certifications" 
+          name="certifications" 
+          value={Array.isArray(data.certifications) ? data.certifications.join(', ') : data.certifications} 
+          onChange={handleChange} 
+          placeholder="AWS Solutions Architect, PMP" 
+        />
+        <Input 
+          label="Hobbies / Interests" 
+          name="hobbies" 
+          value={Array.isArray(data.hobbies) ? data.hobbies.join(', ') : data.hobbies} 
+          onChange={handleChange} 
+          placeholder="Photography, Open Source, Hiking" 
+        />
         {/* Social Links */}
         <SectionHeading>Links</SectionHeading>
 
