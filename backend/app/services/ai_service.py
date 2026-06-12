@@ -27,8 +27,14 @@ def get_client():
         print("⚠️ Warning: No API Key found in .env. Falling back might fail.")
         return None
         
-    return OpenAI(api_key=api_key, base_url=base_url)
-
+    # Inject standard browser User-Agent to bypass Cloudflare bot filters
+    return OpenAI(
+        api_key=api_key, 
+        base_url=base_url,
+        default_headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+        }
+    )
 def clean_json_response(text):
     # Remove markdown ```json ... ```
     clean = re.sub(r'```json\s*', '', text)
