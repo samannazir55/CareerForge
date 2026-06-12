@@ -463,12 +463,6 @@ def admin_create(t: template_schemas.TemplateCreate, db: Session = Depends(get_d
         return template_crud.update_template(db, exist, update_data)
     
     return template_crud.create_template(db, t)
-
-# ---------------------------------------------------------
-# SETUP ENDPOINT (Keep for template syncing)
-# ---------------------------------------------------------
-
-
 # ==========================================
 # ⚡ SUPER SETUP ROUTE (Schema Migration + Seeding)
 # ==========================================
@@ -476,10 +470,19 @@ from sqlalchemy import text
 
 @router.get("/setup_production")
 def setup_production_db(db: Session = Depends(get_db)):
+    # Dynamically import database and engine to build missing tables
+    from .database import Base, engine
     from .models.template import Template
     from .models.package import Package
     
     log = []
+    
+    # 0. AUTO-CREATE TABLES (Bypasses "relation does not exist" crashes)
+    try:
+        Base.metadata.create_all(bind=engine)
+        log.append("✅ Database tables initialized successfully.")
+    except Exception as e:
+        log.append(f"⚠️ Table creation: {e}")
     
     # 1. MIGRATE SCHEMA (Add 'credits' if missing)
     try:
