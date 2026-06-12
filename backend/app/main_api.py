@@ -197,6 +197,11 @@ def render_template_internal(html_content: str, css_content: str, data: Dict[str
     """
     mapped_data = normalize_cv_dict(data)
     
+    # Add Boolean Helpers for Templates
+    mapped_data["has_languages"] = len(mapped_data.get("languages", [])) > 0 if isinstance(mapped_data.get("languages"), list) else bool(mapped_data.get("languages"))
+    mapped_data["has_certifications"] = len(mapped_data.get("certifications", [])) > 0 if isinstance(mapped_data.get("certifications"), list) else bool(mapped_data.get("certifications"))
+    mapped_data["has_hobbies"] = len(mapped_data.get("hobbies", [])) > 0 if isinstance(mapped_data.get("hobbies"), list) else bool(mapped_data.get("hobbies"))
+    
     def strip_hash(color):
         if not color:
             return "333333"
@@ -588,6 +593,7 @@ def admin_create(t: template_schemas.TemplateCreate, db: Session = Depends(get_d
 # ⚡ SUPER SETUP ROUTE (Schema Migration + Seeding)
 # ==========================================
 from sqlalchemy import text
+
 @router.get("/setup_production")
 def setup_production_db(db: Session = Depends(get_db)):
     # Dynamically import database and engine to build missing tables
@@ -617,7 +623,7 @@ def setup_production_db(db: Session = Depends(get_db)):
     except Exception as e:
         log.append(f"⚠️ Schema migration: {e}")
 
-    # 2. SEED PACKAGES (Updated with price_usd and stripe_payment_link)
+    # 2. SEED PACKAGES
     try:
         if db.query(Package).count() == 0:
             seed_pkgs = [
@@ -631,7 +637,7 @@ def setup_production_db(db: Session = Depends(get_db)):
         db.rollback()
         log.append(f"❌ Package Error: {e}")
 
-    # 3. SEED TEMPLATES (Explicitly mapped to prevent keyword crashes)
+    # 3. SEED TEMPLATES (Classic Clean HTML rewritten with single loops & boolean guards)
     templates_data = [
         {
             "id": "modern", "name": "Modern Blue", "category": "professional", "is_premium": False,
@@ -640,7 +646,7 @@ def setup_production_db(db: Session = Depends(get_db)):
         },
         {
             "id": "classic", "name": "Classic Clean", "category": "simple", "is_premium": False,
-            "html": "<div class='resume-classic'><div class='header'><h1>{{full_name}}</h1><p>{{job_title}}</p><p class='contact'>{{email}} | {{phone}}</p></div><hr/><h3>Professional Summary</h3><p class='summary'>{{{summary}}}</p><h3>Skills</h3><div class='skills-grid'>{{#skills}}<span class='skill-item'>{{.}}</span>{{/skills}}</div><h3>Experience</h3><div class='content'>{{{experience}}}</div><h3>Education</h3><div class='content'>{{{education}}}</div></div>",
+            "html": "<div class='resume-classic'><div class='header'><h1>{{full_name}}</h1><p>{{job_title}}</p><p class='contact'>{{email}} | {{phone}} {{#location}}| {{location}}{{/location}}</p></div><hr/><h3>Professional Summary</h3><p class='summary'>{{{summary}}}</p><h3>Skills</h3><div class='skills-grid'>{{#skills}}<span class='skill-item'>{{.}}</span>{{/skills}}</div><h3>Experience</h3><div class='content'>{{{experience}}}</div><h3>Education</h3><div class='content'>{{{education}}}</div>{{#has_languages}}<h3>Languages</h3><div class='skills-grid'>{{#languages}}<span class='skill-item'>{{.}}</span>{{/languages}}</div>{{/has_languages}}{{#has_certifications}}<h3>Certifications</h3><div class='skills-grid'>{{#certifications}}<span class='skill-item'>{{.}}</span>{{/certifications}}</div>{{/has_certifications}}{{#has_hobbies}}<h3>Hobbies / Interests</h3><div class='skills-grid'>{{#hobbies}}<span class='skill-item'>{{.}}</span>{{/hobbies}}</div>{{/has_hobbies}}</div>",
             "css": ".resume-classic{font-family:'Times New Roman',serif;padding:40px;background:white;color:#000;min-height:1000px}.header{text-align:center;margin-bottom:20px}h1{margin:0;font-size:28px;text-transform:uppercase;letter-spacing:2px}.header p{margin:5px 0;font-style:italic}h3{background:#f0f0f0;padding:5px 10px;text-transform:uppercase;font-size:14px;font-weight:bold;border-left:5px solid #333;margin-top:20px}.skills-grid{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px}.skill-item{border:1px solid #333;padding:3px 8px;font-size:13px}ul{padding-left:20px}"
         },
         {
