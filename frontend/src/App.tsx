@@ -156,8 +156,9 @@ function App() {
           {view === 'editor' && (
             <motion.div key="editor" {...pageVariants} className="absolute inset-0">
               <EditorPage
-                initialCV={editingCV}
+                initialCV={editingCV ? { ...editingCV, template_id: editorTemplateId || editingCV.template_id } : null}
                 initialData={pendingCVData}
+                initialTemplateId={editorTemplateId || undefined} // Passes template if starting a new CV
                 onNavigateToTemplates={() => setView('marketplace')}
               />
             </motion.div>
