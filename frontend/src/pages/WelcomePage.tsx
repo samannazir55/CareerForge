@@ -5,7 +5,7 @@ import {
   Sparkles, Brain, Layers, Award, ArrowRight,
   Zap, Shield, Star
 } from 'lucide-react';
-import { Button } from '../ui/Button';
+import { Button } from '../components/ui/Button';
 
 const FEATURES = [
   {
