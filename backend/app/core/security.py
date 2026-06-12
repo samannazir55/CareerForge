@@ -1,104 +1,51 @@
 from datetime import datetime, timedelta
-from typing import Optional, Any
+from typing import Optional
 from jose import jwt, JWTError
-from passlib.context import CryptContext
+import bcrypt
 from .config import settings
-
-# ========================================
-# BCRYPT 4.x COMPATIBILITY FIX
-# ========================================
-# Passlib expects bcrypt to have __about__.__version__
-# but bcrypt 4.x removed it. We patch it here.
-try:
-    import bcrypt
-    # Check if __about__ exists, if not create it
-    if not hasattr(bcrypt, '__about__'):
-        class About:
-            __version__ = bcrypt.__version__
-        bcrypt.__about__ = About()
-except ImportError:
-    pass
-
-# Setup hashing engine
-# Use bcrypt with explicit backend configuration
-pwd_context = CryptContext(
-    schemes=["bcrypt"],
-    deprecated="auto",
-    bcrypt__rounds=12,
-)
-
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
-    Verify a plain password against a hashed password.
-    
-    Args:
-        plain_password: The plain text password to verify
-        hashed_password: The hashed password to check against
-        
-    Returns:
-        bool: True if password matches, False otherwise
+    Verify a plain password against a hashed password using native bcrypt.
     """
     if not plain_password or not hashed_password:
         return False
         
-    # Safety Check: Bcrypt crashes if input > 72 bytes
     try:
-        # Passlib handles some of this, but we add extra safety
-        encoded = plain_password.encode('utf-8')
-        if len(encoded) > 72:
-            # Truncate to 72 bytes
-            plain_password = encoded[:72].decode('utf-8', errors='ignore')
+        # Safety Check: Bcrypt crashes if input > 72 bytes
+        encoded_password = plain_password.encode('utf-8')
+        if len(encoded_password) > 72:
+            encoded_password = encoded_password[:72]
             
-        return pwd_context.verify(plain_password, hashed_password)
-    except (ValueError, Exception) as e:
-        # Log the error in production
-        print(f"Password verification error: {e}")
+        encoded_hash = hashed_password.encode('utf-8')
+        return bcrypt.checkpw(encoded_password, encoded_hash)
+    except Exception as e:
+        print(f"Native password verification error: {e}")
         return False
 
 
 def get_password_hash(password: str) -> str:
     """
-    Hash a password using bcrypt.
-    
-    IMPORTANT: Bcrypt cannot digest > 72 bytes. We truncate to stay safe.
-    This maintains security while preventing server crashes.
-    
-    Args:
-        password: The plain text password to hash
-        
-    Returns:
-        str: The hashed password
-        
-    Raises:
-        ValueError: If password is empty
-        RuntimeError: If hashing fails
+    Hash a password using native bcrypt.
     """
     if not password:
         raise ValueError("Password cannot be empty")
     
-    # Truncate to 72 bytes for bcrypt compatibility
-    encoded = password.encode('utf-8')
-    if len(encoded) > 72:
-        password = encoded[:72].decode('utf-8', errors='ignore')
+    encoded_password = password.encode('utf-8')
+    if len(encoded_password) > 72:
+        encoded_password = encoded_password[:72]
     
     try:
-        return pwd_context.hash(password)
+        salt = bcrypt.gensalt(rounds=12)
+        hashed = bcrypt.hashpw(encoded_password, salt)
+        return hashed.decode('utf-8')
     except Exception as e:
-        # More detailed error for debugging
         raise RuntimeError(f"Password hashing failed: {str(e)}") from e
 
 
 def create_jwt_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """
     Create a JWT token with the given data.
-    
-    Args:
-        data: Dictionary of claims to encode in the token
-        expires_delta: Optional custom expiration time
-        
-    Returns:
-        str: The encoded JWT token
     """
     to_encode = data.copy()
     if expires_delta:
@@ -111,21 +58,12 @@ def create_jwt_token(data: dict, expires_delta: Optional[timedelta] = None) -> s
     return encoded_jwt
 
 
-def verify_jwt_token(token: str) -> dict:
+def verify_jwt_token(token: str) -> Optional[dict]:
     """
-    Verify and decode a JWT token.
-    
-    Args:
-        token: The JWT token to verify
-        
-    Returns:
-        dict: The decoded token payload, or None if invalid
+    Verify and decode a JWT token. Returns the payload dict or None if invalid.
     """
     try:
         payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.ALGORITHM])
         return payload
     except JWTError:
         return None
-
-
-# Deployment Trigger Update: 1767356701.6331584
