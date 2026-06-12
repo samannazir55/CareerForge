@@ -26,8 +26,8 @@ export function CVPreview({ data, activeTemplateId, cvId, onAutoSave }: CVPrevie
     templateApi.get(activeTemplateId).then(setTemplate).catch(console.warn);
   }, [activeTemplateId]);
 
-  // Build Mustache data object
-  const pData = {
+  // Build Mustache data object (Cast to any to allow dynamic snake_case properties)
+  const pData: any = {
     ...data,
     full_name: data.fullName || 'Your Name',
     job_title: data.jobTitle || 'Job Title',
@@ -45,14 +45,16 @@ export function CVPreview({ data, activeTemplateId, cvId, onAutoSave }: CVPrevie
     skills: Array.isArray(data.skills)
       ? data.skills
       : (data.skills || '').split(',').map((s) => s.trim()).filter(Boolean),
-    hobbies: (data.hobbies || '').split(',').map((s) => s.trim()).filter(Boolean),
-    languages: (data.languages || '').split(',').map((s) => s.trim()).filter(Boolean),
-    certifications: (data.certifications || '').split(',').map((s) => s.trim()).filter(Boolean),
-    accent_color: stripHash(data.accentColor || '#2c3e50'),
-    text_color: stripHash(data.textColor || '#333333'),
-    font_family: data.fontFamily || 'sans-serif',
-    profile_image: data.profileImage || '',
-  };
+    hobbies: Array.isArray(data.hobbies)
+      ? data.hobbies
+      : (data.hobbies || '').split(',').map((s) => s.trim()).filter(Boolean),
+    languages: Array.isArray(data.languages)
+      ? data.languages
+      : (data.languages || '').split(',').map((s) => s.trim()).filter(Boolean),
+    certifications: Array.isArray(data.certifications)
+      ? data.certifications
+      : (data.certifications || '').split(',').map((s) => s.trim()).filter(Boolean),
+  }; // <-- CLOSED BRACE FIXED HERE!
 
   let htmlContent = '';
   let scopedCss = '';
@@ -67,9 +69,10 @@ export function CVPreview({ data, activeTemplateId, cvId, onAutoSave }: CVPrevie
       const renderedCss = Mustache.render(templateCss, pData);
 
       // --- DYNAMIC CUSTOM FIELDS INJECTION (Live Preview) ---
-      if (data.customFields && data.customFields.length > 0) {
+      const customFields = (data as any).customFields || [];
+      if (customFields && customFields.length > 0) {
         let customHtml = '';
-        data.customFields.forEach(field => {
+        customFields.forEach((field: any) => {
           if (!field.label || !field.value) return;
           const formattedValue = field.value.replace(/\n/g, '<br/>');
           
