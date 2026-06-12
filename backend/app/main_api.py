@@ -467,12 +467,6 @@ def admin_create(t: template_schemas.TemplateCreate, db: Session = Depends(get_d
 # ⚡ SUPER SETUP ROUTE (Schema Migration + Seeding)
 # ==========================================
 from sqlalchemy import text
-
-# ==========================================
-# ⚡ SUPER SETUP ROUTE (Schema Migration + Seeding)
-# ==========================================
-from sqlalchemy import text
-
 @router.get("/setup_production")
 def setup_production_db(db: Session = Depends(get_db)):
     # Dynamically import database and engine to build missing tables
@@ -482,10 +476,11 @@ def setup_production_db(db: Session = Depends(get_db)):
     
     log = []
     
-    # 0. AUTO-CREATE TABLES (Bypasses "relation does not exist" crashes)
+    # 0. REBUILD TABLES (Wipes old schema drift completely)
     try:
+        Base.metadata.drop_all(bind=engine)
         Base.metadata.create_all(bind=engine)
-        log.append("✅ Database tables initialized/checked successfully.")
+        log.append("✅ Database tables cleanly rebuilt from scratch.")
     except Exception as e:
         log.append(f"❌ Table creation failed: {e}")
     
@@ -501,17 +496,18 @@ def setup_production_db(db: Session = Depends(get_db)):
     except Exception as e:
         log.append(f"⚠️ Schema migration: {e}")
 
-    # 2. SEED PACKAGES
+    # 2. SEED PACKAGES (Updated with price_usd and stripe_payment_link)
     try:
         if db.query(Package).count() == 0:
             seed_pkgs = [
-                Package(name="Quick Start", price=250.0, credits=1, description="One single download", badge="BASIC", payment_link="#"),
-                Package(name="Pro Career", price=1500.0, credits=10, description="Unlimited edits 1 mo", badge="POPULAR", payment_link="#"),
+                Package(name="Quick Start", price_usd=250.0, credits=1, description="One single download", badge="BASIC", stripe_payment_link="#"),
+                Package(name="Pro Career", price_usd=1500.0, credits=10, description="Unlimited edits 1 mo", badge="POPULAR", stripe_payment_link="#"),
             ]
             db.add_all(seed_pkgs)
             db.commit()
             log.append("✅ Seeded Money Packages.")
     except Exception as e:
+        db.rollback()
         log.append(f"❌ Package Error: {e}")
 
     # 3. SEED TEMPLATES (Explicitly mapped to prevent keyword crashes)
@@ -557,6 +553,7 @@ def setup_production_db(db: Session = Depends(get_db)):
         log.append(f"❌ Seeding process error: {e}")
         
     return {"status": "success", "logs": log}
+
 # Package CRUD endpoints
 @router.get("/admin/packages")
 def get_packages(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
