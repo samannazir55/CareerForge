@@ -197,7 +197,7 @@ export function AIChatPage({ onResumeGenerated, onNavigateToEditor }: AIChatPage
         content: m.content,
       }));
 
-      const contextMessage = `I just uploaded my CV. Please analyze it and tell me what you found. Here's the content:\n\n${extracted.substring(0, 2000)}`;
+      const contextMessage = `[SYSTEM: FILE UPLOADED SUCCESSFULLY. DO NOT REDIRECT TO PAPERCLIP.] The user has successfully uploaded their resume. Here is the parsed text from the document:\n\n${extracted.substring(0, 2000)}\n\nPlease analyze this text and greet the user by name, highlighting what you found in their background.`; 
       const response = await aiApi.chat(apiHistory, contextMessage);
 
       setIsTyping(false);

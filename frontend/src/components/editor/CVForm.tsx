@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { Textarea, Input } from '../ui/Input';
 import { Button } from '../ui/Button';
-import { Save, Camera } from 'lucide-react';
+import { Save, Camera, Plus, Trash2 } from 'lucide-react';
 import type { CVData } from '../../types';
 
 interface CVFormProps {
@@ -36,6 +36,31 @@ export function CVForm({ data, setData, onSave, isSaving }: CVFormProps) {
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  // --- Dynamic Custom Sections Handlers ---
+  const customFields = data.customFields || [];
+
+  const handleAddCustomField = () => {
+    setData((prev) => ({
+      ...prev,
+      customFields: [...(prev.customFields || []), { label: '', value: '' }]
+    }));
+  };
+
+  const handleCustomFieldChange = (index: number, key: 'label' | 'value', value: string) => {
+    setData((prev) => {
+      const updated = [...(prev.customFields || [])];
+      updated[index] = { ...updated[index], [key]: value };
+      return { ...prev, customFields: updated };
+    });
+  };
+
+  const handleRemoveCustomField = (index: number) => {
+    setData((prev) => ({
+      ...prev,
+      customFields: (prev.customFields || []).filter((_, i) => i !== index)
+    }));
   };
 
   return (
@@ -130,6 +155,46 @@ export function CVForm({ data, setData, onSave, isSaving }: CVFormProps) {
         <Input label="GitHub" name="github" value={data.github} onChange={handleChange} placeholder="https://github.com/janedoe" />
         <Input label="Portfolio" name="portfolio" value={data.portfolio} onChange={handleChange} placeholder="https://janedoe.com" />
 
+        {/* Custom Dynamic Sections */}
+        <SectionHeading>Custom Sections</SectionHeading>
+        
+        {customFields.map((field, idx) => (
+          <div key={idx} className="space-y-4 border border-border/60 p-5 rounded-2xl bg-card/30 relative group mb-4">
+            <div className="flex justify-between items-center">
+              <span className="text-xs font-bold text-indigo-400">Section #{idx + 1}</span>
+              <button
+                type="button"
+                onClick={() => handleRemoveCustomField(idx)}
+                className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1 bg-red-500/5 px-2.5 py-1 rounded-lg transition-colors border border-red-500/10 cursor-pointer"
+              >
+                <Trash2 size={12} /> Remove
+              </button>
+            </div>
+            <Input 
+              label="Section Title" 
+              value={field.label} 
+              onChange={(e) => handleCustomFieldChange(idx, 'label', e.target.value)} 
+              placeholder="e.g., Projects, Awards, References" 
+            />
+            <Textarea 
+              label="Section Content" 
+              value={field.value} 
+              onChange={(e) => handleCustomFieldChange(idx, 'value', e.target.value)} 
+              rows={3} 
+              placeholder="Type your custom details here..." 
+            />
+          </div>
+        ))}
+        
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleAddCustomField}
+          className="w-full border-dashed border-border/80 flex items-center justify-center gap-1.5 h-11 text-sm text-zinc-400 hover:text-zinc-100"
+        >
+          <Plus size={16} /> Add Custom Section
+        </Button>
+
         {/* Appearance */}
         <SectionHeading>Appearance</SectionHeading>
 
@@ -177,18 +242,7 @@ export function CVForm({ data, setData, onSave, isSaving }: CVFormProps) {
             <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
           </select>
         </div>
-        {/* Save Button */}
-        <Button
-          variant="brand"
-          size="lg"
-          onClick={onSave}
-          isLoading={isSaving}
-          className="w-full mt-4"
-        >
-          <Save size={16} className="mr-2" />
-          {isSaving ? 'Saving...' : 'Save Resume'}
-        </Button>
-        
+
         {/* Save Button */}
         <Button
           variant="brand"
