@@ -1,6 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'; // Added Navigate
 import './index.css';
 
 import { AuthProvider } from './context/AuthContext';
@@ -60,20 +60,32 @@ createRoot(container).render(
         <AppStoreProvider>
           <BrowserRouter>
             <Routes>
-              {/* Public */}
+              {/* Public Landing & Auth Pages */}
+              <Route path="/" element={<WelcomePage />} />
               <Route path="/welcome" element={<WelcomePage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
 
-              {/* Protected app shell (all internal navigation handled by App.tsx) */}
+              {/* Protected Workspace Pages */}
               <Route
-                path="/*"
+                path="/dashboard"
                 element={
                   <ProtectedRoute>
                     <App />
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="/dashboard/*"
+                element={
+                  <ProtectedRoute>
+                    <App />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Fallback: Any unknown paths redirect back to the Landing Page */}
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </BrowserRouter>
         </AppStoreProvider>
