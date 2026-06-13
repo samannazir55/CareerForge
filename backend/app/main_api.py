@@ -282,51 +282,27 @@ def render_template_internal(html_content: str, css_content: str, data: Dict[str
         rendered_body = t_html.render(**mapped_data)
         rendered_css = t_css.render(**mapped_data)
         
-        # --- DYNAMIC CUSTOM FIELDS INJECTION (Backend PDF) ---
-        custom_fields = data.get("customFields") or data.get("custom_fields") or []
-        if custom_fields and isinstance(custom_fields, list):
-            custom_html = ""
-            accent_color = mapped_data.get("accent_color") or "2c3e50"
-            for field in custom_fields:
-                if not isinstance(field, dict):
-                    continue
-                label = field.get("label", "")
-                value = field.get("value", "")
-                if not label or not value:
-                    continue
-                
-                formatted_value = value.replace("\n", "<br/>")
-                
-                # Render custom fields based on template styles
-                if "classic" in html_content.lower() or "classic" in rendered_body.lower():
-                    custom_html += f"""
-                    <h3 style="background:#f0f0f0; padding:5px 10px; text-transform:uppercase; font-size:14px; font-weight:bold; border-left:5px solid #333; margin-top:20px;">{label}</h3>
-                    <div class="content" style="font-size: 14px; line-height: 1.6; margin-bottom: 20px;">{formatted_value}</div>
-                    """
-                else:
-                    custom_html += f"""
-                    <div class="section" style="margin-top:20px;">
-                      <h2 style="color: #{accent_color}; border-bottom: 2px solid #{accent_color}; padding-bottom: 5px; text-transform: uppercase; margin-top: 0;">{label}</h2>
-                      <div class="text" style="font-size: 14px; line-height: 1.6; margin-bottom: 20px;">{formatted_value}</div>
-                    </div>
-                    """
-            
-            # Inject custom HTML into template structure
-            if "classic" in html_content.lower() and "</div>" in rendered_body:
-                last_div_idx = rendered_body.rfind("</div>")
-                rendered_body = rendered_body[:last_div_idx] + custom_html + rendered_body[last_div_idx:]
-            elif "main-content" in rendered_body:
-                main_content_keyword = "main-content"
-                start_idx = rendered_body.find(main_content_keyword)
-                remaining_html = rendered_body[start_idx:]
-                closing_div_idx = remaining_html.find("</div>")
-                if closing_div_idx != -1:
-                    absolute_closing_idx = start_idx + closing_div_idx
-                    rendered_body = rendered_body[:absolute_closing_idx] + custom_html + rendered_body[absolute_closing_idx:]
-                else:
-                    rendered_body += custom_html
-            else:
-                rendered_body += custom_html
+        # --- CLEAN DYNAMIC CUSTOM FIELDS INJECTION ---
+        # Expose custom fields safely to the context dictionary so templates can loop them natively
+        raw_custom = data.get("customFields") or data.get("custom_fields") or []
+        cleaned_custom = []
+        if isinstance(raw_custom, list):
+            for field in raw_custom:
+                if isinstance(field, dict) and field.get("label") and field.get("value"):
+                    cleaned_custom.append({
+                        "label": field.get("label", ""),
+                        "value": str(field.get("value", "")).replace("\n", "<br/>")
+                    })
+        
+        mapped_data["custom_fields"] = cleaned_custom
+        mapped_data["has_custom_fields"] = len(cleaned_custom) > 0
+
+        # Execute standard Jinja compilation with custom_fields natively in context
+        t_html = env.from_string(clean_html)
+        t_css = env.from_string(clean_css or "")
+        
+        rendered_body = t_html.render(**mapped_data)
+        rendered_css = t_css.render(**mapped_data)
 
         # CSS Cleanup
         rendered_css = re.sub(r'##+', '#', rendered_css)
