@@ -1,100 +1,103 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { authApi } from '../services/api';
-import type { User } from '../types';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { User } from '../types';
+import {
+  login as apiLogin,
+  register as apiRegister,
+  verifyOTP as apiVerifyOTP,
+  resendOTP as apiResendOTP,
+  getProfile,
+  logout as apiLogout,
+} from '../services/api';
 
-interface AuthContextValue {
+interface AuthContextType {
   user: User | null;
   loading: boolean;
-  error: string | null;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  register: (fullName: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string; needsVerification?: boolean }>;
+  register: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  verifyOTP: (email: string, otp: string) => Promise<{ success: boolean; error?: string }>;
+  resendOTP: (email: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   refreshUser: () => Promise<void>;
-} 
+}
 
-const AuthContext = createContext<AuthContextValue | null>(null);
+const AuthContext = createContext<AuthContextType | null>(null);
 
-const normalizeUser = (raw: Record<string, unknown>): User => ({
-  id: raw.id as number,
-  email: raw.email as string,
-  full_name: (raw.full_name as string) || null,
-  fullName: (raw.full_name as string) || null,
-  is_active: raw.is_active as boolean,
-  subscription_plan: (raw.subscription_plan as User['subscription_plan']) || 'basic',
-  credits: (raw.credits as number) || 0,
-});
-
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const refreshUser = useCallback(async () => {
+  const loadUser = async () => {
     const token = localStorage.getItem('cf_token');
-    if (!token) {
-      setLoading(false);
-      return;
-    }
+    if (!token) { setLoading(false); return; }
     try {
-      const raw = await authApi.getProfile();
-      setUser(normalizeUser(raw));
+      const u = await getProfile();
+      setUser({ ...u, fullName: u.full_name ?? undefined });
     } catch {
       localStorage.removeItem('cf_token');
-      setUser(null);
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  };
 
-  // Initialize on mount
-  useEffect(() => {
-    refreshUser().finally(() => setLoading(false));
-  }, [refreshUser]);
+  useEffect(() => { loadUser(); }, []);
 
   const login = async (email: string, password: string) => {
     try {
-      setError(null);
-      await authApi.login(email, password);
-      const raw = await authApi.getProfile();
-      setUser(normalizeUser(raw));
+      await apiLogin(email, password);
+      const u = await getProfile();
+      setUser({ ...u, fullName: u.full_name ?? undefined });
       return { success: true };
-    } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        'Login failed. Please check your credentials.';
-      setError(msg);
-      return { success: false, error: msg };
+    } catch (err: any) {
+      const detail = err.response?.data?.detail || '';
+      if (detail === 'EMAIL_NOT_VERIFIED') {
+        return { success: false, needsVerification: true, error: 'EMAIL_NOT_VERIFIED' };
+      }
+      return { success: false, error: detail || 'Invalid email or password.' };
     }
   };
 
-  const register = async (fullName: string, email: string, password: string) => {
+  const register = async (name: string, email: string, password: string) => {
     try {
-      setError(null);
-      await authApi.register(fullName, email, password);
-      const raw = await authApi.getProfile();
-      setUser(normalizeUser(raw));
+      await apiRegister(name, email, password);
+      // Don't set user yet — pending verification
       return { success: true };
-    } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        'Registration failed. This email may already be in use.';
-      setError(msg);
-      return { success: false, error: msg };
+    } catch (err: any) {
+      return { success: false, error: err.response?.data?.detail || 'Registration failed.' };
     }
   };
 
-  const logout = () => {
-    authApi.logout();
-    setUser(null);
+  const verifyOTP = async (email: string, otp: string) => {
+    try {
+      await apiVerifyOTP(email, otp);   // sets cf_token in localStorage
+      const u = await getProfile();
+      setUser({ ...u, fullName: u.full_name ?? undefined });
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.response?.data?.detail || 'Invalid code.' };
+    }
   };
+
+  const resendOTP = async (email: string) => {
+    try {
+      await apiResendOTP(email);
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.response?.data?.detail || 'Could not resend code.' };
+    }
+  };
+
+  const logout = () => { apiLogout(); setUser(null); };
+  const refreshUser = async () => { await loadUser(); };
 
   return (
-    <AuthContext.Provider value={{ user, loading, error, login, register, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, login, register, verifyOTP, resendOTP, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
-}
+};
 
-export function useAuth(): AuthContextValue {
+export const useAuth = () => {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used inside AuthProvider');
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;
-}
+};

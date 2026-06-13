@@ -1,25 +1,18 @@
-// ============================================================
-// CAREERFORGE — UNIFIED TYPE DEFINITIONS
-// ============================================================
-
-// ------ Auth & User ------
-
-export type SubscriptionPlan = 'basic' | 'professional' | 'premium';
-
+// ─── Auth ────────────────────────────────────────────────────────────────────
 export interface User {
   id: number;
   email: string;
   full_name: string | null;
-  fullName: string | null; // camelCase alias
+  fullName?: string;
   is_active: boolean;
-  subscription_plan: SubscriptionPlan;
+  is_email_verified: boolean;
+  subscription_plan: 'basic' | 'professional' | 'premium';
   credits?: number;
+  unlocked_templates?: string;   // comma-separated template IDs
 }
 
-// ------ CV / Resume Data ------
-
+// ─── CV / Resume ─────────────────────────────────────────────────────────────
 export interface CVData {
-  // Core fields (synced with backend schema)
   fullName: string;
   email: string;
   phone: string;
@@ -27,20 +20,14 @@ export interface CVData {
   summary: string;
   experience: string;
   education: string;
-  skills: string; // comma-separated string for form; array on backend
-
-  // Extended fields
+  skills: string;
   location: string;
   hobbies: string;
   languages: string;
   certifications: string;
-
-  // Social links
   linkedin: string;
   github: string;
   portfolio: string;
-
-  // Appearance
   accentColor: string;
   textColor: string;
   fontFamily: string;
@@ -48,24 +35,12 @@ export interface CVData {
 }
 
 export const DEFAULT_CV_DATA: CVData = {
-  fullName: '',
-  email: '',
-  phone: '',
-  jobTitle: '',
-  summary: '',
-  experience: '',
-  education: '',
-  skills: '',
-  location: '',
-  hobbies: '',
-  languages: '',
-  certifications: '',
-  linkedin: '',
-  github: '',
-  portfolio: '',
-  accentColor: '#2c3e50',
-  textColor: '#333333',
-  fontFamily: 'Helvetica, Arial, sans-serif',
+  fullName: '', email: '', phone: '', jobTitle: '',
+  summary: '', experience: '', education: '', skills: '',
+  location: '', hobbies: '', languages: '', certifications: '',
+  linkedin: '', github: '', portfolio: '',
+  accentColor: '#6D5FFA', textColor: '#333333',
+  fontFamily: 'Inter, sans-serif',
 };
 
 export interface CVRecord {
@@ -78,9 +53,8 @@ export interface CVRecord {
   updated_at: string;
 }
 
-// ------ Templates ------
-
-export interface BackendTemplate {
+// ─── Templates ───────────────────────────────────────────────────────────────
+export interface Template {
   id: string;
   name: string;
   category: string;
@@ -89,53 +63,42 @@ export interface BackendTemplate {
   css_styles?: string;
 }
 
-// Frontend template definition for Marketplace UI
-export interface TemplateDef {
-  id: string;
-  name: string;
-  category: string;
-  cost: number;          // points cost (0 = free)
-  atsScore: number;
-  popularity: number;    // 1-100
-  description: string;
-  isPremium: boolean;
-  colorTheme?: string;
-}
-
-// ------ Chat / AI ------
-
+// ─── Chat ────────────────────────────────────────────────────────────────────
 export interface ChatMessage {
   id: string;
-  role: 'user' | 'assistant';
+  role: 'user' | 'ai';
   content: string;
   timestamp: Date;
 }
 
-export interface AIResponse {
-  reply: string;
-  action: 'chat' | 'generate';
-  cv_data?: Partial<CVData>;
-}
+// ─── Subscriptions ───────────────────────────────────────────────────────────
+export type SubscriptionPlan = 'basic' | 'professional' | 'premium';
 
-// ------ Points & Transactions ------
-
-export type TransactionType = 'earn' | 'spend';
-
-export interface Transaction {
-  id: string;
-  type: TransactionType;
-  amount: number;
+export const PLAN_CONFIG: Record<SubscriptionPlan, {
   label: string;
-  date: Date;
-}
+  price: string;
+  features: string[];
+  color: string;
+}> = {
+  basic: {
+    label: 'Basic',
+    price: 'Free',
+    features: ['2 free templates', 'AI chat onboarding', 'PDF export', '3 resumes max'],
+    color: 'text-muted-foreground',
+  },
+  professional: {
+    label: 'Professional',
+    price: '$12/mo',
+    features: ['All standard templates', 'Unlimited resumes', 'DOCX export', 'ATS scan', 'Priority support'],
+    color: 'text-violet-500',
+  },
+  premium: {
+    label: 'Premium',
+    price: '$29/mo',
+    features: ['Every template free', 'Cover letter AI', 'LinkedIn optimizer', 'White-glove review', 'Interview prep'],
+    color: 'text-amber-500',
+  },
+};
 
-// ------ API ------
-
-export interface ApiError {
-  detail: string;
-}
-
-export interface Token {
-  access_token: string;
-  token_type: string;
-}
+// ─── Navigation ──────────────────────────────────────────────────────────────
+export type AppView = 'landing' | 'chat' | 'editor' | 'marketplace' | 'dashboard';

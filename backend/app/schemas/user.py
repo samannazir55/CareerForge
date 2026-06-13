@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional
+from typing import Optional, List
 
 class UserBase(BaseModel):
     email: EmailStr
@@ -27,12 +27,23 @@ class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
 
+class OTPVerify(BaseModel):
+    email: EmailStr
+    otp: str
+
+class OTPResend(BaseModel):
+    email: EmailStr
+
 class User(UserBase):
     id: int
     is_active: bool
+    is_email_verified: bool
     subscription_plan: str
+    credits: Optional[int] = 3
+    unlocked_templates: Optional[str] = ""
 
     class Config:
+        from_attributes = True
         orm_mode = True
 
 class UserProfile(BaseModel):
@@ -40,16 +51,20 @@ class UserProfile(BaseModel):
     email: EmailStr
     full_name: Optional[str] = None
     is_active: bool
+    is_email_verified: bool
     subscription_plan: str
+    credits: Optional[int] = 3
+    unlocked_templates: Optional[str] = ""
 
     class Config:
+        from_attributes = True
         orm_mode = True
+
 class UserResponse(BaseModel):
     success: bool
     data: Optional[UserProfile] = None
-    error: Optional[str] = None  # Error message if any
+    error: Optional[str] = None
 
     class Config:
+        from_attributes = True
         orm_mode = True
-        anystr_strip_whitespace = True  # Automatically strip whitespace from strings
-        use_enum_values = True  # Use enum values instead of enum names in the output

@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     # --- Project Settings ---
-    PROJECT_NAME: str = "CareerForge — AI Career Platform"
+    PROJECT_NAME: str = "CareerForge"
     PROJECT_VERSION: str = "1.0.0"
     DEBUG: bool = False  # Set to False in production
 
@@ -22,10 +22,18 @@ class Settings(BaseSettings):
     # Defines who can upload templates
     ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL", "admin@example.com")
 
-    # --- AI BRAIN KEYS (The Missing VIPs) ---
-    GROQ_API_KEY: Optional[str] = None
-    OPENAI_API_KEY: Optional[str] = None
+    # --- AI BRAIN KEYS ---
+    GEMINI_API_KEY: Optional[str] = None   # Primary — free at aistudio.google.com
+    GROQ_API_KEY: Optional[str] = None     # Fallback (blocked on some Render IPs)
+    OPENAI_API_KEY: Optional[str] = None   # Fallback
     
+    # --- Email / SMTP ---
+    SMTP_HOST:     str           = "smtp.gmail.com"
+    SMTP_PORT:     int           = 587
+    SMTP_USER:     Optional[str] = None   # e.g. yourapp@gmail.com
+    SMTP_PASSWORD: Optional[str] = None   # Gmail App Password
+    SMTP_FROM:     Optional[str] = None   # defaults to SMTP_USER
+
     # --- Legacy/Optional ---
     HUGGING_FACE_TOKEN: Optional[str] = None
 
