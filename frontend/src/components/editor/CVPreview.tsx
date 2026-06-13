@@ -54,10 +54,15 @@ export function CVPreview({ data, activeTemplateId, cvId, onAutoSave }: CVPrevie
     certifications: Array.isArray(data.certifications)
       ? data.certifications
       : (data.certifications || '').split(',').map((s) => s.trim()).filter(Boolean),
-    accent_color: stripHash(data.accentColor || '#2c3e50'), // Restored
-    text_color: stripHash(data.textColor || '#333333'),     // Restored
-    font_family: data.fontFamily || 'sans-serif',           // Restored
-    profile_image: data.profileImage || '',                 // Restored
+    accent_color: stripHash(data.accentColor || '#2c3e50'), 
+    text_color: stripHash(data.textColor || '#333333'),     
+    font_family: data.fontFamily || 'sans-serif',           
+    profile_image: data.profileImage || '',                 
+
+    // Boolean Helpers (Crucial to make has_languages, etc. evaluate correctly)
+    has_languages: Array.isArray(data.languages) ? data.languages.length > 0 : !!data.languages,
+    has_certifications: Array.isArray(data.certifications) ? data.certifications.length > 0 : !!data.certifications,
+    has_hobbies: Array.isArray(data.hobbies) ? data.hobbies.length > 0 : !!data.hobbies,
   };
 
   let htmlContent = '';

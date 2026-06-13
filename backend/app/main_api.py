@@ -655,11 +655,11 @@ def setup_production_db(db: Session = Depends(get_db)):
         db.rollback()
         log.append(f"❌ Package Error: {e}")
 
-    # 3. SEED TEMPLATES (Classic Clean HTML rewritten with single loops & boolean guards)
+    # 3. SEED TEMPLATES (Both classic and modern updated with has_ guards & single loops)
     templates_data = [
         {
             "id": "modern", "name": "Modern Blue", "category": "professional", "is_premium": False,
-            "html": "<div class='resume-modern'><div class='sidebar'><div class='profile-container'>{{#profile_image}}<img src='{{profile_image}}' class='profile-img'/>{{/profile_image}}<h1>{{full_name}}</h1><p class='job-title'>{{job_title}}</p></div><div class='contact-box'><div class='label'>Contact</div><div class='value'>{{email}}</div><div class='value'>{{phone}}</div></div><div class='skills-box'><div class='label'>Skills</div><ul>{{#skills}}<li>{{.}}</li>{{/skills}}</ul></div></div><div class='main-content'><div class='section'><h2>Profile</h2><div class='text'>{{{summary}}}</div></div><div class='section'><h2>Experience</h2><div class='text history-list'>{{{experience}}}</div></div><div class='section'><h2>Education</h2><div class='text history-list'>{{{education}}}</div></div></div></div>",
+            "html": "<div class='resume-modern'><div class='sidebar'><div class='profile-container'>{{#profile_image}}<img src='{{profile_image}}' class='profile-img'/>{{/profile_image}}<h1>{{full_name}}</h1><p class='job-title'>{{job_title}}</p></div><div class='contact-box'><div class='label'>Contact</div><div class='value'>{{email}}</div><div class='value'>{{phone}}</div>{{#location}}<div class='value'>{{location}}</div>{{/location}}</div><div class='skills-box'><div class='label'>Skills</div><ul>{{#skills}}<li>{{.}}</li>{{/skills}}</ul></div>{{#has_languages}}<div class='skills-box'><div class='label'>Languages</div><ul>{{#languages}}<li>{{.}}</li>{{/languages}}</ul></div>{{/has_languages}}{{#has_hobbies}}<div class='skills-box'><div class='label'>Hobbies</div><ul>{{#hobbies}}<li>{{.}}</li>{{/hobbies}}</ul></div>{{/has_hobbies}}{{#has_certifications}}<div class='skills-box'><div class='label'>Certifications</div><ul>{{#certifications}}<li>{{.}}</li>{{/certifications}}</ul></div>{{/has_certifications}}</div><div class='main-content'><div class='section'><h2>Profile</h2><div class='text'>{{{summary}}}</div></div><div class='section'><h2>Experience</h2><div class='text history-list'>{{{experience}}}</div></div><div class='section'><h2>Education</h2><div class='text history-list'>{{{education}}}</div></div></div></div>",
             "css": ".resume-modern{display:flex;font-family:sans-serif;height:100%;min-height:1000px;background:white;color:#333}.sidebar{width:35%;background:var(--primary, #2c3e50);color:white;padding:30px 20px;text-align:center}.main-content{width:65%;padding:30px}.profile-img{width:120px;height:120px;border-radius:50%;border:4px solid rgba(255,255,255,0.2);object-fit:cover;margin-bottom:10px}h1{font-size:22px;margin:10px 0 5px 0;text-transform:uppercase}.job-title{font-size:14px;opacity:0.9;margin-bottom:30px}.label{font-weight:bold;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.2);padding-bottom:5px;margin:20px 0 10px 0;font-size:12px}.skills-box li{background:rgba(0,0,0,0.2);margin-bottom:5px;padding:5px;border-radius:3px;font-size:12px}h2{color:var(--primary, #2c3e50);border-bottom:2px solid var(--primary, #2c3e50);padding-bottom:5px;text-transform:uppercase;margin-top:0}.text{font-size:14px;line-height:1.6;margin-bottom:20px} .history-list p { margin:5px 0; }"
         },
         {
@@ -678,7 +678,6 @@ def setup_production_db(db: Session = Depends(get_db)):
         for data in templates_data:
             existing = db.query(Template).filter(Template.id == data["id"]).first()
             if not existing:
-                # Map parameters explicitly to avoid keyword argument mismatches
                 db.add(Template(
                     id=data["id"],
                     name=data["name"],
