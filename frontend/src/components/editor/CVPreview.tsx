@@ -26,6 +26,17 @@ export function CVPreview({ data, activeTemplateId, cvId, onAutoSave }: CVPrevie
     templateApi.get(activeTemplateId).then(setTemplate).catch(console.warn);
   }, [activeTemplateId]);
 
+  // Converts a raw value (string CSV or array) into Mustache-safe named objects.
+  // Using plain string arrays causes Mustache to render the ENTIRE section block
+  // once per item (each string becomes the section context). Wrapping as { name }
+  // objects means only {{name}} inside the loop is substituted, not the whole block.
+  const toNamedArray = (val: any): { name: string }[] => {
+    const arr: string[] = Array.isArray(val)
+      ? val
+      : (val || '').split(',').map((s: string) => s.trim()).filter(Boolean);
+    return arr.map((s) => ({ name: s }));
+  };
+
   // Build Mustache data object (Cast to any to allow dynamic snake_case properties)
   const pData: any = {
     ...data,
@@ -42,18 +53,10 @@ export function CVPreview({ data, activeTemplateId, cvId, onAutoSave }: CVPrevie
     summary: data.summary || '',
     experience: (data.experience || '').replace(/\n/g, '<br/>'),
     education: (data.education || '').replace(/\n/g, '<br/>'),
-    skills: Array.isArray(data.skills)
-      ? data.skills
-      : (data.skills || '').split(',').map((s) => s.trim()).filter(Boolean),
-    hobbies: Array.isArray(data.hobbies)
-      ? data.hobbies
-      : (data.hobbies || '').split(',').map((s) => s.trim()).filter(Boolean),
-    languages: Array.isArray(data.languages)
-      ? data.languages
-      : (data.languages || '').split(',').map((s) => s.trim()).filter(Boolean),
-    certifications: Array.isArray(data.certifications)
-      ? data.certifications
-      : (data.certifications || '').split(',').map((s) => s.trim()).filter(Boolean),
+    skills: toNamedArray(data.skills),
+    hobbies: toNamedArray(data.hobbies),
+    languages: toNamedArray(data.languages),
+    certifications: toNamedArray(data.certifications),
     accent_color: stripHash(data.accentColor || '#2c3e50'), 
     text_color: stripHash(data.textColor || '#333333'),     
     font_family: data.fontFamily || 'sans-serif',           
