@@ -90,7 +90,6 @@ const OTPVerify = ({ email, onSuccess }: { email: string; onSuccess: () => void 
     next[idx] = val;
     setOtp(next);
     if (val && idx < 5) inputRefs.current[idx + 1]?.focus();
-    // Auto-submit when all 6 filled
     if (val && idx === 5 && next.every(d => d)) {
       handleVerify(next.join(''));
     }
@@ -118,8 +117,13 @@ const OTPVerify = ({ email, onSuccess }: { email: string; onSuccess: () => void 
     setLoading(true); setError('');
     const result = await verifyOTP(email, finalCode);
     setLoading(false);
-    if (result.success) { onSuccess(); }
-    else { setError(result.error || 'Invalid code.'); setOtp(['', '', '', '', '', '']); inputRefs.current[0]?.focus(); }
+    if (result.success) {
+      onSuccess();
+    } else {
+      setError(result.error || 'Invalid code.');
+      setOtp(['', '', '', '', '', '']);
+      inputRefs.current[0]?.focus();
+    }
   };
 
   const handleResend = async () => {
@@ -155,7 +159,6 @@ const OTPVerify = ({ email, onSuccess }: { email: string; onSuccess: () => void 
         </div>
       )}
 
-      {/* 6-digit OTP boxes */}
       <div className="flex gap-2.5 justify-center mb-6" onPaste={handlePaste}>
         {otp.map((digit, i) => (
           <input
@@ -183,7 +186,6 @@ const OTPVerify = ({ email, onSuccess }: { email: string; onSuccess: () => void 
         {loading ? 'Verifying…' : <><CheckCircle size={15} /> Verify Email</>}
       </motion.button>
 
-      {/* Resend */}
       <div className="text-center text-sm">
         {canResend ? (
           <button onClick={handleResend} disabled={resendLoading}
@@ -218,9 +220,7 @@ export const RegisterPage = () => {
     setLoading(true);
     const result = await register(name, email, password);
     setLoading(false);
-    
     if (result.success) {
-      // 🛠️ Save the email to local storage and send the user to the real OTP route!
       localStorage.setItem('cf_pending_email', email);
       navigate('/verify-otp');
     } else {
@@ -264,7 +264,6 @@ export const LoginPage = () => {
     if (result.success) {
       navigate('/dashboard');
     } else if (result.needsVerification) {
-      // 🛠️ Save the email to local storage and send the user to the real OTP route!
       localStorage.setItem('cf_pending_email', email);
       navigate('/verify-otp');
     } else {
@@ -290,25 +289,36 @@ export const LoginPage = () => {
   );
 };
 
-// ─── 🛠️ ADD THIS NEW EXPORT AT THE VERY BOTTOM OF THE FILE ─────────────────────
+// ─── Verify OTP Page ──────────────────────────────────────────────────────────
 export const VerifyOTPPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const email = localStorage.getItem('cf_pending_email') || '';
 
-  // If there's no email waiting for verification, kick them back to register
+  // If already logged in, go straight to dashboard
   useEffect(() => {
-    if (!email) {
-      navigate('/register');
+    if (user) {
+      localStorage.removeItem('cf_pending_email');
+      navigate('/dashboard', { replace: true });
     }
-  }, [email, navigate]);
+  }, [user, navigate]);
 
-  return (
-    <OTPVerify 
-      email={email} 
-      onSuccess={() => {
-        localStorage.removeItem('cf_pending_email'); // Clear memory upon success
-        navigate('/dashboard'); // Go directly to dashboard
-      }} 
-    />
-  );
+  // If no pending email, go to register
+  useEffect(() => {
+    if (!email && !user) {
+      navigate('/register', { replace: true });
+    }
+  }, [email, user, navigate]);
+
+  const handleSuccess = () => {
+    // Clear pending email FIRST, before anything else
+    localStorage.removeItem('cf_pending_email');
+    // Use replace so back button doesn't return to OTP page
+    // Small timeout lets AuthContext finish setUser() before we navigate
+    setTimeout(() => {
+      window.location.href = '/dashboard';
+    }, 50);
+  };
+
+  return <OTPVerify email={email} onSuccess={handleSuccess} />;
 };
