@@ -60,21 +60,16 @@ export function CVPreview({ data, activeTemplateId, cvId, onAutoSave }: CVPrevie
     font_family: data.fontFamily || 'sans-serif',           
     profile_image: data.profileImage || '',                 
 
-    // Boolean helpers — derived from normalised arrays so they're always reliable
+    // Boolean helpers — explicit booleans, never overwritten by a spread.
+    // Mustache treats a non-empty array as truthy and loops over it,
+    // so these MUST be real booleans, not arrays.
+    has_skills: toStringArray(data.skills).length > 0,
     has_languages: toStringArray(data.languages).length > 0,
     has_certifications: toStringArray(data.certifications).length > 0,
     has_hobbies: toStringArray(data.hobbies).length > 0,
-    has_skills: toStringArray(data.skills).length > 0,
-    // Preserve any extra caller-supplied fields (e.g. customFields)
-    ...Object.fromEntries(
-      Object.entries(data as any).filter(
-        ([k]) =>
-          !['fullName','jobTitle','email','phone','location','summary',
-            'experience','education','skills','hobbies','languages',
-            'certifications','accentColor','textColor','fontFamily','profileImage',
-          ].includes(k)
-      )
-    ),
+    // Pass customFields explicitly — no open-ended spread that could
+    // accidentally overwrite booleans with arrays from the backend blob.
+    customFields: (data as any).customFields || [],
   };
 
   let htmlContent = '';
