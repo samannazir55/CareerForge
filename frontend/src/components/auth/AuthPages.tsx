@@ -208,12 +208,23 @@ export const RegisterPage = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [pendingEmail, setPendingEmail] = useState('');
+  
+  // 🛠️ CHANGED: Read from localStorage so it survives page reloads/redirects
+  const [pendingEmail, setPendingEmailState] = useState(localStorage.getItem('cf_pending_email') || '');
+  
   const { register } = useAuth();
   const navigate = useNavigate();
 
+  const setPendingEmail = (emailStr: string) => {
+    localStorage.setItem('cf_pending_email', emailStr);
+    setPendingEmailState(emailStr);
+  };
+
   if (pendingEmail) {
-    return <OTPVerify email={pendingEmail} onSuccess={() => navigate('/chat')} />;
+    return <OTPVerify email={pendingEmail} onSuccess={() => {
+      localStorage.removeItem('cf_pending_email'); // Clear it when verified!
+      navigate('/chat');
+    }} />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -255,12 +266,23 @@ export const LoginPage = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [pendingEmail, setPendingEmail] = useState('');
+  
+  // 🛠️ CHANGED: Read from localStorage here as well
+  const [pendingEmail, setPendingEmailState] = useState(localStorage.getItem('cf_pending_email') || '');
+  
   const { login } = useAuth();
   const navigate = useNavigate();
 
+  const setPendingEmail = (emailStr: string) => {
+    localStorage.setItem('cf_pending_email', emailStr);
+    setPendingEmailState(emailStr);
+  };
+
   if (pendingEmail) {
-    return <OTPVerify email={pendingEmail} onSuccess={() => navigate('/dashboard')} />;
+    return <OTPVerify email={pendingEmail} onSuccess={() => {
+      localStorage.removeItem('cf_pending_email'); // Clear it when verified!
+      navigate('/dashboard');
+    }} />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -276,7 +298,7 @@ export const LoginPage = () => {
       setError(result.error || 'Login failed.');
     }
   };
-
+  
   return (
     <AuthCard>
       <h1 className="text-2xl font-semibold text-center mb-1">Welcome back</h1>
