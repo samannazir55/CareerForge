@@ -27,16 +27,11 @@ export function CVPreview({ data, activeTemplateId, cvId, onAutoSave }: CVPrevie
   }, [activeTemplateId]);
 
   // Normalises a raw value (string CSV or array) into a plain string[].
+  // Mustache iterates these with {{.}} inside section loops.
   const toStringArray = (val: any): string[] => {
     if (Array.isArray(val)) return val.map((s) => String(s).trim()).filter(Boolean);
     return String(val || '').split(',').map((s) => s.trim()).filter(Boolean);
   };
-
-  // Converts to Mustache-safe named objects { name } so {{name}} works inside loops.
-  // Also exposes {{.}} -style templates via the string array directly — Mustache
-  // iterates string[] fine when the template uses {{.}}.
-  const toNamedArray = (val: any): { name: string }[] =>
-    toStringArray(val).map((s) => ({ name: s }));
 
   // Build Mustache data object (Cast to any to allow dynamic snake_case properties)
   // NOTE: spread `data` last so raw fields don't accidentally overwrite our processed ones.
@@ -54,21 +49,12 @@ export function CVPreview({ data, activeTemplateId, cvId, onAutoSave }: CVPrevie
     summary: data.summary || '',
     experience: (data.experience || '').replace(/\n/g, '<br/>'),
     education: (data.education || '').replace(/\n/g, '<br/>'),
-    // Named-object arrays for templates using {{name}} inside loops
-    skills: toNamedArray(data.skills),
-    hobbies: toNamedArray(data.hobbies),
-    languages: toNamedArray(data.languages),
-    certifications: toNamedArray(data.certifications),
-    // Flat string arrays for templates using {{.}} inside loops
-    skills_list: toStringArray(data.skills),
-    hobbies_list: toStringArray(data.hobbies),
-    languages_list: toStringArray(data.languages),
-    certifications_list: toStringArray(data.certifications),
-    // Comma-joined plain strings as a fallback for single-value template vars
-    skills_str: toStringArray(data.skills).join(', '),
-    hobbies_str: toStringArray(data.hobbies).join(', '),
-    languages_str: toStringArray(data.languages).join(', '),
-    certifications_str: toStringArray(data.certifications).join(', '),
+    // Plain string arrays — all templates use {{.}} inside loops, NOT {{name}}.
+    // Mustache iterates string[] correctly with {{.}} and prints each value as-is.
+    skills: toStringArray(data.skills),
+    hobbies: toStringArray(data.hobbies),
+    languages: toStringArray(data.languages),
+    certifications: toStringArray(data.certifications),
     accent_color: stripHash(data.accentColor || '#2c3e50'), 
     text_color: stripHash(data.textColor || '#333333'),     
     font_family: data.fontFamily || 'sans-serif',           

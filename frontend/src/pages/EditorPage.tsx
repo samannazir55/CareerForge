@@ -33,6 +33,14 @@ export function EditorPage({
       // Normalize snake_case fields from backend
       if ((d as Record<string, unknown>).full_name) base.fullName = (d as Record<string, unknown>).full_name as string;
       if ((d as Record<string, unknown>).job_title) base.jobTitle = (d as Record<string, unknown>).job_title as string;
+      // Normalize array fields → comma strings so CVForm and CVPreview always
+      // receive strings, never raw string[] arrays from the backend.
+      const arrayToStr = (val: unknown): string =>
+        Array.isArray(val) ? (val as string[]).join(', ') : String(val || '');
+      base.skills         = arrayToStr((d as any).skills);
+      base.languages      = arrayToStr((d as any).languages);
+      base.hobbies        = arrayToStr((d as any).hobbies);
+      base.certifications = arrayToStr((d as any).certifications);
     }
     if (user && !base.fullName) base.fullName = user.fullName || '';
     if (user && !base.email) base.email = user.email || '';
