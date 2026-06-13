@@ -11,7 +11,7 @@ import App from './App';
 import { WelcomePage } from './pages/WelcomePage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
-
+import AdminPage from './pages/AdminPage'; // Imported default export
 // Global error boundary
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -65,7 +65,15 @@ createRoot(container).render(
               <Route path="/welcome" element={<WelcomePage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
-
+              {/* Admin CMS Panel (Guarded) */}
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute>
+                    <AdminPage />
+                  </ProtectedRoute>
+                }
+              />
               {/* Protected Workspace Pages */}
               <Route
                 path="/dashboard"
