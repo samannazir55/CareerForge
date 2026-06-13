@@ -589,6 +589,24 @@ def admin_create(t: template_schemas.TemplateCreate, db: Session = Depends(get_d
         return template_crud.update_template(db, exist, update_data)
     
     return template_crud.create_template(db, t)
+@router.put("/admin/templates/{template_id}", response_model=template_schemas.Template)
+def admin_update_template(
+    template_id: str,
+    t: template_schemas.TemplateUpdate,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
+    """
+    PUT Endpoint to handle template updates directly from the Admin Panel
+    """
+    if user.get("email") != config.settings.ADMIN_EMAIL: 
+        raise HTTPException(403, "Admin Access Required")
+        
+    exist = template_crud.get_template(db, template_id)
+    if not exist:
+        raise HTTPException(404, "Template not found")
+        
+    return template_crud.update_template(db, exist, t)
 # ==========================================
 # ⚡ SUPER SETUP ROUTE (Schema Migration + Seeding)
 # ==========================================
