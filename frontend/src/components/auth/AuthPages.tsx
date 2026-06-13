@@ -208,24 +208,8 @@ export const RegisterPage = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  
-  // 🛠️ CHANGED: Read from localStorage so it survives page reloads/redirects
-  const [pendingEmail, setPendingEmailState] = useState(localStorage.getItem('cf_pending_email') || '');
-  
   const { register } = useAuth();
   const navigate = useNavigate();
-
-  const setPendingEmail = (emailStr: string) => {
-    localStorage.setItem('cf_pending_email', emailStr);
-    setPendingEmailState(emailStr);
-  };
-
-  if (pendingEmail) {
-    return <OTPVerify email={pendingEmail} onSuccess={() => {
-      localStorage.removeItem('cf_pending_email'); // Clear it when verified!
-      navigate('/chat');
-    }} />;
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -234,8 +218,11 @@ export const RegisterPage = () => {
     setLoading(true);
     const result = await register(name, email, password);
     setLoading(false);
+    
     if (result.success) {
-      setPendingEmail(email);
+      // 🛠️ Save the email to local storage and send the user to the real OTP route!
+      localStorage.setItem('cf_pending_email', email);
+      navigate('/verify-otp');
     } else {
       setError(result.error || 'Registration failed.');
     }
@@ -266,24 +253,8 @@ export const LoginPage = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  
-  // 🛠️ CHANGED: Read from localStorage here as well
-  const [pendingEmail, setPendingEmailState] = useState(localStorage.getItem('cf_pending_email') || '');
-  
   const { login } = useAuth();
   const navigate = useNavigate();
-
-  const setPendingEmail = (emailStr: string) => {
-    localStorage.setItem('cf_pending_email', emailStr);
-    setPendingEmailState(emailStr);
-  };
-
-  if (pendingEmail) {
-    return <OTPVerify email={pendingEmail} onSuccess={() => {
-      localStorage.removeItem('cf_pending_email'); // Clear it when verified!
-      navigate('/dashboard');
-    }} />;
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -293,12 +264,14 @@ export const LoginPage = () => {
     if (result.success) {
       navigate('/dashboard');
     } else if (result.needsVerification) {
-      setPendingEmail(email);
+      // 🛠️ Save the email to local storage and send the user to the real OTP route!
+      localStorage.setItem('cf_pending_email', email);
+      navigate('/verify-otp');
     } else {
       setError(result.error || 'Login failed.');
     }
   };
-  
+
   return (
     <AuthCard>
       <h1 className="text-2xl font-semibold text-center mb-1">Welcome back</h1>
@@ -314,5 +287,28 @@ export const LoginPage = () => {
         <Link to="/register" className="font-semibold underline underline-offset-2" style={{ color: 'var(--violet)' }}>Create one free</Link>
       </p>
     </AuthCard>
+  );
+};
+
+// ─── 🛠️ ADD THIS NEW EXPORT AT THE VERY BOTTOM OF THE FILE ─────────────────────
+export const VerifyOTPPage = () => {
+  const navigate = useNavigate();
+  const email = localStorage.getItem('cf_pending_email') || '';
+
+  // If there's no email waiting for verification, kick them back to register
+  useEffect(() => {
+    if (!email) {
+      navigate('/register');
+    }
+  }, [email, navigate]);
+
+  return (
+    <OTPVerify 
+      email={email} 
+      onSuccess={() => {
+        localStorage.removeItem('cf_pending_email'); // Clear memory upon success
+        navigate('/dashboard'); // Go directly to dashboard
+      }} 
+    />
   );
 };

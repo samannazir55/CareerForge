@@ -9,7 +9,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { MarketplacePage } from './pages/MarketplacePage';
 
 // ─── 🛠️ IMPORT AUTHENTICATION PAGES FOR GATEKEEPING ────────────────────────────
-import { LoginPage, RegisterPage } from './components/auth/AuthPages';
+import { LoginPage, RegisterPage, VerifyOTPPage } from './components/auth/AuthPages';
 
 import type { CVData, CVRecord } from './types';
 import { DEFAULT_CV_DATA } from './types';
@@ -114,13 +114,17 @@ function App() {
 
   // ─── 🛠️ STEP 2: IF NOT LOGGED IN, LOCK THE INTERFACE TO AUTHENTICATION PAGES ──
   if (!user) {
-    // Check if there's an email currently waiting for an OTP
-    const hasPendingVerification = !!localStorage.getItem('cf_pending_email');
+    // 1. If trying to verify an OTP, show the verification page explicitly!
+    if (location.pathname === '/verify-otp' || localStorage.getItem('cf_pending_email')) {
+      return <VerifyOTPPage />;
+    }
     
-    // Route visitors cleanly between screens based on context state
-    if (location.pathname === '/register' || hasPendingVerification) {
+    // 2. If trying to sign up, show registration
+    if (location.pathname === '/register') {
       return <RegisterPage />;
     }
+    
+    // 3. Default fallback
     return <LoginPage />;
   }
 
