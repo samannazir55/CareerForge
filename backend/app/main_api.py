@@ -25,6 +25,59 @@ router = APIRouter()
 bearer = HTTPBearer()
 logger = logging.getLogger("cv_api")
 
+# ---------------------------------------------------------
+# TEMPLATE VALIDATOR (Prevents nested Mustache loop bugs)
+# ---------------------------------------------------------
+def validate_template_html(html: str) -> list:
+    """
+    Detects nested Mustache section bugs before they reach the DB.
+    e.g. {{#languages}}...{{#languages}}...{{/languages}}...{{/languages}}
+    causes each item to render a full duplicate section.
+    """
+    if not html:
+        return []
+    errors = []
+
+    # Rule 1: Same section tag opened more than once = nested loop bug
+    opens = re.findall(r'\{\{#(\w+)\}\}', html)
+    seen: Dict[str, int] = {}
+    for tag in opens:
+        seen[tag] = seen.get(tag, 0) + 1
+    for tag, count in seen.items():
+        if count > 1:
+            errors.append(
+                f"Nested loop detected: '{{{{#{tag}}}}}' appears {count} times. "
+                f"Use '{{{{#has_{tag}}}}}' as the outer guard and '{{{{#{tag}}}}}' only for the inner loop."
+            )
+
+    # Rule 2: has_ boolean guards must not themselves be arrays
+    # (just a reminder check — warn if has_X tag is missing for known list fields)
+    list_fields = ["skills", "languages", "hobbies", "certifications"]
+    for field in list_fields:
+        has_guard = f"{{{{#has_{field}}}}}"
+        raw_guard = f"{{{{#{field}}}}}"
+        # If raw guard is used as a section wrapper (followed by non-loop content)
+        # AND no has_ guard exists, flag it
+        if raw_guard in html and has_guard not in html:
+            # Check if it wraps a block (not just an inline loop)
+            # A block wrapper has content between open and close beyond just {{.}}
+            import re as _re
+            pattern = _re.compile(
+                r'\{\{#' + field + r'\}\}(.*?)\{\{/' + field + r'\}\}',
+                _re.DOTALL
+            )
+            for match in pattern.finditer(html):
+                inner = match.group(1)
+                # If inner content has HTML tags (not just {{.}}), it's a block wrapper
+                if '<' in inner and '{{.' not in inner:
+                    errors.append(
+                        f"'{{{{#{field}}}}}' is used as a block guard without '{{{{#has_{field}}}}}'. "
+                        f"Replace with '{{{{#has_{field}}}}}' to avoid per-item repetition."
+                    )
+                    break
+
+    return errors
+
 def get_current_user(creds: HTTPAuthorizationCredentials = Depends(bearer)):
     return security.verify_jwt_token(creds.credentials)
 
@@ -577,6 +630,12 @@ def admin_create(t: template_schemas.TemplateCreate, db: Session = Depends(get_d
     if user.get("email") != config.settings.ADMIN_EMAIL: 
         raise HTTPException(403, "Admin Access Required")
     
+    # Validate template HTML before saving
+    if t.html_content:
+        errors = validate_template_html(t.html_content)
+        if errors:
+            raise HTTPException(400, detail={"message": "Template HTML validation failed", "errors": errors})
+
     exist = template_crud.get_template(db, t.id)
     if exist:
         update_data = template_schemas.TemplateUpdate(
@@ -605,7 +664,13 @@ def admin_update_template(
     exist = template_crud.get_template(db, template_id)
     if not exist:
         raise HTTPException(404, "Template not found")
-        
+
+    # Validate template HTML before saving
+    if t.html_content:
+        errors = validate_template_html(t.html_content)
+        if errors:
+            raise HTTPException(400, detail={"message": "Template HTML validation failed", "errors": errors})
+
     return template_crud.update_template(db, exist, t)
 # ==========================================
 # ⚡ SUPER SETUP ROUTE (Schema Migration + Seeding)
