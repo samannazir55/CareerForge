@@ -155,4 +155,11 @@ export const cvApi = {
   export: exportCV,
   getLivePreview: getLivePreviewHtml
 };
+
+// ADD THIS NEW BLOCK RIGHT HERE:
+export const aiApi = {
+  sendMessage: sendChatMessage,
+  uploadResume: uploadResumeFile
+};
+
 export default api;
