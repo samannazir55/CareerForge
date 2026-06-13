@@ -102,3 +102,4 @@ export const PLAN_CONFIG: Record<SubscriptionPlan, {
 
 // ─── Navigation ──────────────────────────────────────────────────────────────
 export type AppView = 'landing' | 'chat' | 'editor' | 'marketplace' | 'dashboard';
+export type BackendTemplate = Template;
