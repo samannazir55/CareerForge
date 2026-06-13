@@ -1,6 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'; // Added Navigate
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import './index.css';
 
 import { AuthProvider } from './context/AuthContext';
@@ -9,11 +9,9 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 import App from './App';
 import { WelcomePage } from './pages/WelcomePage';
-import { LoginPage } from './pages/LoginPage';
-import { RegisterPage } from './pages/RegisterPage';
-import AdminPage from './pages/AdminPage'; // Imported default export
-// Global error boundary
-class ErrorBoundary extends React.Component<
+import AdminPage from './pages/AdminPage';
+
+class ErrorBoundary extends React.Component
   { children: React.ReactNode },
   { hasError: boolean; error: Error | null }
 > {
@@ -21,11 +19,9 @@ class ErrorBoundary extends React.Component<
     super(props);
     this.state = { hasError: false, error: null };
   }
-
   static getDerivedStateFromError(error: Error) {
     return { hasError: true, error };
   }
-
   render() {
     if (this.state.hasError) {
       return (
@@ -60,39 +56,26 @@ createRoot(container).render(
         <AppStoreProvider>
           <BrowserRouter>
             <Routes>
-              {/* Public Landing & Auth Pages */}
+              {/* Public landing */}
               <Route path="/" element={<WelcomePage />} />
               <Route path="/welcome" element={<WelcomePage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
-              {/* Admin CMS Panel (Guarded) */}
+
+              {/* Admin */}
               <Route
                 path="/admin"
-                element={
-                  <ProtectedRoute>
-                    <AdminPage />
-                  </ProtectedRoute>
-                }
-              />
-              {/* Protected Workspace Pages */}
-              <Route
-                path="/dashboard"
-                element={
-                  <ProtectedRoute>
-                    <App />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/dashboard/*"
-                element={
-                  <ProtectedRoute>
-                    <App />
-                  </ProtectedRoute>
-                }
+                element={<ProtectedRoute><AdminPage /></ProtectedRoute>}
               />
 
-              {/* Fallback: Any unknown paths redirect back to the Landing Page */}
+              {/* All auth + app paths go through App, which handles
+                  its own gating: shows LoginPage / RegisterPage /
+                  VerifyOTPPage when !user, main app when user exists */}
+              <Route path="/login"       element={<App />} />
+              <Route path="/register"    element={<App />} />
+              <Route path="/verify-otp"  element={<App />} />
+              <Route path="/dashboard"   element={<App />} />
+              <Route path="/dashboard/*" element={<App />} />
+
+              {/* Fallback */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </BrowserRouter>
