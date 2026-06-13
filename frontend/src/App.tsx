@@ -7,6 +7,10 @@ import { AIChatPage } from './components/chat/AIChatPage';
 import { EditorPage } from './pages/EditorPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { MarketplacePage } from './pages/MarketplacePage';
+
+// ─── 🛠️ IMPORT AUTHENTICATION PAGES FOR GATEKEEPING ────────────────────────────
+import { LoginPage, RegisterPage } from './components/auth/AuthPages';
+
 import type { CVData, CVRecord } from './types';
 import { DEFAULT_CV_DATA } from './types';
 
@@ -15,7 +19,7 @@ export type AppView = 'chat' | 'editor' | 'marketplace' | 'dashboard';
 function App() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, loading } = useAuth(); // 🛠️ Added loading state
 
   const [view, setView] = useState<AppView>('chat');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
@@ -63,35 +67,22 @@ function App() {
 
   // --- Callbacks passed to child pages ---
 
-  /** Called by AIChatPage when AI returns generated CV data */
   const handleResumeGenerated = useCallback((data: Record<string, unknown>) => {
-    // Normalise snake_case → camelCase fields from the AI service
     const normalised: Partial<CVData> = {
       fullName: (data.full_name as string) || (data.fullName as string) || '',
       email: (data.email as string) || '',
       phone: (data.phone as string) || '',
-      jobTitle:
-        (data.desired_job_title as string) ||
-        (data.jobTitle as string) ||
-        (data.job_title as string) ||
-        '',
-      summary:
-        (data.professional_summary as string) ||
-        (data.summary as string) ||
-        '',
+      jobTitle: (data.desired_job_title as string) || (data.jobTitle as string) || (data.job_title as string) || '',
+      summary: (data.professional_summary as string) || (data.summary as string) || (data.summary as string) || '',
       experience: Array.isArray(data.experience_points)
         ? (data.experience_points as string[]).map((p) => `• ${p}`).join('\n')
         : ((data.experience as string) || ''),
-      education:
-        (data.education_formatted as string) ||
-        (data.education as string) ||
-        '',
+      education: (data.education_formatted as string) || (data.education as string) || '',
       skills: Array.isArray(data.suggested_skills)
         ? (data.suggested_skills as string[]).join(', ')
         : (typeof data.skills === 'string' ? data.skills : ''),
     };
 
-    // Store in sessionStorage as fallback (mirrors Project A behaviour)
     try {
       sessionStorage.setItem('cf_aiResult', JSON.stringify(normalised));
     } catch { /* ignore */ }
@@ -100,30 +91,11 @@ function App() {
     setEditingCV(null);
   }, []);
 
-  /** Navigate to editor after AI generation */
-  const handleNavigateToEditor = useCallback(() => {
-    setView('editor');
-  }, []);
-
-  /** Called by DashboardPage when user clicks Edit on a CV */
-  const handleEditCV = useCallback((cv: CVRecord) => {
-    setEditingCV(cv);
-    setPendingCVData(null);
-    setView('editor');
-  }, []);
-
-  /** Called by MarketplacePage when user selects/unlocks a template */
-  const handleTemplateSelected = useCallback((templateId: string) => {
-    setEditorTemplateId(templateId);
-  }, []);
-
-  const handleNavigation = useCallback((dest: AppView) => {
-    setView(dest);
-  }, []);
-
-  const toggleTheme = useCallback(() => {
-    setTheme((t) => (t === 'light' ? 'dark' : 'light'));
-  }, []);
+  const handleNavigateToEditor = useCallback(() => { setView('editor'); }, []);
+  const handleEditCV = useCallback((cv: CVRecord) => { setEditingCV(cv); setPendingCVData(null); setView('editor'); }, []);
+  const handleTemplateSelected = useCallback((templateId: string) => { setEditorTemplateId(templateId); }, []);
+  const handleNavigation = useCallback((dest: AppView) => { setView(dest); }, []);
+  const toggleTheme = useCallback(() => { setTheme((t) => (t === 'light' ? 'dark' : 'light')); }, []);
 
   const pageVariants = {
     initial: { opacity: 0, y: 8 },
@@ -131,9 +103,30 @@ function App() {
     exit: { opacity: 0, y: -8, transition: { duration: 0.15 } },
   };
 
+  // ─── 🛠️ STEP 1: RENDER SPINNER WHILE AUTH CHECKING RUNS ───────────────────────
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-10 h-10 rounded-xl bg-gradient-violet animate-pulse" />
+      </div>
+    );
+  }
+
+  // ─── 🛠️ STEP 2: IF NOT LOGGED IN, LOCK THE INTERFACE TO AUTHENTICATION PAGES ──
+  if (!user) {
+    // Check if there's an email currently waiting for an OTP
+    const hasPendingVerification = !!localStorage.getItem('cf_pending_email');
+    
+    // Route visitors cleanly between screens based on context state
+    if (location.pathname === '/register' || hasPendingVerification) {
+      return <RegisterPage />;
+    }
+    return <LoginPage />;
+  }
+
+  // ─── STEP 3: DEFAULT RENDER SYSTEM FOR FULLY LOGGED-IN USERS ──────────────────
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-background text-foreground">
-      {/* Top navigation bar */}
       <TopNav
         currentView={view}
         onNavigate={handleNavigation}
@@ -141,7 +134,6 @@ function App() {
         onToggleTheme={toggleTheme}
       />
 
-      {/* Page content */}
       <div className="flex-1 overflow-hidden relative">
         <AnimatePresence mode="wait">
           {view === 'chat' && (
@@ -158,7 +150,7 @@ function App() {
               <EditorPage
                 initialCV={editingCV ? { ...editingCV, template_id: editorTemplateId || editingCV.template_id } : null}
                 initialData={pendingCVData}
-                initialTemplateId={editorTemplateId || undefined} // Passes template if starting a new CV
+                initialTemplateId={editorTemplateId || undefined}
                 onNavigateToTemplates={() => setView('marketplace')}
               />
             </motion.div>
