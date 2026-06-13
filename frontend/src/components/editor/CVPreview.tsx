@@ -3,7 +3,7 @@ import Mustache from 'mustache';
 import { ZoomIn, ZoomOut, Download, FileText, Loader2 } from 'lucide-react';
 import { templateApi, cvApi } from '../../services/api';
 import { Button } from '../ui/Button';
-import type { CVData, Template as BackendTemplate } from '../../types';
+import type { CVData, BackendTemplate } from '../../types';
 
 interface CVPreviewProps {
   data: CVData;

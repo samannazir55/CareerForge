@@ -58,14 +58,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const register = async (name: string, email: string, password: string) => {
     try {
+      // 🛠️ FIX: Pass 'name' into the 'full_name' parameter position
       await apiRegister(name, email, password);
-      // Don't set user yet — pending verification
       return { success: true };
     } catch (err: any) {
       return { success: false, error: err.response?.data?.detail || 'Registration failed.' };
     }
   };
-
+  
   const verifyOTP = async (email: string, otp: string) => {
     try {
       await apiVerifyOTP(email, otp);   // sets cf_token in localStorage

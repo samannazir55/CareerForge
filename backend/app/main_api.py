@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 import jinja2
 import logging
 import re
+from pydantic import BaseModel
 
 # Check for WeasyPrint
 try:
