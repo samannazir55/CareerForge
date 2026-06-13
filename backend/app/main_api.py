@@ -822,6 +822,46 @@ def fix_templates(db: Session = Depends(get_db)):
     return {"status": "success", "logs": log}
 
 
+# ==========================================
+# DIRECT SQL TEMPLATE FIX (bypasses ORM cache)
+# ==========================================
+@router.get("/fix_templates_sql")
+def fix_templates_sql(db: Session = Depends(get_db)):
+    """Uses raw SQL UPDATE to force-fix tech_minimal and ivy_league templates."""
+    from sqlalchemy import text
+    log = []
+
+    fixes = [
+        {
+            "id": "tech_minimal",
+            "html": """<div class='resume-tech'><div class='tech-main'><h1>{{full_name}}</h1><div class='role-tag'>{{job_title}}</div><div class='t-sec'><div class='s-head'>> Summary</div><p>{{{summary}}}</p></div><div class='t-sec'><div class='s-head'>> Log</div><div class='code'>{{{experience}}}</div></div><div class='t-sec'><div class='s-head'>> Education</div><div class='code'>{{{education}}}</div></div>{{#has_certifications}}<div class='t-sec'><div class='s-head'>> Certifications</div><ul>{{#certifications}}<li>{{.}}</li>{{/certifications}}</ul></div>{{/has_certifications}}</div><div class='tech-sidebar'>{{#profile_image}}<img src='{{profile_image}}'/>{{/profile_image}}<h4>Connect</h4><p>{{email}}</p><p>{{phone}}</p>{{#location}}<p>📍 {{location}}</p>{{/location}}{{#linkedin}}<p class='link'>🔗 LinkedIn</p>{{/linkedin}}{{#github}}<p class='link'>💻 GitHub</p>{{/github}}{{#portfolio}}<p class='link'>🌐 Portfolio</p>{{/portfolio}}{{#has_skills}}<h4>Stack</h4>{{#skills}}<div class='t-skill'>{{.}}</div>{{/skills}}{{/has_skills}}{{#has_languages}}<h4>Languages</h4>{{#languages}}<div class='t-skill'>{{.}}</div>{{/languages}}{{/has_languages}}{{#has_hobbies}}<h4>Interests</h4>{{#hobbies}}<div class='t-skill'>{{.}}</div>{{/hobbies}}{{/has_hobbies}}</div></div>""",
+            "css": """.resume-tech{display:flex;font-family:'Courier New',monospace;min-height:1000px;background:#0d1117;color:#c9d1d9}.tech-main{width:65%;padding:40px;border-right:1px solid #30363d}.tech-sidebar{width:35%;padding:30px;background:#161b22}.role-tag{display:inline-block;background:#21262d;border:1px solid #30363d;padding:4px 12px;border-radius:20px;font-size:13px;color:#58a6ff;margin-bottom:30px}.t-sec{margin-bottom:25px}.s-head{color:#58a6ff;font-weight:bold;margin-bottom:10px;font-size:14px}.code{font-size:13px;line-height:1.7;color:#8b949e}h1{color:#e6edf3;font-size:28px;margin:0 0 10px 0}h4{color:#58a6ff;font-size:12px;text-transform:uppercase;margin:20px 0 8px 0;border-bottom:1px solid #30363d;padding-bottom:4px}.t-skill{background:#21262d;border:1px solid #30363d;padding:3px 8px;border-radius:4px;font-size:12px;margin-bottom:4px;color:#c9d1d9}.link{color:#58a6ff;font-size:13px}p{font-size:13px;margin:4px 0;color:#8b949e}ul{padding-left:18px}li{font-size:13px;color:#c9d1d9;margin-bottom:4px}"""
+        },
+        {
+            "id": "ivy_league", 
+            "html": """<div class='resume-ivy'><div class='ivy-header'><h1>{{full_name}}</h1><div class='subtitle'>{{job_title}}</div><div class='ivy-contact'>{{email}} • {{phone}}{{#location}} • {{location}}{{/location}}</div></div><div class='ivy-body'>{{#profile_image}}<div class='photo-c'><img src='{{profile_image}}'/></div>{{/profile_image}}<div class='stitle'>Professional Summary</div><div class='content'>{{{summary}}}</div><div class='stitle'>Experience</div><div class='content'>{{{experience}}}</div><div class='stitle'>Education</div><div class='content'>{{{education}}}</div>{{#has_skills}}<div class='stitle'>Skills</div><div class='sgrid'>{{#skills}}<span>{{.}}</span>{{/skills}}</div>{{/has_skills}}{{#has_languages}}<div class='stitle'>Languages</div><div class='sgrid'>{{#languages}}<span>{{.}}</span>{{/languages}}</div>{{/has_languages}}{{#has_certifications}}<div class='stitle'>Certifications</div><ul>{{#certifications}}<li>{{.}}</li>{{/certifications}}</ul>{{/has_certifications}}{{#has_hobbies}}<div class='stitle'>Interests</div><div class='sgrid'>{{#hobbies}}<span>{{.}}</span>{{/hobbies}}</div>{{/has_hobbies}}</div></div>""",
+            "css": """.resume-ivy{font-family:Georgia,serif;padding:50px;background:white;color:#1a1a1a;min-height:1000px}.ivy-header{text-align:center;border-bottom:3px double #1a1a1a;padding-bottom:20px;margin-bottom:30px}.ivy-header h1{font-size:32px;letter-spacing:4px;text-transform:uppercase;margin:0 0 8px 0}.subtitle{font-size:16px;font-style:italic;color:#444;margin-bottom:8px}.ivy-contact{font-size:13px;color:#555}.stitle{font-size:13px;font-weight:bold;text-transform:uppercase;letter-spacing:2px;border-bottom:1px solid #1a1a1a;padding-bottom:4px;margin:25px 0 10px 0}.content{font-size:14px;line-height:1.7;color:#333}.sgrid{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}.sgrid span{border:1px solid #999;padding:2px 10px;font-size:13px;border-radius:2px}.photo-c img{width:100px;height:100px;border-radius:50%;float:right;margin:0 0 10px 15px;object-fit:cover;border:2px solid #1a1a1a}ul{padding-left:20px}li{font-size:14px;margin-bottom:4px}"""
+        },
+    ]
+
+    try:
+        for t in fixes:
+            result = db.execute(
+                text("UPDATE templates SET html_content = :html, css_styles = :css WHERE id = :id"),
+                {"html": t["html"], "css": t["css"], "id": t["id"]}
+            )
+            if result.rowcount > 0:
+                log.append(f"✅ SQL Updated: {t['id']} ({result.rowcount} row)")
+            else:
+                log.append(f"⚠️ Not found in DB: {t['id']}")
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        log.append(f"❌ SQL Error: {e}")
+
+    return {"status": "success", "logs": log}
+
+
 # Package CRUD endpoints
 @router.get("/admin/packages")
 def get_packages(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
