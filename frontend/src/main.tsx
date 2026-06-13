@@ -11,17 +11,13 @@ import App from './App';
 import { WelcomePage } from './pages/WelcomePage';
 import AdminPage from './pages/AdminPage';
 
-class ErrorBoundary extends React.Component
-  { children: React.ReactNode },
-  { hasError: boolean; error: Error | null }
-> {
-  constructor(props: { children: React.ReactNode }) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
+class ErrorBoundary extends React.Component {
+  state = { hasError: false, error: null as Error | null };
+
   static getDerivedStateFromError(error: Error) {
     return { hasError: true, error };
   }
+
   render() {
     if (this.state.hasError) {
       return (
@@ -42,7 +38,7 @@ class ErrorBoundary extends React.Component
         </div>
       );
     }
-    return this.props.children;
+    return this.props.children as React.ReactNode;
   }
 }
 
@@ -67,8 +63,7 @@ createRoot(container).render(
               />
 
               {/* All auth + app paths go through App, which handles
-                  its own gating: shows LoginPage / RegisterPage /
-                  VerifyOTPPage when !user, main app when user exists */}
+                  its own gating internally */}
               <Route path="/login"       element={<App />} />
               <Route path="/register"    element={<App />} />
               <Route path="/verify-otp"  element={<App />} />
