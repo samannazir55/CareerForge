@@ -138,5 +138,21 @@ export const getLivePreviewHtml = async (data: Partial<CVData>, templateId: stri
   const res = await api.post('/generate-pdf', { data, template_id: templateId });
   return res.data;
 };
+// ─── Component Backwards Compatibility Aliases ────────────────────────────────
+export const templateApi = {
+  getAll: getTemplates,
+  getById: getTemplate,
+  unlock: unlockTemplate,
+  getUnlocked: getUnlockedTemplates
+};
 
+export const cvApi = {
+  getAll: getCVs,
+  getById: getCV,
+  create: createCV,
+  update: updateCV,
+  delete: deleteCV,
+  export: exportCV,
+  getLivePreview: getLivePreviewHtml
+};
 export default api;
