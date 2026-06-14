@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { TopNav } from './components/layout/TopNav';
@@ -66,16 +65,16 @@ function App() {
   }, []);
 
   const handleNavigateToEditor = useCallback(() => { setView('editor'); }, []);
-  const handleEditCV = useCallback((cv: CVRecord) => { setEditingCV(cv); setPendingCVData(null); setView('editor'); }, []);
-  const handleTemplateSelected = useCallback((templateId: string) => { setEditorTemplateId(templateId); }, []);
+  const handleEditCV = useCallback((cv: CVRecord) => {
+    setEditingCV(cv); setPendingCVData(null); setView('editor');
+  }, []);
+  const handleTemplateSelected = useCallback((templateId: string) => {
+    setEditorTemplateId(templateId);
+  }, []);
   const handleNavigation = useCallback((dest: AppView) => { setView(dest); }, []);
-  const toggleTheme = useCallback(() => { setTheme((t) => (t === 'light' ? 'dark' : 'light')); }, []);
-
-  const pageVariants = {
-    initial: { opacity: 0, y: 8 },
-    animate: { opacity: 1, y: 0, transition: { duration: 0.2 } },
-    exit: { opacity: 0, y: -8, transition: { duration: 0.15 } },
-  };
+  const toggleTheme = useCallback(() => {
+    setTheme((t) => (t === 'light' ? 'dark' : 'light'));
+  }, []);
 
   // ── Loading ──────────────────────────────────────────────────────────────────
   if (loading) {
@@ -88,7 +87,6 @@ function App() {
 
   // ── Not logged in — show auth pages ──────────────────────────────────────────
   if (!user) {
-    // OTP verification: pending email in localStorage OR explicit path
     if (localStorage.getItem('cf_pending_email') || location.pathname === '/verify-otp') {
       return <VerifyOTPPage />;
     }
@@ -98,7 +96,7 @@ function App() {
     return <LoginPage />;
   }
 
-  // ── Logged in — main app ──────────────────────────────────────────────────────
+  // ── Logged in — main app (no AnimatePresence to avoid framer-motion crash) ───
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-background text-foreground">
       <TopNav
@@ -108,42 +106,40 @@ function App() {
         onToggleTheme={toggleTheme}
       />
       <div className="flex-1 overflow-hidden relative">
-        <AnimatePresence mode="wait">
-          {view === 'chat' && (
-            <motion.div key="chat" {...pageVariants} className="absolute inset-0">
-              <AIChatPage
-                onResumeGenerated={handleResumeGenerated}
-                onNavigateToEditor={handleNavigateToEditor}
-              />
-            </motion.div>
-          )}
-          {view === 'editor' && (
-            <motion.div key="editor" {...pageVariants} className="absolute inset-0">
-              <EditorPage
-                initialCV={editingCV ? { ...editingCV, template_id: editorTemplateId || editingCV.template_id } : null}
-                initialData={pendingCVData}
-                initialTemplateId={editorTemplateId || undefined}
-                onNavigateToTemplates={() => setView('marketplace')}
-              />
-            </motion.div>
-          )}
-          {view === 'marketplace' && (
-            <motion.div key="marketplace" {...pageVariants} className="absolute inset-0 overflow-y-auto">
-              <MarketplacePage
-                onTemplateSelected={handleTemplateSelected}
-                onNavigateToEditor={() => setView('editor')}
-              />
-            </motion.div>
-          )}
-          {view === 'dashboard' && (
-            <motion.div key="dashboard" {...pageVariants} className="absolute inset-0 overflow-y-auto">
-              <DashboardPage
-                onNavigate={handleNavigation}
-                onEditCV={handleEditCV}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {view === 'chat' && (
+          <div className="absolute inset-0">
+            <AIChatPage
+              onResumeGenerated={handleResumeGenerated}
+              onNavigateToEditor={handleNavigateToEditor}
+            />
+          </div>
+        )}
+        {view === 'editor' && (
+          <div className="absolute inset-0">
+            <EditorPage
+              initialCV={editingCV ? { ...editingCV, template_id: editorTemplateId || editingCV.template_id } : null}
+              initialData={pendingCVData}
+              initialTemplateId={editorTemplateId || undefined}
+              onNavigateToTemplates={() => setView('marketplace')}
+            />
+          </div>
+        )}
+        {view === 'marketplace' && (
+          <div className="absolute inset-0 overflow-y-auto">
+            <MarketplacePage
+              onTemplateSelected={handleTemplateSelected}
+              onNavigateToEditor={() => setView('editor')}
+            />
+          </div>
+        )}
+        {view === 'dashboard' && (
+          <div className="absolute inset-0 overflow-y-auto">
+            <DashboardPage
+              onNavigate={handleNavigation}
+              onEditCV={handleEditCV}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
