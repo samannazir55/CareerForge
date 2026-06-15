@@ -65,53 +65,34 @@ function App() {
   }, []);
 
   const handleNavigateToEditor = useCallback(() => { setView('editor'); }, []);
-  const handleEditCV = useCallback((cv: CVRecord) => {
-    setEditingCV(cv); setPendingCVData(null); setView('editor');
-  }, []);
-  const handleTemplateSelected = useCallback((templateId: string) => {
-    setEditorTemplateId(templateId);
-  }, []);
+  const handleEditCV = useCallback((cv: CVRecord) => { setEditingCV(cv); setPendingCVData(null); setView('editor'); }, []);
+  const handleTemplateSelected = useCallback((templateId: string) => { setEditorTemplateId(templateId); }, []);
   const handleNavigation = useCallback((dest: AppView) => { setView(dest); }, []);
-  const toggleTheme = useCallback(() => {
-    setTheme((t) => (t === 'light' ? 'dark' : 'light'));
-  }, []);
+  const toggleTheme = useCallback(() => { setTheme((t) => (t === 'light' ? 'dark' : 'light')); }, []);
 
-  // ── Loading ──────────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-10 h-10 rounded-xl bg-gradient-violet animate-pulse" />
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 animate-pulse" />
       </div>
     );
   }
 
-  // ── Not logged in — show auth pages ──────────────────────────────────────────
   if (!user) {
     if (localStorage.getItem('cf_pending_email') || location.pathname === '/verify-otp') {
       return <VerifyOTPPage />;
     }
-    if (location.pathname === '/register') {
-      return <RegisterPage />;
-    }
+    if (location.pathname === '/register') return <RegisterPage />;
     return <LoginPage />;
   }
 
-  // ── Logged in — main app (no AnimatePresence to avoid framer-motion crash) ───
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-background text-foreground">
-      <TopNav
-        currentView={view}
-        onNavigate={handleNavigation}
-        theme={theme}
-        onToggleTheme={toggleTheme}
-      />
+      <TopNav currentView={view} onNavigate={handleNavigation} theme={theme} onToggleTheme={toggleTheme} />
       <div className="flex-1 overflow-hidden relative">
         {view === 'chat' && (
           <div className="absolute inset-0">
-            <AIChatPage
-              onResumeGenerated={handleResumeGenerated}
-              onNavigateToEditor={handleNavigateToEditor}
-            />
+            <AIChatPage onResumeGenerated={handleResumeGenerated} onNavigateToEditor={handleNavigateToEditor} />
           </div>
         )}
         {view === 'editor' && (
@@ -126,18 +107,12 @@ function App() {
         )}
         {view === 'marketplace' && (
           <div className="absolute inset-0 overflow-y-auto">
-            <MarketplacePage
-              onTemplateSelected={handleTemplateSelected}
-              onNavigateToEditor={() => setView('editor')}
-            />
+            <MarketplacePage onTemplateSelected={handleTemplateSelected} onNavigateToEditor={() => setView('editor')} />
           </div>
         )}
         {view === 'dashboard' && (
           <div className="absolute inset-0 overflow-y-auto">
-            <DashboardPage
-              onNavigate={handleNavigation}
-              onEditCV={handleEditCV}
-            />
+            <DashboardPage onNavigate={handleNavigation} onEditCV={handleEditCV} />
           </div>
         )}
       </div>
