@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 import { Sparkles, Coins, LayoutDashboard, Store, PenTool, Moon, Sun, LogOut } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useAppStore } from '../../context/AppStore';
@@ -15,10 +14,10 @@ interface TopNavProps {
 }
 
 const NAV_ITEMS: Array<{ id: NavView; label: string; icon: React.ReactNode }> = [
-  { id: 'chat', label: 'AI Chat', icon: <Sparkles size={15} /> },
-  { id: 'editor', label: 'Editor', icon: <PenTool size={15} /> },
-  { id: 'marketplace', label: 'Templates', icon: <Store size={15} /> },
-  { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={15} /> },
+  { id: 'chat',        label: 'AI Chat',    icon: <Sparkles size={15} /> },
+  { id: 'editor',      label: 'Editor',     icon: <PenTool size={15} /> },
+  { id: 'marketplace', label: 'Templates',  icon: <Store size={15} /> },
+  { id: 'dashboard',   label: 'Dashboard',  icon: <LayoutDashboard size={15} /> },
 ];
 
 export function TopNav({ currentView, onNavigate, theme, onToggleTheme }: TopNavProps) {
@@ -38,29 +37,20 @@ export function TopNav({ currentView, onNavigate, theme, onToggleTheme }: TopNav
           </span>
         </div>
 
-        {/* Nav Pills */}
+        {/* Nav Pills — active state via CSS only, no framer-motion */}
         <nav className="flex items-center gap-1 bg-muted/50 p-1 rounded-xl border border-border/50">
           {NAV_ITEMS.map((item) => (
             <button
               key={item.id}
               onClick={() => onNavigate(item.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all relative ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                 currentView === item.id
-                  ? 'text-foreground'
+                  ? 'bg-background text-foreground shadow-sm border border-border/50'
                   : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
               }`}
             >
-              {currentView === item.id && (
-                <motion.div
-                  layoutId="nav-pill"
-                  className="absolute inset-0 bg-background rounded-lg shadow-sm border border-border/50"
-                  transition={{ type: 'spring', stiffness: 350, damping: 30 }}
-                />
-              )}
-              <span className="relative z-10 flex items-center gap-1.5">
-                {item.icon}
-                <span className="hidden md:inline">{item.label}</span>
-              </span>
+              {item.icon}
+              <span className="hidden md:inline">{item.label}</span>
             </button>
           ))}
         </nav>
@@ -68,34 +58,28 @@ export function TopNav({ currentView, onNavigate, theme, onToggleTheme }: TopNav
 
       {/* Right side */}
       <div className="flex items-center gap-2 md:gap-3">
-        {/* Points Badge */}
         <button
           onClick={() => onNavigate('dashboard')}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 transition-colors"
-          title="Your Points Balance"
         >
           <Coins size={14} className="text-amber-500" />
           <span className="font-bold text-amber-600 dark:text-amber-400 text-sm">{pointsBalance}</span>
         </button>
 
-        {/* Plan Badge */}
         {subscriptionPlan !== 'basic' && (
           <div className="hidden sm:flex items-center px-2.5 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-xs font-bold uppercase tracking-wider">
             {subscriptionPlan}
           </div>
         )}
 
-        {/* User greeting */}
         <span className="hidden lg:block text-sm text-muted-foreground">
           {user?.fullName?.split(' ')[0] || 'User'}
         </span>
 
-        {/* Theme toggle */}
         <Button variant="ghost" size="icon" onClick={onToggleTheme} className="rounded-full">
           {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
         </Button>
 
-        {/* Logout */}
         <Button variant="ghost" size="icon" onClick={logout} className="rounded-full" title="Sign out">
           <LogOut size={16} />
         </Button>

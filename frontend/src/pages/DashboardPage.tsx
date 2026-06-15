@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import {
   Coins, Crown, Zap, History, Trophy, ArrowRight,
   Plus, Pencil, Trash2, FileText, CheckCircle2, Loader2
@@ -45,11 +44,6 @@ export function DashboardPage({ onNavigate, onEditCV }: DashboardPageProps) {
     }
   };
 
-  const cardVariants = {
-    hidden: { opacity: 0, y: 16 },
-    visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.07 } }),
-  };
-
   return (
     <div className="min-h-full bg-background overflow-y-auto p-5 md:p-8">
       <div className="max-w-6xl mx-auto space-y-8">
@@ -70,7 +64,6 @@ export function DashboardPage({ onNavigate, onEditCV }: DashboardPageProps) {
 
         {/* Stats row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {/* Points card */}
           <div className="glass-panel rounded-3xl p-6 relative overflow-hidden group">
             <div className="absolute -right-10 -top-10 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl group-hover:bg-amber-500/20 transition-colors" />
             <div className="relative z-10">
@@ -85,7 +78,6 @@ export function DashboardPage({ onNavigate, onEditCV }: DashboardPageProps) {
             </div>
           </div>
 
-          {/* Subscription card */}
           <div className="glass-panel rounded-3xl p-6 relative overflow-hidden group md:col-span-2">
             <div className="absolute -right-20 -top-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl group-hover:bg-indigo-500/20 transition-colors" />
             <div className="relative z-10 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
@@ -124,7 +116,6 @@ export function DashboardPage({ onNavigate, onEditCV }: DashboardPageProps) {
 
         {/* Achievements + Resumes + History */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left: Achievements + Resume list */}
           <div className="lg:col-span-2 space-y-6">
             {/* Achievements */}
             <div className="glass-panel rounded-3xl p-6">
@@ -151,10 +142,7 @@ export function DashboardPage({ onNavigate, onEditCV }: DashboardPageProps) {
                   </div>
                   <div className="flex gap-1 mb-1.5">
                     {[1, 2, 3, 4, 5].map((n) => (
-                      <div
-                        key={n}
-                        className={`h-1.5 flex-1 rounded-full ${n <= cvs.length ? 'bg-indigo-500' : 'bg-muted'}`}
-                      />
+                      <div key={n} className={`h-1.5 flex-1 rounded-full ${n <= cvs.length ? 'bg-indigo-500' : 'bg-muted'}`} />
                     ))}
                   </div>
                   <span className="text-xs text-muted-foreground">
@@ -190,13 +178,9 @@ export function DashboardPage({ onNavigate, onEditCV }: DashboardPageProps) {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {cvs.map((cv, i) => (
-                    <motion.div
+                  {cvs.map((cv) => (
+                    <div
                       key={cv.id}
-                      variants={cardVariants}
-                      initial="hidden"
-                      animate="visible"
-                      custom={i}
                       className="glass-panel rounded-2xl p-4 group hover:border-indigo-500/20 transition-colors"
                     >
                       <div className="aspect-[4/3] bg-muted rounded-xl mb-3 flex items-center justify-center relative overflow-hidden">
@@ -211,36 +195,26 @@ export function DashboardPage({ onNavigate, onEditCV }: DashboardPageProps) {
                         Updated {formatDate(cv.updated_at)}
                       </p>
                       <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1 text-xs"
-                          onClick={() => onEditCV(cv)}
-                        >
+                        <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => onEditCV(cv)}>
                           <Pencil size={12} className="mr-1" /> Edit
                         </Button>
                         <Button
-                          variant="ghost"
-                          size="sm"
+                          variant="ghost" size="sm"
                           className="text-destructive hover:text-destructive hover:bg-destructive/10"
                           onClick={() => handleDelete(cv.id)}
                           disabled={deletingId === cv.id}
                         >
-                          {deletingId === cv.id ? (
-                            <Loader2 size={14} className="animate-spin" />
-                          ) : (
-                            <Trash2 size={14} />
-                          )}
+                          {deletingId === cv.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                         </Button>
                       </div>
-                    </motion.div>
+                    </div>
                   ))}
                 </div>
               )}
             </div>
           </div>
 
-          {/* Right: Transaction history */}
+          {/* Transaction history */}
           <div className="glass-panel rounded-3xl p-6 h-fit">
             <h2 className="text-lg font-bold mb-5 flex items-center gap-2">
               <History size={18} /> History
@@ -250,21 +224,12 @@ export function DashboardPage({ onNavigate, onEditCV }: DashboardPageProps) {
                 <p className="text-sm text-muted-foreground">No transactions yet.</p>
               ) : (
                 transactions.slice(0, 10).map((tx) => (
-                  <div
-                    key={tx.id}
-                    className="flex items-center justify-between p-3 rounded-xl hover:bg-muted/50 transition-colors"
-                  >
+                  <div key={tx.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-muted/50 transition-colors">
                     <div>
                       <div className="font-medium text-sm">{tx.label}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {tx.date.toLocaleDateString()}
-                      </div>
+                      <div className="text-xs text-muted-foreground">{tx.date.toLocaleDateString()}</div>
                     </div>
-                    <div
-                      className={`font-bold text-sm ${
-                        tx.type === 'earn' ? 'text-emerald-500' : 'text-foreground'
-                      }`}
-                    >
+                    <div className={`font-bold text-sm ${tx.type === 'earn' ? 'text-emerald-500' : 'text-foreground'}`}>
                       {tx.type === 'earn' ? '+' : '-'}{tx.amount}
                     </div>
                   </div>
