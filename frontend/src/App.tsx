@@ -78,11 +78,17 @@ function App() {
     );
   }
 
+  // ─── 🛠️ FIXED SECURITY GATEKEEPER ───────────────────────────────────────────
   if (!user) {
-    if (localStorage.getItem('cf_pending_email') || location.pathname === '/verify-otp') {
+    // Priority 1: If an email is pending or URL explicitly says verify-otp, stay here!
+    if (location.pathname === '/verify-otp' || localStorage.getItem('cf_pending_email')) {
       return <VerifyOTPPage />;
     }
-    if (location.pathname === '/register') return <RegisterPage />;
+    // Priority 2: If path says register explicitly (and no pending email exists)
+    if (location.pathname === '/register') {
+      return <RegisterPage />;
+    }
+    // Priority 3: Default fallback
     return <LoginPage />;
   }
 
