@@ -1,6 +1,5 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { Sparkles, LayoutDashboard, Store, PenTool, Moon, Sun, LogOut, LogIn, Crown, User } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -49,9 +48,7 @@ export const TopNav = ({ theme, onToggleTheme }: TopNavProps) => {
                     active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-background/40'
                   }`}>
                   {active && (
-                    <motion.div layoutId="nav-pill"
-                      className="absolute inset-0 bg-background rounded-lg shadow-sm border border-border/50"
-                      transition={{ type: 'spring', stiffness: 400, damping: 35 }} />
+                    <div className="absolute inset-0 bg-background rounded-lg shadow-sm border border-border/50" />
                   )}
                   <span className="relative z-10 flex items-center gap-1.5">
                     {item.icon}
