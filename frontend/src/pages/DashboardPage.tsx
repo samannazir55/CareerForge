@@ -26,11 +26,25 @@ export function DashboardPage({ onNavigate, onEditCV }: DashboardPageProps) {
   useEffect(() => {
     cvApi
       .list()
-      .then((data) => setCvs(data.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())))
-      .catch(console.error)
+      .then((data) => {
+        // 🛠️ SAFE GUARD: Verify the backend data is an actual array before sorting
+        if (data && Array.isArray(data)) {
+          const sorted = data.sort(
+            (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+          );
+          setCvs(sorted);
+        } else {
+          // If the backend sent an object/dictionary instead of an array, default to empty list
+          console.warn("Backend cvApi.list did not return an array:", data);
+          setCvs([]);
+        }
+      })
+      .catch((err) => {
+        console.error("Error loading CVs:", err);
+        setCvs([]); // Fallback to safe empty state on failure
+      })
       .finally(() => setLoading(false));
   }, []);
-
   const handleDelete = async (id: number) => {
     if (!window.confirm('Delete this resume? This cannot be undone.')) return;
     setDeletingId(id);
