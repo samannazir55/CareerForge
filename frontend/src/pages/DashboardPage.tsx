@@ -220,14 +220,19 @@ export function DashboardPage({ onNavigate, onEditCV }: DashboardPageProps) {
               <History size={18} /> History
             </h2>
             <div className="space-y-3">
-              {transactions.length === 0 ? (
+              {/* 🛠️ Added an Array check fallback to make sure transactions doesn't crash if it's not an array yet */}
+              {!transactions || transactions.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No transactions yet.</p>
               ) : (
                 transactions.slice(0, 10).map((tx) => (
                   <div key={tx.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-muted/50 transition-colors">
                     <div>
                       <div className="font-medium text-sm">{tx.label}</div>
-                      <div className="text-xs text-muted-foreground">{tx.date.toLocaleDateString()}</div>
+                      
+                      {/* 🛠️ FIXED LINE: Safely convert string or date instances to readable text formats */}
+                      <div className="text-xs text-muted-foreground">
+                        {tx.date ? new Date(tx.date).toLocaleDateString() : ''}
+                      </div>
                     </div>
                     <div className={`font-bold text-sm ${tx.type === 'earn' ? 'text-emerald-500' : 'text-foreground'}`}>
                       {tx.type === 'earn' ? '+' : '-'}{tx.amount}
