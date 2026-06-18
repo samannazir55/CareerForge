@@ -2,16 +2,16 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Copy package files for the root workspace dependency configuration
+# Copy the entire monorepo structure first so npm workspaces can see each other
 COPY package*.json ./
 COPY apps/api/package*.json ./apps/api/
 COPY apps/web/package*.json ./apps/web/
 
-# Install dependencies across the entire monorepo workspace
-RUN npm ci
-
-# Copy the rest of the application code
+# Copy the rest of the workspace source code
 COPY . .
+
+# Install dependencies using standard install to accommodate missing lockfiles safely
+RUN npm install
 
 # Build both the frontend and the api service apps
 RUN npm run build
