@@ -1,0 +1,94 @@
+// CareerForge — Prisma schema
+// Phase 5 step 1-2 scope: User + Auth domain only. Resume, Template, Points,
+// Subscription, and other domain tables are added in their respective phases
+// per the migration plan (Section 8.4) — not stubbed here to avoid locking in
+// a shape before that phase's design work happens.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum SubscriptionTier {
+  FREE
+  PROFESSIONAL
+  PREMIUM
+}
+
+enum OAuthProviderName {
+  GOOGLE
+  GITHUB
+}
+
+enum OtpPurpose {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+model User {
+  id               String           @id @default(uuid())
+  email            String           @unique
+  passwordHash     String? // null for OAuth-only accounts
+  fullName         String?
+  isEmailVerified  Boolean          @default(false)
+  role             Role             @default(USER)
+  subscriptionTier SubscriptionTier @default(FREE)
+  pointsBalance    Int              @default(0)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  oauthAccounts OAuthAccount[]
+  otpCodes      OtpCode[]
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+model OAuthAccount {
+  id             String            @id @default(uuid())
+  provider       OAuthProviderName
+  providerUserId String
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String
+  createdAt      DateTime          @default(now())
+
+  @@unique([provider, providerUserId])
+  @@map("oauth_accounts")
+}
+
+model OtpCode {
+  id         String     @id @default(uuid())
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  codeHash   String
+  purpose    OtpPurpose
+  expiresAt  DateTime
+  attempts   Int        @default(0)
+  consumedAt DateTime?
+  createdAt  DateTime   @default(now())
+
+  @@index([userId, purpose])
+  @@map("otp_codes")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}

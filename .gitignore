@@ -1,33 +1,9 @@
-# Python
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-.Python
-.env
-venv/
-.venv/
-*.egg-info/
+node_modules/
 dist/
 build/
-*.db
-*.sqlite3
-
-# Node / Frontend
-node_modules/
-frontend/dist/
-frontend/.env
-frontend/.env.local
-
-# IDE
-.idea/
-.vscode/
-*.swp
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
+.env
+.env.local
 *.log
-npm-debug.log*
+.DS_Store
+apps/api/prisma/dev.db
+generated/
