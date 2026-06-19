@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, type ChangeEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthLayout } from './AuthLayout';
 import { OAuthButtons } from './OAuthButtons';
@@ -39,7 +39,7 @@ export function LoginPage() {
           autoComplete="email"
           required
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
         />
         <Input
           label="Password"
@@ -48,7 +48,7 @@ export function LoginPage() {
           autoComplete="current-password"
           required
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
         />
         <div className="flex justify-end -mt-1">
           <Link to="/forgot-password" className="text-sm text-muted-foreground hover:underline">

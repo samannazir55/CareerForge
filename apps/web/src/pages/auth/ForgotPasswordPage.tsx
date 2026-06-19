@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, type ChangeEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthLayout } from './AuthLayout';
 import { Input } from '../../components/ui/Input';
@@ -50,7 +50,7 @@ export function ForgotPasswordPage() {
           autoComplete="email"
           required
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
         />
         <Button type="submit" disabled={isSubmitting} className="w-full mt-2">
           {isSubmitting ? 'Sending…' : 'Send reset code'}

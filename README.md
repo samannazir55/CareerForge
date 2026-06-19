@@ -81,3 +81,30 @@ A `packages/ui` for shared design primitives is intentionally not created yet �
 ## Security notes carried over from the original codebases
 
 The two source ZIPs you provided had a live `.env` (JWT secret + an AI provider key) committed inside one of them. Rotate both regardless of anything in this rebuild — treat them as already compromised.
+
+---
+
+## Phase 5 Step 4 — Template Engine & Export Pipeline (complete)
+
+**What shipped in this phase:**
+
+`packages/templates` — a new shared package containing:
+- `TemplateRenderer` interface: every template is `renderHtml(resume) → string` + `buildDocx(resume) → Buffer`. Same `renderHtml` function runs in the browser (live preview via iframe) and in Puppeteer (PDF generation) — WYSIWYG is guaranteed by construction, not by cross-checking two implementations.
+- **Modern template** — full-width layout with colour accent header, section headings with accent border, skills as tags. HTML renderer + DOCX builder.
+- **Classic template** — two-column layout: dark left sidebar (contact, skills, languages) + white main column (experience, education, custom sections). HTML renderer + DOCX builder.
+- **Template registry** — single lookup point (`getTemplate(id)`, `isPremiumTemplate(id)`, `getAllTemplateMetadata()`). Adding a new template is one file + one registry entry, nothing else.
+- Custom sections render automatically in both templates via a generic field-by-kind renderer — no per-template custom-section handling needed.
+
+`apps/api/src/domain/export/` — the export pipeline:
+- `browser.ts` — Puppeteer singleton: one long-lived headless Chromium process, one fresh page per export request, shut down cleanly on SIGTERM/SIGINT.
+- `export.service.ts` — orchestrates: loads resume row, runs schema migrations in-memory (the stored row is never mutated during export), checks premium gating, dispatches to HTML→PDF or DOCX builder.
+- `export.routes.ts` — `GET /api/resumes/:id/export/pdf` and `GET /api/resumes/:id/export/docx`.
+- Premium gating: free templates always exportable; premium templates require `PREMIUM` subscription tier or a `TemplatePurchase` row. (Purchase flow arrives in Phase 5 Step 5.)
+
+`apps/web/src/components/preview/ResumePreview.tsx` — live preview in the editor, iframe-isolated so template CSS never leaks into the editor UI.
+
+**Editor layout** — redesigned as a two-pane layout (editor left, live preview + export buttons right on `lg:` screens).
+
+**To enable PDF export locally:** `npx puppeteer browsers install chrome`, then set `PUPPETEER_EXECUTABLE_PATH` in `apps/api/.env` to the path it prints.
+
+**New Prisma models:** `TemplatePurchase` (userId, templateId unique pair) added to `schema.prisma`. Run `npm run db:migrate -w apps/api` to apply.

@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent, type ChangeEvent } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { AuthLayout } from './AuthLayout';
 import { Input } from '../../components/ui/Input';
@@ -64,7 +64,7 @@ export function VerifyOtpPage() {
           autoComplete="one-time-code"
           required
           value={code}
-          onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setCode(e.target.value.replace(/\D/g, ''))}
           className="text-center text-lg tracking-[0.5em]"
         />
         {error && (

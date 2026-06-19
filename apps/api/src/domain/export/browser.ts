@@ -1,0 +1,58 @@
+/**
+ * Puppeteer browser singleton.
+ *
+ * One Browser instance is launched when the API server starts and is reused
+ * across all export requests — a fresh page per request, closed after use.
+ * This avoids the multi-second cold-start that a new Chromium process per
+ * request would incur, while keeping memory predictable (pages don't accumulate).
+ *
+ * The browser is shut down cleanly in the SIGTERM/SIGINT handlers in index.ts
+ * so Render's graceful shutdown doesn't leave orphaned Chromium processes.
+ *
+ * puppeteer-core is used rather than the full `puppeteer` package because
+ * the full package bundles a Chromium binary (~300 MB) which bloats the
+ * deploy image. In production, set PUPPETEER_EXECUTABLE_PATH to the system
+ * Chromium binary (e.g. /usr/bin/chromium-browser on Ubuntu/Render).
+ * For local development, install Chromium via `npx puppeteer browsers install chrome`
+ * and set the path accordingly — or use the CHROME_PATH env var.
+ */
+import { env } from '../../config/env.js';
+
+// Lazy import so the module can be loaded without the binary being present at
+// startup — the error surfaces only when an export is actually attempted.
+let _browserPromise: Promise<import('puppeteer-core').Browser> | null = null;
+
+export async function getBrowser(): Promise<import('puppeteer-core').Browser> {
+  if (!_browserPromise) {
+    _browserPromise = (async () => {
+      const { launch } = await import('puppeteer-core');
+      const executablePath = env.PUPPETEER_EXECUTABLE_PATH;
+      if (!executablePath) {
+        throw new Error(
+          'PUPPETEER_EXECUTABLE_PATH is not set. Set it to the path of a Chromium or ' +
+            'Chrome binary. For local dev: `npx puppeteer browsers install chrome` then ' +
+            'set PUPPETEER_EXECUTABLE_PATH to the printed path.',
+        );
+      }
+      return launch({
+        executablePath,
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage', // avoids /dev/shm size issues in containers
+          '--disable-gpu',
+        ],
+      });
+    })();
+  }
+  return _browserPromise;
+}
+
+export async function closeBrowser(): Promise<void> {
+  if (_browserPromise) {
+    const browser = await _browserPromise.catch(() => null);
+    await browser?.close();
+    _browserPromise = null;
+  }
+}

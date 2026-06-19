@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, type ChangeEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { AuthLayout } from './AuthLayout';
 import { Input } from '../../components/ui/Input';
@@ -48,7 +48,7 @@ export function ResetPasswordPage() {
           autoComplete="email"
           required
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
         />
         <Input
           label="Reset code"
@@ -59,7 +59,7 @@ export function ResetPasswordPage() {
           autoComplete="one-time-code"
           required
           value={code}
-          onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setCode(e.target.value.replace(/\D/g, ''))}
         />
         <Input
           label="New password"
@@ -69,7 +69,7 @@ export function ResetPasswordPage() {
           minLength={8}
           required
           value={newPassword}
-          onChange={(e) => setNewPassword(e.target.value)}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setNewPassword(e.target.value)}
         />
         <Input
           label="Confirm new password"
@@ -79,7 +79,7 @@ export function ResetPasswordPage() {
           minLength={8}
           required
           value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setConfirmPassword(e.target.value)}
         />
         {error && (
           <p role="alert" className="text-sm text-destructive">

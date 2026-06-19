@@ -4,6 +4,8 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { env } from './config/env.js';
 import { authRouter } from './domain/auth/auth.routes.js';
+import { resumeRouter } from './domain/resume/resume.routes.js';
+import { exportRouter } from './domain/export/export.routes.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 
 export function createApp() {
@@ -24,9 +26,13 @@ export function createApp() {
   });
 
   app.use('/api/auth', authRouter);
+  app.use('/api/resumes', resumeRouter);
+  // Export routes share the /api/resumes prefix so URLs are:
+  // GET /api/resumes/:id/export/pdf
+  // GET /api/resumes/:id/export/docx
+  app.use('/api/resumes', exportRouter);
 
   // Future domain routers mount here, each in its own file, e.g.:
-  // app.use('/api/resumes', resumeRouter);
   // app.use('/api/templates', templateRouter);
   // app.use('/api/points', pointsRouter);
 

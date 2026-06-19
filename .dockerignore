@@ -1,0 +1,21 @@
+# CareerForge — .dockerignore
+# Keeps the Docker build context lean. Files listed here are never sent to
+# the Docker daemon — they don't appear in any build stage, which speeds up
+# builds and prevents accidentally baking secrets into images.
+
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+build/
+**/.env
+**/.env.local
+**/*.log
+.git/
+.gitignore
+*.md
+docker-compose*.yml
+.DS_Store
+**/*.db
+**/dev.db
+apps/api/prisma/migrations/

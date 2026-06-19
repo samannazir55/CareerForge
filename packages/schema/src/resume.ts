@@ -70,16 +70,127 @@ export const ResumeThemeSchema = z.object({
 });
 export type ResumeTheme = z.infer<typeof ResumeThemeSchema>;
 
-export const ResumeSchema = z.object({
-  id: z.string().uuid(),
-  ownerId: z.string().uuid(),
-  title: z.string().min(1),
-  theme: ResumeThemeSchema,
-  sections: z.array(SectionSchema),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
+export const DEFAULT_THEME: ResumeTheme = {
+  templateId: 'modern',
+  accentColor: '#4f46e5',
+  fontFamily: 'Inter',
+};
+
+/**
+ * ----------------------------------------------------------------------------
+ * SCHEMA VERSIONING (per explicit requirement — see resumeMigrations.ts for
+ * the migration framework itself; this file only declares the fields that
+ * travel on every persisted resume/version record).
+ *
+ * `schemaVersion`: which version of THIS file's shape (the structural
+ * contract — what `sections`/`theme` look like) the record currently
+ * conforms to. Migrations are defined as fromVersion -> toVersion functions
+ * and this is the number they read and advance.
+ *
+ * `migrationVersion`: a separate, monotonically increasing counter recording
+ * the latest migration *step* applied to this specific record, including
+ * steps that don't change schemaVersion at all (e.g. a future data-quality
+ * backfill that re-normalizes date strings without altering the structural
+ * shape). It exists so a non-structural fix can be marked "already applied"
+ * to a record without that record falsely claiming a new structural schema
+ * version it doesn't actually have. For a record that has never needed a
+ * non-structural fix, migrationVersion simply equals schemaVersion.
+ * ----------------------------------------------------------------------------
+ */
+export const SchemaVersionFieldsSchema = z.object({
+  schemaVersion: z.number().int().min(0),
+  migrationVersion: z.number().int().min(0),
 });
+export type SchemaVersionFields = z.infer<typeof SchemaVersionFieldsSchema>;
+
+export const ResumeSchema = z
+  .object({
+    id: z.string().uuid(),
+    ownerId: z.string().uuid(),
+    title: z.string().min(1),
+    theme: ResumeThemeSchema,
+    sections: z.array(SectionSchema),
+    createdAt: z.string().datetime(),
+    updatedAt: z.string().datetime(),
+  })
+  .merge(SchemaVersionFieldsSchema);
 export type Resume = z.infer<typeof ResumeSchema>;
+
+/** Lightweight shape for list views (dashboard "recent resumes", resume
+ * count) — deliberately excludes the full sections payload. */
+export const ResumeSummarySchema = z.object({
+  id: z.string().uuid(),
+  title: z.string(),
+  templateId: z.string(),
+  updatedAt: z.string().datetime(),
+  schemaVersion: z.number().int(),
+});
+export type ResumeSummary = z.infer<typeof ResumeSummarySchema>;
+
+/** An immutable snapshot of a resume at a point in time. Carries its own
+ * schemaVersion/migrationVersion because a version created two schema
+ * generations ago is still a valid historical record in whatever shape it
+ * was actually saved in — it gets migrated in-memory only when it's read
+ * for restore/compare, never silently rewritten in place. */
+export const ResumeVersionSchema = z
+  .object({
+    id: z.string().uuid(),
+    resumeId: z.string().uuid(),
+    title: z.string(),
+    theme: ResumeThemeSchema,
+    sections: z.array(SectionSchema),
+    label: z.string().nullable(),
+    createdAt: z.string().datetime(),
+  })
+  .merge(SchemaVersionFieldsSchema);
+export type ResumeVersion = z.infer<typeof ResumeVersionSchema>;
+
+export const ResumeVersionSummarySchema = z.object({
+  id: z.string().uuid(),
+  label: z.string().nullable(),
+  createdAt: z.string().datetime(),
+  schemaVersion: z.number().int(),
+});
+export type ResumeVersionSummary = z.infer<typeof ResumeVersionSummarySchema>;
+
+// --- Request DTOs --------------------------------------------------------------
+
+export const CreateResumeRequestSchema = z.object({
+  title: z.string().min(1).max(200),
+});
+export type CreateResumeRequest = z.infer<typeof CreateResumeRequestSchema>;
+
+export const UpdateResumeRequestSchema = z.object({
+  title: z.string().min(1).max(200).optional(),
+  theme: ResumeThemeSchema.optional(),
+  sections: z.array(SectionSchema).optional(),
+});
+export type UpdateResumeRequest = z.infer<typeof UpdateResumeRequestSchema>;
+
+export const CreateVersionRequestSchema = z.object({
+  label: z.string().max(120).optional(),
+});
+export type CreateVersionRequest = z.infer<typeof CreateVersionRequestSchema>;
+
+/** A generic, section/entry-level diff between two versions. Built from
+ * matching section/entry ids rather than array position, so a reordered
+ * section doesn't register as "removed + added." */
+export interface SectionDiffEntry {
+  entryId: string;
+  status: 'added' | 'removed' | 'changed' | 'unchanged';
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  changedFields: string[];
+}
+export interface SectionDiff {
+  sectionId: string;
+  title: string;
+  status: 'added' | 'removed' | 'changed' | 'unchanged';
+  entries: SectionDiffEntry[];
+}
+export interface ResumeVersionDiff {
+  sections: SectionDiff[];
+}
 
 /**
  * Default field schemas for every built-in section type. A `custom` section
@@ -123,3 +234,25 @@ export const DEFAULT_SECTION_FIELDS: Record<Exclude<SectionType, 'custom'>, Fiel
     { key: 'contact', label: 'Contact', kind: 'text', required: false },
   ],
 };
+
+/** Seeds a brand-new resume with the most common built-in sections, empty.
+ * Users can delete any of these or add custom ones — nothing here is
+ * special-cased downstream, it's just a friendlier starting point than a
+ * blank sections array. */
+export function buildDefaultSections(): Section[] {
+  const make = (type: Exclude<SectionType, 'custom'>, title: string, order: number): Section => ({
+    id: crypto.randomUUID(),
+    type,
+    title,
+    order,
+    fields: DEFAULT_SECTION_FIELDS[type],
+    entries: [],
+  });
+
+  return [
+    make('summary', 'Summary', 0),
+    make('experience', 'Experience', 1),
+    make('education', 'Education', 2),
+    make('skills', 'Skills', 3),
+  ];
+}

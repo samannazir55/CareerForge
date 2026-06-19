@@ -1,9 +1,10 @@
-import { forwardRef, type InputHTMLAttributes } from 'react';
+import { forwardRef, type ChangeEvent, type InputHTMLAttributes } from 'react';
 import { cn } from '../../lib/utils';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
+  onChange?: (e: ChangeEvent<HTMLInputElement>) => void;
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(

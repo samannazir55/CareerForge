@@ -4,6 +4,13 @@ import type {
   RegisterRequest,
   ResetPasswordRequest,
   UserPublic,
+  Resume,
+  ResumeSummary,
+  ResumeVersion,
+  ResumeVersionSummary,
+  ResumeVersionDiff,
+  CreateResumeRequest,
+  UpdateResumeRequest,
 } from '@careerforge/schema';
 
 /**
@@ -111,4 +118,22 @@ export const authApi = {
   resetPassword: (input: ResetPasswordRequest) =>
     request<{ message: string }>('/auth/reset-password', { method: 'POST', body: input }),
   oauthStartUrl: (provider: 'google' | 'github') => `/api/auth/oauth/${provider}`,
+};
+
+export const resumeApi = {
+  list: () => request<{ resumes: ResumeSummary[] }>('/resumes'),
+  create: (input: CreateResumeRequest) => request<{ resume: Resume }>('/resumes', { method: 'POST', body: input }),
+  get: (id: string) => request<{ resume: Resume }>(`/resumes/${id}`),
+  update: (id: string, patch: UpdateResumeRequest) =>
+    request<{ resume: Resume }>(`/resumes/${id}`, { method: 'PATCH', body: patch }),
+  remove: (id: string) => request<void>(`/resumes/${id}`, { method: 'DELETE' }),
+  createVersion: (id: string, label?: string) =>
+    request<{ version: ResumeVersion }>(`/resumes/${id}/versions`, { method: 'POST', body: { label } }),
+  listVersions: (id: string) => request<{ versions: ResumeVersionSummary[] }>(`/resumes/${id}/versions`),
+  getVersion: (id: string, versionId: string) =>
+    request<{ version: ResumeVersion }>(`/resumes/${id}/versions/${versionId}`),
+  restoreVersion: (id: string, versionId: string) =>
+    request<{ resume: Resume }>(`/resumes/${id}/versions/${versionId}/restore`, { method: 'POST' }),
+  compareVersions: (id: string, versionAId: string, versionBId: string) =>
+    request<{ diff: ResumeVersionDiff }>(`/resumes/${id}/versions/${versionAId}/compare/${versionBId}`),
 };

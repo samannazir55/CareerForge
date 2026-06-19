@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, type ChangeEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthLayout } from './AuthLayout';
 import { OAuthButtons } from './OAuthButtons';
@@ -39,7 +39,7 @@ export function RegisterPage() {
           autoComplete="name"
           required
           value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setFullName(e.target.value)}
         />
         <Input
           label="Email"
@@ -48,7 +48,7 @@ export function RegisterPage() {
           autoComplete="email"
           required
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
         />
         <Input
           label="Password"
@@ -58,7 +58,7 @@ export function RegisterPage() {
           minLength={8}
           required
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
         />
         {error && (
           <p role="alert" className="text-sm text-destructive">

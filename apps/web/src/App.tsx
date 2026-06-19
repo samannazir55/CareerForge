@@ -7,7 +7,9 @@ import { VerifyOtpPage } from './pages/auth/VerifyOtpPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
 import { OAuthCallbackPage } from './pages/OAuthCallbackPage';
-import { HomePlaceholderPage } from './pages/HomePlaceholderPage';
+import { ResumesListPage } from './pages/resumes/ResumesListPage';
+import { ResumeEditorPage } from './pages/resumes/ResumeEditorPage';
+import { VersionHistoryPage } from './pages/resumes/VersionHistoryPage';
 
 export function App() {
   return (
@@ -22,8 +24,11 @@ export function App() {
           <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
 
           <Route element={<ProtectedRoute />}>
-            <Route path="/" element={<HomePlaceholderPage />} />
-            {/* Future protected routes (resume editor, dashboard, marketplace,
+            <Route path="/" element={<ResumesListPage />} />
+            <Route path="/resumes" element={<ResumesListPage />} />
+            <Route path="/resumes/:id" element={<ResumeEditorPage />} />
+            <Route path="/resumes/:id/versions" element={<VersionHistoryPage />} />
+            {/* Future protected routes (templates, dashboard, marketplace,
                 points, settings) mount here as their phases land. */}
           </Route>
         </Routes>

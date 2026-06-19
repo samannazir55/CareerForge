@@ -46,9 +46,11 @@ model User {
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
-  oauthAccounts OAuthAccount[]
-  otpCodes      OtpCode[]
-  refreshTokens RefreshToken[]
+  oauthAccounts     OAuthAccount[]
+  otpCodes          OtpCode[]
+  refreshTokens     RefreshToken[]
+  templatePurchases TemplatePurchase[]
+  resumes       Resume[]
 
   @@map("users")
 }
@@ -91,4 +93,71 @@ model RefreshToken {
 
   @@index([userId])
   @@map("refresh_tokens")
+}
+
+/**
+ * Template purchases — used by export.service.ts to enforce premium gating.
+ * The templateId here is the string registry key (e.g. "executive-pro"),
+ * not a foreign key to a DB table. Templates are defined in the
+ * packages/templates registry, not stored in the DB, so there is no
+ * template table to FK against. The registry is the source of truth for
+ * what templates exist; this table is only the source of truth for
+ * who has purchased which one.
+ */
+model TemplatePurchase {
+  id         String   @id @default(uuid())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  templateId String
+  purchasedAt DateTime @default(now())
+
+  @@unique([userId, templateId])
+  @@map("template_purchases")
+}
+
+// ----------------------------------------------------------------------------
+// Resume Core
+//
+// `sections` and `theme` are stored as JSON because the section/entry shape
+// is deliberately schema-driven at the application layer (packages/schema),
+// not at the database layer — that's what makes unlimited custom sections
+// possible without a migration every time a user invents a new section type.
+// `schemaVersion`/`migrationVersion` are the explicit-migration contract: see
+// packages/schema/src/resumeMigrations.ts for the framework that reads and
+// advances them. Nothing in this app reads `sections` directly off a Resume
+// or ResumeVersion row without passing it through runMigrations() first.
+// ----------------------------------------------------------------------------
+
+model Resume {
+  id               String   @id @default(uuid())
+  owner            User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId          String
+  title            String
+  theme            Json
+  sections         Json
+  schemaVersion    Int
+  migrationVersion Int
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  versions ResumeVersion[]
+
+  @@index([ownerId])
+  @@map("resumes")
+}
+
+model ResumeVersion {
+  id               String   @id @default(uuid())
+  resume           Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  resumeId         String
+  title            String
+  theme            Json
+  sections         Json
+  schemaVersion    Int
+  migrationVersion Int
+  label            String?
+  createdAt        DateTime @default(now())
+
+  @@index([resumeId, createdAt])
+  @@map("resume_versions")
 }

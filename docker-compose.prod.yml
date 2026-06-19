@@ -1,0 +1,46 @@
+# =============================================================================
+# CareerForge — docker-compose.prod.yml (production-like local testing)
+#
+# Uses full multi-stage production builds (no bind mounts, no hot-reload).
+# Useful for verifying production behaviour before deploying to Render/Fly/etc.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build
+#
+# In a real deployment you typically won't use Compose at all — instead
+# each service (postgres, api, web) is deployed independently to your
+# platform of choice. This file exists for local smoke-testing of the
+# production build.
+# =============================================================================
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: production
+    command: >
+      sh -c "
+        npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma &&
+        node apps/api/dist/index.js
+      "
+    # No bind mounts in production — the image is the source of truth
+    volumes: []
+    environment:
+      NODE_ENV: production
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      target: production
+    volumes: []
+    ports:
+      - "80:80"
+
+  postgres:
+    environment:
+      # In real production, use a managed Postgres (e.g. Render Postgres,
+      # Supabase, Neon) and set DATABASE_URL accordingly. This local DB is
+      # for smoke-testing only.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_in_production}

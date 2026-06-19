@@ -37,6 +37,11 @@ const EnvSchema = z.object({
   // Optional — only used by prisma/seed.ts to create an initial admin user.
   SEED_ADMIN_EMAIL: z.string().optional().default(''),
   SEED_ADMIN_PASSWORD: z.string().optional().default(''),
+
+  // Required for PDF export. Set to the path of a Chromium or Chrome binary.
+  // Local dev: run `npx puppeteer browsers install chrome` and set the printed path.
+  // Production (Render/Ubuntu): typically /usr/bin/chromium-browser or similar.
+  PUPPETEER_EXECUTABLE_PATH: z.string().optional().default(''),
 });
 
 const parsed = EnvSchema.safeParse(process.env);

@@ -1,0 +1,100 @@
+# =============================================================================
+# CareerForge — docker-compose.yml (local development)
+#
+# Starts: postgres, api (tsx watch hot-reload), web (Vite HMR)
+#
+# Usage:
+#   cp .env.example .env          # fill in secrets
+#   docker compose up             # start everything
+#   docker compose up --build     # rebuild after Dockerfile changes
+#
+# The Vite dev server proxies /api → http://api:4000 inside the Docker
+# network, so the browser talks to one origin (localhost:5173) and the
+# httpOnly refresh cookie works without SameSite gymnastics.
+#
+# Hot reload works via bind mounts — your local source files are mounted
+# into the containers so tsx/Vite see changes immediately without a rebuild.
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: careerforge
+      POSTGRES_PASSWORD: careerforge
+      POSTGRES_DB: careerforge
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U careerforge"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ---------------------------------------------------------------------------
+  # API (Express + Prisma, tsx watch for hot-reload)
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: deps          # Use the deps stage — source is bind-mounted
+    command: >
+      sh -c "
+        npx prisma migrate dev --schema=apps/api/prisma/schema.prisma --name init &&
+        npm run dev -w apps/api
+      "
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "4000:4000"
+    environment:
+      DATABASE_URL: postgresql://careerforge:careerforge@postgres:5432/careerforge
+      NODE_ENV: development
+      # Remaining secrets come from .env — Docker Compose auto-loads it
+    env_file:
+      - .env
+    volumes:
+      # Bind-mount source for hot-reload — node_modules stays in the container
+      - ./apps/api/src:/app/apps/api/src
+      - ./apps/api/prisma:/app/apps/api/prisma
+      - ./packages/schema/src:/app/packages/schema/src
+      - ./packages/templates/src:/app/packages/templates/src
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:4000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ---------------------------------------------------------------------------
+  # Web (Vite dev server with HMR)
+  # ---------------------------------------------------------------------------
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      target: deps
+    command: npm run dev -w apps/web -- --host 0.0.0.0
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "5173:5173"
+    environment:
+      NODE_ENV: development
+    volumes:
+      - ./apps/web/src:/app/apps/web/src
+      - ./packages/schema/src:/app/packages/schema/src
+      - ./packages/templates/src:/app/packages/templates/src
+
+volumes:
+  postgres_data:
