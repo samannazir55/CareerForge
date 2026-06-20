@@ -9,11 +9,15 @@
   "scripts": {
     "dev:api": "npm run dev -w apps/api",
     "dev:web": "npm run dev -w apps/web",
-    "build": "npm run build -w packages/schema && npm run build -w apps/api && npm run build -w apps/web",
+    "prisma:generate": "prisma generate --schema=apps/api/prisma/schema.prisma",
+    "build": "npm run build -w packages/schema && npm run prisma:generate && npm run build -w packages/templates && npm run build -w apps/api && npm run build -w apps/web",
+    "build:api": "npm run build -w packages/schema && npm run prisma:generate && npm run build -w packages/templates && npm run build -w apps/api",
+    "build:web": "npm run build -w packages/schema && npm run build -w packages/templates && npm run build -w apps/web",
     "db:migrate": "npm run db:migrate -w apps/api",
     "db:seed": "npm run db:seed -w apps/api"
   },
   "devDependencies": {
+    "prisma": "^5.20.0",
     "typescript": "^5.6.0"
   }
 }

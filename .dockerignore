@@ -18,4 +18,6 @@ docker-compose*.yml
 .DS_Store
 **/*.db
 **/dev.db
-apps/api/prisma/migrations/
+# NOTE: apps/api/prisma/migrations/ must NOT be excluded.
+# Those SQL files are what prisma migrate deploy runs on startup.
+# They are safe to commit — they contain no secrets.

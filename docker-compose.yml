@@ -47,7 +47,7 @@ services:
       target: deps          # Use the deps stage — source is bind-mounted
     command: >
       sh -c "
-        npx prisma migrate dev --schema=apps/api/prisma/schema.prisma --name init &&
+        ./node_modules/.bin/prisma db push --schema=apps/api/prisma/schema.prisma &&
         npm run dev -w apps/api
       "
     restart: unless-stopped

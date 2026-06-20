@@ -1,56 +1,58 @@
 # =============================================================================
 # CareerForge API — Dockerfile
-# Multi-stage build: deps → builder → production
+# Context: monorepo root  (docker build -f apps/api/Dockerfile .)
 #
-# Chromium is installed in the production stage (not builder) because it's a
-# runtime dependency for Puppeteer PDF export, not a build tool. The binary
-# path is baked in as an ENV so PUPPETEER_EXECUTABLE_PATH doesn't need to be
-# set manually in each deployment environment.
-#
-# Node 20 LTS on Debian Bookworm slim chosen over Alpine because:
-# 1. Puppeteer/Chromium has well-known compatibility issues on Alpine (musl vs glibc).
-# 2. Prisma's native binary targets also prefer Debian.
+# Stage order matters:
+#   1. deps      — npm install (cached layer)
+#   2. builder   — prisma generate THEN tsc (order is critical)
+#   3. production — minimal runtime image with Chromium for PDF export
 # =============================================================================
 
-# ---- Stage 1: Install all dependencies (including devDeps for build) --------
+# ---- Stage 1: Install dependencies ------------------------------------------
 FROM node:20-bookworm-slim AS deps
 
 WORKDIR /app
 
-# Copy workspace manifests first — Docker layer cache means npm install only
-# re-runs when a package.json actually changes, not on every code change.
+# Copy manifests only first — layer cache skips npm install unless a
+# package.json actually changes.
 COPY package.json ./
-COPY packages/schema/package.json ./packages/schema/
+COPY packages/schema/package.json  ./packages/schema/
 COPY packages/templates/package.json ./packages/templates/
-COPY apps/api/package.json ./apps/api/
+COPY apps/api/package.json         ./apps/api/
 
 RUN npm install --frozen-lockfile
 
-# ---- Stage 2: Build TypeScript -------------------------------------------------
+# ---- Stage 2: Build ----------------------------------------------------------
 FROM deps AS builder
 
 WORKDIR /app
 
-COPY packages/schema ./packages/schema
-COPY packages/templates ./packages/templates
-COPY apps/api ./apps/api
-COPY tsconfig.base.json ./
+COPY tsconfig.base.json            ./
+COPY packages/schema               ./packages/schema
+COPY packages/templates            ./packages/templates
+COPY apps/api                      ./apps/api
 
-# Build shared packages first (API imports them)
+# Step A: compile the shared schema package (templates and API both import it)
 RUN npm run build -w packages/schema
+
+# Step B: generate the Prisma client BEFORE compiling TypeScript.
+#         Without this, @prisma/client exports no model types (User, Resume, …)
+#         and tsc fails with "has no exported member" on every Prisma type.
+RUN ./node_modules/.bin/prisma generate --schema=apps/api/prisma/schema.prisma
+
+# Step C: compile the templates package (API imports @careerforge/templates)
 RUN npm run build -w packages/templates
+
+# Step D: compile the API now that all its dependencies have types
 RUN npm run build -w apps/api
 
-# Generate Prisma client against the compiled schema
-RUN npx prisma generate --schema=apps/api/prisma/schema.prisma
-
-# ---- Stage 3: Production image -----------------------------------------------
+# ---- Stage 3: Production runtime --------------------------------------------
 FROM node:20-bookworm-slim AS production
 
-# Install Chromium and its runtime dependencies for Puppeteer PDF export.
-# These are the packages Chromium requires on Debian — omitting any of them
-# causes silent rendering failures or a crash on first PDF request rather than
-# a clear startup error, so they're all listed explicitly.
+# Chromium + its runtime dependencies for Puppeteer PDF export.
+# Using system Chromium rather than Puppeteer's bundled download because:
+# - Puppeteer's download is unreliable in CI/CD environments
+# - System package is smaller and already security-patched by the OS
 RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
     fonts-liberation \
@@ -73,35 +75,31 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xdg-utils \
     && rm -rf /var/lib/apt/lists/*
 
-# Tell Puppeteer where to find the system Chromium — no download needed.
+# Bake the path in — PUPPETEER_EXECUTABLE_PATH never needs to be set manually
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV NODE_ENV=production
 
 WORKDIR /app
 
-# Copy only what's needed at runtime: compiled output + node_modules + prisma
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/packages/schema/dist ./packages/schema/dist
+# Copy only runtime artefacts — no source, no devDeps
+COPY --from=builder /app/node_modules              ./node_modules
+COPY --from=builder /app/packages/schema/dist      ./packages/schema/dist
 COPY --from=builder /app/packages/schema/package.json ./packages/schema/
-COPY --from=builder /app/packages/templates/dist ./packages/templates/dist
+COPY --from=builder /app/packages/templates/dist   ./packages/templates/dist
 COPY --from=builder /app/packages/templates/package.json ./packages/templates/
-COPY --from=builder /app/apps/api/dist ./apps/api/dist
-COPY --from=builder /app/apps/api/package.json ./apps/api/
-COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
+COPY --from=builder /app/apps/api/dist             ./apps/api/dist
+COPY --from=builder /app/apps/api/package.json     ./apps/api/
+COPY --from=builder /app/apps/api/prisma           ./apps/api/prisma
 COPY package.json ./
 
-# Run as a non-root user — Chromium's --no-sandbox flag (set in browser.ts)
-# is required when running as root, but running as non-root is the safer
-# default even with --no-sandbox present.
+# Non-root user — safer even with --no-sandbox
 RUN groupadd --gid 1001 careerforge \
     && useradd --uid 1001 --gid careerforge --shell /bin/bash --create-home careerforge
 USER careerforge
 
 EXPOSE 4000
 
-# Run migrations then start the server.
-# In production (Render/Railway/Fly) you may prefer to run migrations as a
-# separate release command rather than on every startup — both patterns work
-# with Prisma migrate deploy.
-CMD ["sh", "-c", "npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma && node apps/api/dist/index.js"]
+# prisma migrate deploy is idempotent — safe to run on every startup.
+# Only applies pending migrations; exits immediately if schema is current.
+CMD ["sh", "-c", "./node_modules/.bin/prisma db push --schema=apps/api/prisma/schema.prisma && node apps/api/dist/index.js"]
