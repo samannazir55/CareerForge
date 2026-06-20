@@ -1,6 +1,6 @@
-import type { TemplateRenderer, TemplateMetadata } from './types.js';
-import { modernTemplate } from './modern.js';
-import { classicTemplate } from './classic.js';
+import type { TemplateRenderer, TemplateMetadata } from './types';
+import { modernTemplate } from './modern';
+import { classicTemplate } from './classic';
 
 /**
  * The template registry is the single source of truth for which templates

@@ -1,5 +1,6 @@
 import type { Resume, Section } from '@careerforge/schema';
-import type { TemplateRenderer } from './types.js';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, BorderStyle, ShadingType } from 'docx';
+import type { TemplateRenderer } from './types';
 import {
   escapeHtml,
   richTextToHtml,
@@ -10,7 +11,7 @@ import {
   renderEntryFieldsGeneric,
   getPersonalInfo,
   getBodySections,
-} from './helpers.js';
+} from './helpers';
 
 // ---------------------------------------------------------------------------
 // HTML renderer — used for both live preview and Puppeteer PDF generation
@@ -194,10 +195,6 @@ function renderHtml(resume: Resume): string {
 // ---------------------------------------------------------------------------
 
 async function buildDocx(resume: Resume): Promise<Buffer> {
-  // docx is a CommonJS/ESM dual package — dynamic import handles both environments.
-  const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, BorderStyle, Table, TableRow, TableCell, WidthType, ShadingType } =
-    await import('docx');
-
   const info = getPersonalInfo(resume);
   const bodySections = getBodySections(resume);
 
@@ -227,7 +224,7 @@ async function buildDocx(resume: Resume): Promise<Buffer> {
     new Paragraph({ text: '' }),
   ];
 
-  const sectionParagraphs: InstanceType<typeof Paragraph>[] = [];
+  const sectionParagraphs: Paragraph[] = [];
 
   for (const section of bodySections) {
     if (!section.entries.length) continue;
@@ -350,8 +347,6 @@ async function buildDocx(resume: Resume): Promise<Buffer> {
     }
   }
 
-  // Suppress unused variable warnings for imports not directly referenced
-  void Table; void TableRow; void TableCell; void WidthType; void AlignmentType;
 
   const doc = new Document({
     sections: [

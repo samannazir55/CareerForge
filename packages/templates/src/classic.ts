@@ -1,5 +1,6 @@
 import type { Resume, Section } from '@careerforge/schema';
-import type { TemplateRenderer } from './types.js';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, BorderStyle } from 'docx';
+import type { TemplateRenderer } from './types';
 import {
   escapeHtml,
   richTextToHtml,
@@ -9,7 +10,7 @@ import {
   renderEntryFieldsGeneric,
   getPersonalInfo,
   getBodySections,
-} from './helpers.js';
+} from './helpers';
 
 // ---------------------------------------------------------------------------
 // Classic template — left sidebar for contact/skills, main column for body
@@ -190,12 +191,10 @@ function renderHtml(resume: Resume): string {
 // ---------------------------------------------------------------------------
 
 async function buildDocx(resume: Resume): Promise<Buffer> {
-  const { Document, Packer, Paragraph, TextRun, HeadingLevel, BorderStyle } = await import('docx');
-
   const info = getPersonalInfo(resume);
   const bodySections = getBodySections(resume);
 
-  const children: InstanceType<typeof Paragraph>[] = [
+  const children: Paragraph[] = [
     new Paragraph({ children: [new TextRun({ text: info.fullName, bold: true, size: 44 })] }),
     ...(info.jobTitle ? [new Paragraph({ children: [new TextRun({ text: info.jobTitle, size: 22, color: '555555' })] })] : []),
     new Paragraph({
