@@ -88,7 +88,8 @@ COPY --from=builder /app/apps/api/prisma            ./apps/api/prisma
 COPY package.json ./
 
 RUN groupadd --gid 1001 careerforge \
-    && useradd --uid 1001 --gid careerforge --shell /bin/bash --create-home careerforge
+    && useradd --uid 1001 --gid careerforge --shell /bin/bash --create-home careerforge \
+    && chown -R careerforge:careerforge /app
 USER careerforge
 
 EXPOSE 4000
