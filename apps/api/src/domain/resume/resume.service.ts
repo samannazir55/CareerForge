@@ -1,4 +1,4 @@
-import type { Resume as ResumeRow, ResumeVersion as ResumeVersionRow } from '@prisma/client';
+import type { Resume as ResumeRow, ResumeVersion as ResumeVersionRow, Prisma } from '@prisma/client';
 import {
   CURRENT_SCHEMA_VERSION,
   buildDefaultSections,
@@ -14,6 +14,15 @@ import {
 import { prisma } from '../../lib/prisma.js';
 import { NotFoundError } from '../../lib/errors.js';
 import { diffSections } from './diff.js';
+
+/**
+ * Prisma's Json column type requires an index signature ([key: string]: any)
+ * that our specific schema types (Section[], ResumeTheme) deliberately don't
+ * carry — they're stricter. This helper is the standard bridge between the two.
+ * It's the only place in this file that uses `unknown` casting; all other code
+ * stays fully typed.
+ */
+const toJson = (v: unknown): Prisma.InputJsonValue => v as Prisma.InputJsonValue;
 
 // --- Mapping helpers: DB row (JSON columns, untyped) <-> shared Resume type ----
 
@@ -81,8 +90,8 @@ async function migrateAndPersistIfNeeded(row: ResumeRow): Promise<ResumeRow> {
     where: { id: row.id },
     data: {
       title: result.payload.title,
-      theme: result.payload.theme,
-      sections: result.payload.sections,
+      theme: toJson(result.payload.theme),
+      sections: toJson(result.payload.sections),
       schemaVersion: result.schemaVersion,
       migrationVersion: result.migrationVersion,
     },
@@ -118,8 +127,8 @@ export async function createResume(ownerId: string, title: string): Promise<Resu
     data: {
       ownerId,
       title,
-      theme: DEFAULT_THEME,
-      sections: buildDefaultSections(),
+      theme: toJson(DEFAULT_THEME),
+      sections: toJson(buildDefaultSections()),
       schemaVersion: CURRENT_SCHEMA_VERSION,
       migrationVersion: CURRENT_SCHEMA_VERSION,
     },
@@ -148,8 +157,8 @@ export async function updateResume(
     where: { id },
     data: {
       ...(patch.title !== undefined ? { title: patch.title } : {}),
-      ...(patch.theme !== undefined ? { theme: patch.theme } : {}),
-      ...(patch.sections !== undefined ? { sections: patch.sections } : {}),
+      ...(patch.theme !== undefined ? { theme: toJson(patch.theme) } : {}),
+      ...(patch.sections !== undefined ? { sections: toJson(patch.sections) } : {}),
     },
   });
   return toPublicResume(row);
@@ -170,8 +179,8 @@ export async function createVersion(id: string, ownerId: string, label?: string)
     data: {
       resumeId: migrated.id,
       title: migrated.title,
-      theme: migrated.theme as object,
-      sections: migrated.sections as object,
+      theme: toJson(migrated.theme),
+      sections: toJson(migrated.sections),
       schemaVersion: migrated.schemaVersion,
       migrationVersion: migrated.migrationVersion,
       label: label ?? null,
@@ -217,8 +226,8 @@ export async function restoreVersion(resumeId: string, versionId: string, ownerI
     where: { id: resumeId },
     data: {
       title: migratedPayload.title,
-      theme: migratedPayload.theme as object,
-      sections: migratedPayload.sections as object,
+      theme: toJson(migratedPayload.theme),
+      sections: toJson(migratedPayload.sections),
       schemaVersion: CURRENT_SCHEMA_VERSION,
       migrationVersion: CURRENT_SCHEMA_VERSION,
     },
