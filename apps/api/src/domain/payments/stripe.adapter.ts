@@ -16,7 +16,7 @@ function getStripeClient(): Stripe {
         'See apps/api/.env.example for setup instructions.',
     );
   }
-  return new Stripe(env.STRIPE_SECRET_KEY, { apiVersion: '2024-10-28.acacia' });
+  return new Stripe(env.STRIPE_SECRET_KEY, { apiVersion: Stripe.latestApiVersion });
 }
 
 function mapStripeStatus(status: Stripe.Subscription.Status): SubscriptionState['status'] {
