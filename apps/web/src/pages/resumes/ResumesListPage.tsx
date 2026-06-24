@@ -1,15 +1,14 @@
-import { useEffect, useState, } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Plus, FileText, Trash2 } from 'lucide-react';
+import { useEffect, useState, type MouseEvent } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Plus, FileText, Trash2, Sparkles } from 'lucide-react';
 import type { ResumeSummary } from '@careerforge/schema';
 import { resumeApi } from '../../lib/api';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
-import { useAuth } from '../../context/AuthContext';
+import { AppShell } from '../../components/layout/AppShell';
 
 export function ResumesListPage() {
   const navigate = useNavigate();
-  const { logout } = useAuth();
   const [resumes, setResumes] = useState<ResumeSummary[] | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,16 +38,18 @@ export function ResumesListPage() {
   }
 
   return (
-    <div className="min-h-screen w-full bg-background p-4 sm:p-8">
-      <div className="max-w-3xl mx-auto">
+    <AppShell>
+      <div className="p-6 sm:p-8 max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-semibold text-gradient">Your resumes</h1>
+          <h1 className="text-2xl font-semibold">Your Resumes</h1>
           <div className="flex items-center gap-2">
-            <Button onClick={handleCreate} disabled={isCreating}>
-              <Plus size={16} className="mr-1.5" /> New resume
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => logout()}>
-              Log out
+            <Link to="/resumes/new/chat">
+              <Button variant="secondary" size="sm">
+                <Sparkles size={14} className="mr-1.5" /> AI Builder
+              </Button>
+            </Link>
+            <Button onClick={handleCreate} disabled={isCreating} size="sm">
+              <Plus size={14} className="mr-1.5" /> New resume
             </Button>
           </div>
         </div>
@@ -59,10 +60,16 @@ export function ResumesListPage() {
 
         {resumes?.length === 0 && (
           <GlassCard className="text-center">
-            <p className="text-muted-foreground mb-4">You don't have any resumes yet.</p>
-            <Button onClick={handleCreate} disabled={isCreating}>
-              Create your first resume
-            </Button>
+            <p className="text-muted-foreground mb-2">You don't have any resumes yet.</p>
+            <p className="text-sm text-muted-foreground mb-4">Try the AI Builder for a guided experience, or create a blank resume.</p>
+            <div className="flex gap-2 justify-center">
+              <Link to="/resumes/new/chat">
+                <Button variant="secondary"><Sparkles size={14} className="mr-1.5" /> AI Builder</Button>
+              </Link>
+              <Button onClick={handleCreate} disabled={isCreating}>
+                <Plus size={14} className="mr-1.5" /> Blank resume
+              </Button>
+            </div>
           </GlassCard>
         )}
 
@@ -85,7 +92,7 @@ export function ResumesListPage() {
               <button
                 type="button"
                 aria-label="Delete resume"
-                onClick={(e: { stopPropagation(): void }) => {
+                onClick={(e: MouseEvent) => {
                   e.stopPropagation();
                   handleDelete(resume.id);
                 }}
@@ -97,6 +104,6 @@ export function ResumesListPage() {
           ))}
         </div>
       </div>
-    </div>
+    </AppShell>
   );
 }

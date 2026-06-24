@@ -3,3 +3,5 @@ export * from './auth.js';
 export * from './resume.js';
 export * from './resumeMigrations.js';
 export * from './sectionOperations.js';
+export * from './payments.js';
+export * from './ai.js';

@@ -48,13 +48,15 @@ model User {
   subscriptionTier SubscriptionTier @default(FREE)
   pointsBalance    Int              @default(0)
   createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  updatedAt        DateTime         @default(now()) @updatedAt
 
   oauthAccounts     OAuthAccount[]
   otpCodes          OtpCode[]
   refreshTokens     RefreshToken[]
-  templatePurchases TemplatePurchase[]
-  resumes           Resume[]
+  templatePurchases   TemplatePurchase[]
+  resumes             Resume[]
+  pointsTransactions  PointsTransaction[]
+  subscription        Subscription?
 
   @@map("users")
 }
@@ -142,7 +144,8 @@ model Resume {
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
-  versions ResumeVersion[]
+  versions       ResumeVersion[]
+  shareableLink  ShareableLink?
 
   @@index([ownerId])
   @@map("resumes")
@@ -162,4 +165,90 @@ model ResumeVersion {
 
   @@index([resumeId, createdAt])
   @@map("resume_versions")
+}
+
+// ---------------------------------------------------------------------------
+// Points ledger
+// Balance is always derived (SUM of amounts) — never stored as a column.
+// This means the displayed balance can never drift from the transaction history.
+// ---------------------------------------------------------------------------
+
+enum PointsTransactionType {
+  EARN
+  SPEND
+}
+
+enum PointsEarnReason {
+  PROFILE_COMPLETION
+  RESUME_COMPLETION
+  DAILY_USAGE
+  REFERRAL
+  ADMIN_GRANT
+}
+
+enum PointsSpendReason {
+  TEMPLATE_PURCHASE
+  EXPORT_PREMIUM
+  FEATURE_UNLOCK
+}
+
+model PointsTransaction {
+  id          String                   @id @default(uuid())
+  user        User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  type        PointsTransactionType
+  amount      Int
+  earnReason  PointsEarnReason?
+  spendReason PointsSpendReason?
+  description String?
+  createdAt   DateTime                 @default(now())
+
+  @@index([userId, createdAt])
+  @@map("points_transactions")
+}
+
+// ---------------------------------------------------------------------------
+// Subscriptions
+// One active subscription per user. The stripeSubscriptionId links to the
+// real Stripe object so webhook events can be reconciled.
+// ---------------------------------------------------------------------------
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  TRIALING
+}
+
+model Subscription {
+  id                   String             @id @default(uuid())
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId               String             @unique
+  tier                 SubscriptionTier
+  status               SubscriptionStatus
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean            @default(false)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @default(now()) @updatedAt
+
+  @@map("subscriptions")
+}
+
+// ---------------------------------------------------------------------------
+// Shareable resume links
+// ---------------------------------------------------------------------------
+
+model ShareableLink {
+  id         String   @id @default(uuid())
+  resume     Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  resumeId   String   @unique
+  slug       String   @unique
+  isEnabled  Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
+
+  @@map("shareable_links")
 }

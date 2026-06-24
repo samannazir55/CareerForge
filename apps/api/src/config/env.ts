@@ -42,6 +42,26 @@ const EnvSchema = z.object({
   // Local dev: run `npx puppeteer browsers install chrome` and set the printed path.
   // Production (Render/Ubuntu): typically /usr/bin/chromium-browser or similar.
   PUPPETEER_EXECUTABLE_PATH: z.string().optional().default(''),
+
+  // Payments (Stripe)
+  STRIPE_SECRET_KEY: z.string().optional().default(''),
+  STRIPE_WEBHOOK_SECRET: z.string().optional().default(''),
+  STRIPE_PRICE_PROFESSIONAL: z.string().optional().default(''),
+  STRIPE_PRICE_PREMIUM: z.string().optional().default(''),
+
+  // AI provider
+  AI_PROVIDER: z.enum(['anthropic', 'openai', 'groq', 'openrouter']).default('openrouter'),
+  ANTHROPIC_API_KEY: z.string().optional().default(''),
+  OPENAI_API_KEY: z.string().optional().default(''),
+  GROQ_API_KEY: z.string().optional().default(''),
+  OPENROUTER_API_KEY: z.string().optional().default(''),
+
+  // Feature flags — set to 'true' to enable; false by default so future
+  // modules can be deployed behind flags without affecting current users
+  FEATURE_INTERVIEW_PREP: z.string().default('false'),
+  FEATURE_LINKEDIN_OPTIMIZER: z.string().default('false'),
+  FEATURE_JOB_TRACKER: z.string().default('false'),
+  FEATURE_CAREER_COACH: z.string().default('false'),
 });
 
 const parsed = EnvSchema.safeParse(process.env);

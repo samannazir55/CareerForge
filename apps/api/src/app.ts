@@ -6,35 +6,41 @@ import { env } from './config/env.js';
 import { authRouter } from './domain/auth/auth.routes.js';
 import { resumeRouter } from './domain/resume/resume.routes.js';
 import { exportRouter } from './domain/export/export.routes.js';
+import { paymentsRouter } from './domain/payments/payments.routes.js';
+import { pointsRouter } from './domain/points/points.routes.js';
+import { aiRouter } from './domain/ai/ai.routes.js';
+import { dashboardRouter } from './domain/dashboard/dashboard.routes.js';
+import { sharingRouter } from './domain/sharing/sharing.routes.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 
 export function createApp() {
   const app = express();
 
   app.use(helmet());
-  app.use(
-    cors({
-      origin: env.FRONTEND_URL,
-      credentials: true, // required so the browser sends/accepts the refresh cookie
-    }),
-  );
-  app.use(express.json());
+  app.use(cors({ origin: env.FRONTEND_URL, credentials: true }));
   app.use(cookieParser());
 
+  // Stripe webhook must receive raw body BEFORE express.json() parses it
+  app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
+
+  // All other routes get JSON parsing
+  app.use(express.json());
+
+  // Health check — no auth, used by Render's health check and load balancers
   app.get('/api/health', (_req: Request, res: Response) => {
     res.status(200).json({ status: 'ok' });
   });
 
+  // Domain routers
   app.use('/api/auth', authRouter);
   app.use('/api/resumes', resumeRouter);
-  // Export routes share the /api/resumes prefix so URLs are:
-  // GET /api/resumes/:id/export/pdf
-  // GET /api/resumes/:id/export/docx
-  app.use('/api/resumes', exportRouter);
-
-  // Future domain routers mount here, each in its own file, e.g.:
-  // app.use('/api/templates', templateRouter);
-  // app.use('/api/points', pointsRouter);
+  app.use('/api/resumes', exportRouter);       // GET /api/resumes/:id/export/:format
+  app.use('/api/resumes', sharingRouter);      // POST /api/resumes/:id/share
+  app.use('/api/payments', paymentsRouter);
+  app.use('/api/points', pointsRouter);
+  app.use('/api/ai', aiRouter);
+  app.use('/api/dashboard', dashboardRouter);
+  app.use('/api/public', sharingRouter);       // GET /api/public/:slug (no auth)
 
   app.use(notFoundHandler);
   app.use(errorHandler);
