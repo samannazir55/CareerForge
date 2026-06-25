@@ -7,7 +7,8 @@ import {
 import * as resumeService from './resume.service.js';
 import { asyncHandler } from '../../lib/asyncHandler.js';
 import { requireAuth, requireVerifiedEmail } from '../../middleware/authGuard.js';
-import { BadRequestError } from '../../lib/errors.js';
+import { BadRequestError, NotFoundError } from '../../lib/errors.js';
+import { prisma } from '../../lib/prisma.js';
 
 export const resumeRouter = Router();
 
@@ -102,5 +103,30 @@ resumeRouter.get(
     }
     const diff = await resumeService.compareVersions(req.params.id, versionAId, versionBId, req.user!.id);
     res.status(200).json({ diff });
+  }),
+);
+
+// Preview endpoint — returns the rendered HTML for a resume so the browser
+// can display it in an iframe without bundling server-side template code.
+resumeRouter.get(
+  '/:id/preview',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const row = await prisma.resume.findUnique({ where: { id: req.params.id } });
+    if (!row || row.ownerId !== req.user!.id) {
+      throw new NotFoundError('Resume not found.');
+    }
+    const { runMigrations } = await import('@careerforge/schema');
+    const { payload: resume } = runMigrations({
+      schemaVersion: row.schemaVersion,
+      migrationVersion: row.migrationVersion,
+      payload: { id: row.id, ownerId: row.ownerId, title: row.title, theme: row.theme, sections: row.sections, schemaVersion: row.schemaVersion, migrationVersion: row.migrationVersion, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() },
+    });
+    const { getTemplate } = await import('@careerforge/templates');
+    const template = getTemplate((resume.theme as any)?.templateId ?? 'modern');
+    const html = template.renderHtml(resume as any);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(html);
   }),
 );

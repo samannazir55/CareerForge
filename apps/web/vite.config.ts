@@ -11,20 +11,4 @@ export default defineConfig({
       },
     },
   },
-  build: {
-    // The templates package is compiled as CommonJS (to fix the docx/Node.js
-    // import issue on the server side). Rollup can't statically determine named
-    // exports from CJS modules, so we declare them explicitly here.
-    commonjsOptions: {
-      namedExports: {
-        '@careerforge/templates': [
-          'getTemplate',
-          'getAllTemplateMetadata',
-          'isPremiumTemplate',
-          'modernTemplate',
-          'classicTemplate',
-        ],
-      },
-    },
-  },
 });
