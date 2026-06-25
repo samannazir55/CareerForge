@@ -14,6 +14,14 @@ import type {
 } from '@careerforge/schema';
 
 /**
+ * When the frontend and API are on different domains (Render static site +
+ * Render web service), set VITE_API_URL to the API's full URL in the static
+ * site's environment variables. In local dev the Vite proxy makes them
+ * same-origin so this stays empty.
+ */
+const API_ORIGIN = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? '';
+
+/**
  * Access token lives in memory only — never localStorage/sessionStorage, so
  * it isn't readable by an XSS payload that can run arbitrary JS but can't
  * read memory across a page reload. It's re-minted on page load via
@@ -50,7 +58,7 @@ async function rawRequest(path: string, options: RequestOptions = {}): Promise<R
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
 
-  return fetch(`/api${path}`, {
+  return fetch(`${API_ORIGIN}/api${path}`, {
     method: options.method ?? 'GET',
     headers,
     credentials: 'include', // sends/receives the httpOnly refresh cookie

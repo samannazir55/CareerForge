@@ -17,7 +17,26 @@ export function createApp() {
   const app = express();
 
   app.use(helmet());
-  app.use(cors({ origin: env.FRONTEND_URL, credentials: true }));
+  // CORS: allow the configured frontend URL and localhost for dev.
+  // FRONTEND_URL can be a comma-separated list if needed (e.g. preview + production).
+  const allowedOrigins = (env.FRONTEND_URL ?? '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+
+  app.use(
+    cors({
+      origin: (origin, callback) => {
+        // Allow requests with no origin (e.g. curl, Postman, server-to-server)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+          return callback(null, true);
+        }
+        return callback(new Error(`CORS: origin ${origin} not allowed`));
+      },
+      credentials: true,
+    }),
+  );
   app.use(cookieParser());
 
   // Stripe webhook must receive raw body BEFORE express.json() parses it

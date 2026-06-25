@@ -11,6 +11,8 @@ interface ResumePreviewProps {
 const A4_WIDTH_PX = 794;
 const A4_HEIGHT_PX = 1123;
 
+const API_ORIGIN = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? '';
+
 /**
  * Fetches rendered HTML from GET /api/resumes/:id/preview and displays it
  * in an isolated iframe. This keeps all template code server-side (where
@@ -38,7 +40,7 @@ export function ResumePreview({ resume, scale = 0.5, className = '' }: ResumePre
     const token = getAccessToken();
     if (!token) return;
 
-    fetch(`/api/resumes/${resume.id}/preview`, {
+    fetch(`${API_ORIGIN}/api/resumes/${resume.id}/preview`, {
       headers: { Authorization: `Bearer ${token}` },
       credentials: 'include',
     })

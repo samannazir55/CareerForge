@@ -1,26 +1,24 @@
 import { Button } from '../../components/ui/Button';
-import { authApi } from '../../lib/api';
 
-/** Shared Google/GitHub buttons for both Login and Register — both pages
- * trigger the exact same redirect-based flow, so there's one definition. */
+// The OAuth flow starts on the API server (which handles the redirect to
+// Google/GitHub and the callback). The frontend and API are on different
+// domains on Render, so we need the full API URL, not a relative path.
+const API_BASE = import.meta.env.VITE_API_URL ?? '';
+
 export function OAuthButtons() {
   return (
     <div className="grid grid-cols-2 gap-3">
       <Button
         type="button"
         variant="outline"
-        onClick={() => {
-          window.location.href = authApi.oauthStartUrl('google');
-        }}
+        onClick={() => { window.location.href = `${API_BASE}/api/auth/oauth/google`; }}
       >
         Google
       </Button>
       <Button
         type="button"
         variant="outline"
-        onClick={() => {
-          window.location.href = authApi.oauthStartUrl('github');
-        }}
+        onClick={() => { window.location.href = `${API_BASE}/api/auth/oauth/github`; }}
       >
         GitHub
       </Button>
