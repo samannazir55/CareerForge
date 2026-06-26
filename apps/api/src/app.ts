@@ -17,22 +17,21 @@ export function createApp() {
   const app = express();
 
   app.use(helmet());
-  // CORS: allow the configured frontend URL and localhost for dev.
-  // FRONTEND_URL can be a comma-separated list if needed (e.g. preview + production).
-  const allowedOrigins = (env.FRONTEND_URL ?? '')
-    .split(',')
-    .map((o) => o.trim())
-    .filter(Boolean);
+  // CORS: allow configured frontend origin(s).
+  // - Comma-separate multiple origins in FRONTEND_URL if needed.
+  // - '*' allows all origins (useful during development).
+  // - If FRONTEND_URL is not set, allow all origins rather than blocking
+  //   everything — a missing env var shouldn't take the whole app down.
+  const rawOrigins = (env.FRONTEND_URL ?? '').split(',').map((o) => o.trim()).filter(Boolean);
+  const allowAll = rawOrigins.length === 0 || rawOrigins.includes('*');
 
   app.use(
     cors({
       origin: (origin, callback) => {
-        // Allow requests with no origin (e.g. curl, Postman, server-to-server)
-        if (!origin) return callback(null, true);
-        if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+        if (!origin || allowAll || rawOrigins.includes(origin)) {
           return callback(null, true);
         }
-        return callback(new Error(`CORS: origin ${origin} not allowed`));
+        callback(new Error(`CORS: origin ${origin} not allowed`));
       },
       credentials: true,
     }),
