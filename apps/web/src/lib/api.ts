@@ -21,6 +21,16 @@ import type {
  */
 const API_ORIGIN = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? '';
 
+// Warn loudly in the browser console if this is missing in production —
+// every API call will silently go to the wrong domain without it.
+if (!API_ORIGIN && import.meta.env.PROD) {
+  console.error(
+    '[CareerForge] VITE_API_URL is not set. ' +
+    'Add it to your Render static site environment variables and redeploy. ' +
+    'Value should be: https://careerforge-hsmn.onrender.com'
+  );
+}
+
 /**
  * Access token lives in memory only — never localStorage/sessionStorage, so
  * it isn't readable by an XSS payload that can run arbitrary JS but can't
