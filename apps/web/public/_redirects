@@ -1,0 +1,6 @@
+# Proxy all /api/* requests to the API service.
+# The browser sees careerforge-s.onrender.com/api/... (same origin as the
+# frontend) — Render's CDN forwards the request to the API server-side.
+# This eliminates CORS entirely: no preflight, no Access-Control headers needed,
+# cookies work with SameSite=Lax, and VITE_API_URL is no longer needed.
+/api/*  https://careerforge-hsmn.onrender.com/api/:splat  200

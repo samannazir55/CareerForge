@@ -14,28 +14,10 @@ import type {
 } from '@careerforge/schema';
 
 /**
- * When the frontend and API are on different domains (Render static site +
- * Render web service), set VITE_API_URL to the API's full URL in the static
- * site's environment variables. In local dev the Vite proxy makes them
- * same-origin so this stays empty.
- */
-const API_ORIGIN = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? '';
-
-// Warn loudly in the browser console if this is missing in production —
-// every API call will silently go to the wrong domain without it.
-if (!API_ORIGIN && import.meta.env.PROD) {
-  console.error(
-    '[CareerForge] VITE_API_URL is not set. ' +
-    'Add it to your Render static site environment variables and redeploy. ' +
-    'Value should be: https://careerforge-hsmn.onrender.com'
-  );
-}
-
-/**
- * Access token lives in memory only — never localStorage/sessionStorage, so
- * it isn't readable by an XSS payload that can run arbitrary JS but can't
- * read memory across a page reload. It's re-minted on page load via
- * POST /api/auth/refresh, which relies on the httpOnly refresh cookie.
+ * All requests use relative /api/* URLs. In production, Render's _redirects
+ * file proxies these server-side to the API service — same origin to the
+ * browser, no CORS needed. In local dev, Vite's proxy does the same job.
+ * VITE_API_URL is no longer used.
  */
 let accessToken: string | null = null;
 
@@ -61,17 +43,17 @@ export class ApiError extends Error {
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: unknown;
-  skipAuthRetry?: boolean; // used internally to prevent infinite refresh loops
+  skipAuthRetry?: boolean;
 }
 
 async function rawRequest(path: string, options: RequestOptions = {}): Promise<Response> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
 
-  return fetch(`${API_ORIGIN}/api${path}`, {
+  return fetch(`/api${path}`, {
     method: options.method ?? 'GET',
     headers,
-    credentials: 'include', // sends/receives the httpOnly refresh cookie
+    credentials: 'include',
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
   });
 }
@@ -81,9 +63,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
   if (res.status === 401 && !options.skipAuthRetry && path !== '/auth/refresh') {
     const refreshed = await tryRefresh();
-    if (refreshed) {
-      res = await rawRequest(path, options);
-    }
+    if (refreshed) res = await rawRequest(path, options);
   }
 
   if (!res.ok) {
@@ -101,8 +81,6 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
 let refreshInFlight: Promise<boolean> | null = null;
 
-/** De-duplicates concurrent refresh attempts (e.g. several components
- * mounting at once and all getting a 401) into a single network call. */
 async function tryRefresh(): Promise<boolean> {
   if (!refreshInFlight) {
     refreshInFlight = (async () => {
@@ -121,7 +99,7 @@ async function tryRefresh(): Promise<boolean> {
   return refreshInFlight;
 }
 
-// --- Auth API surface ---------------------------------------------------------
+// --- Auth -------------------------------------------------------------------
 
 export const authApi = {
   register: (input: RegisterRequest) => request<AuthResponse>('/auth/register', { method: 'POST', body: input }),
@@ -131,32 +109,27 @@ export const authApi = {
   refresh: () => request<AuthResponse>('/auth/refresh', { method: 'POST', skipAuthRetry: true }),
   verifyOtp: (code: string) => request<{ user: UserPublic }>('/auth/otp/verify', { method: 'POST', body: { code } }),
   resendOtp: () => request<{ message: string }>('/auth/otp/resend', { method: 'POST' }),
-  forgotPassword: (email: string) =>
-    request<{ message: string }>('/auth/forgot-password', { method: 'POST', body: { email } }),
-  resetPassword: (input: ResetPasswordRequest) =>
-    request<{ message: string }>('/auth/reset-password', { method: 'POST', body: input }),
+  forgotPassword: (email: string) => request<{ message: string }>('/auth/forgot-password', { method: 'POST', body: { email } }),
+  resetPassword: (input: ResetPasswordRequest) => request<{ message: string }>('/auth/reset-password', { method: 'POST', body: input }),
   oauthStartUrl: (provider: 'google' | 'github') => `/api/auth/oauth/${provider}`,
 };
+
+// --- Resumes ----------------------------------------------------------------
 
 export const resumeApi = {
   list: () => request<{ resumes: ResumeSummary[] }>('/resumes'),
   create: (input: CreateResumeRequest) => request<{ resume: Resume }>('/resumes', { method: 'POST', body: input }),
   get: (id: string) => request<{ resume: Resume }>(`/resumes/${id}`),
-  update: (id: string, patch: UpdateResumeRequest) =>
-    request<{ resume: Resume }>(`/resumes/${id}`, { method: 'PATCH', body: patch }),
-  remove: (id: string) => request<void>(`/resumes/${id}`, { method: 'DELETE' }),
-  createVersion: (id: string, label?: string) =>
-    request<{ version: ResumeVersion }>(`/resumes/${id}/versions`, { method: 'POST', body: { label } }),
+  update: (id: string, input: UpdateResumeRequest) => request<{ resume: Resume }>(`/resumes/${id}`, { method: 'PATCH', body: input }),
+  delete: (id: string) => request<void>(`/resumes/${id}`, { method: 'DELETE' }),
   listVersions: (id: string) => request<{ versions: ResumeVersionSummary[] }>(`/resumes/${id}/versions`),
-  getVersion: (id: string, versionId: string) =>
-    request<{ version: ResumeVersion }>(`/resumes/${id}/versions/${versionId}`),
-  restoreVersion: (id: string, versionId: string) =>
-    request<{ resume: Resume }>(`/resumes/${id}/versions/${versionId}/restore`, { method: 'POST' }),
-  compareVersions: (id: string, versionAId: string, versionBId: string) =>
-    request<{ diff: ResumeVersionDiff }>(`/resumes/${id}/versions/${versionAId}/compare/${versionBId}`),
+  createVersion: (id: string, label?: string) => request<{ version: ResumeVersion }>(`/resumes/${id}/versions`, { method: 'POST', body: { label } }),
+  getVersion: (id: string, versionId: string) => request<{ version: ResumeVersion }>(`/resumes/${id}/versions/${versionId}`),
+  restoreVersion: (id: string, versionId: string) => request<{ resume: Resume }>(`/resumes/${id}/versions/${versionId}/restore`, { method: 'POST' }),
+  diffVersions: (id: string, fromId: string, toId: string) => request<{ diff: ResumeVersionDiff }>(`/resumes/${id}/versions/diff?from=${fromId}&to=${toId}`),
 };
 
-// --- Dashboard ---------------------------------------------------------------
+// --- Dashboard --------------------------------------------------------------
 
 export const dashboardApi = {
   get: () => request<{
@@ -167,7 +140,7 @@ export const dashboardApi = {
   }>('/dashboard'),
 };
 
-// --- Points ------------------------------------------------------------------
+// --- Points -----------------------------------------------------------------
 
 export const pointsApi = {
   get: () => request<{ balance: number; transactions: Array<{ id: string; type: string; amount: number; description: string | null; createdAt: string }> }>('/points'),
@@ -175,7 +148,7 @@ export const pointsApi = {
   purchaseTemplate: (templateId: string) => request<{ message: string }>('/points/purchase-template', { method: 'POST', body: { templateId } }),
 };
 
-// --- Payments ----------------------------------------------------------------
+// --- Payments ---------------------------------------------------------------
 
 export const paymentsApi = {
   getStatus: () => request<{ tier: string; subscription: { status: string; currentPeriodEnd: string | null; cancelAtPeriodEnd: boolean } | null }>('/payments/status'),
@@ -183,7 +156,7 @@ export const paymentsApi = {
   createPortal: () => request<{ url: string }>('/payments/portal', { method: 'POST' }),
 };
 
-// --- AI ----------------------------------------------------------------------
+// --- AI ---------------------------------------------------------------------
 
 export const aiApi = {
   chat: (messages: Array<{ role: 'user' | 'assistant'; content: string }>, resumeId?: string) =>
@@ -198,7 +171,7 @@ export const aiApi = {
     request<{ extracted: any }>('/ai/import', { method: 'POST', body: { rawText } }),
 };
 
-// --- Sharing -----------------------------------------------------------------
+// --- Sharing ----------------------------------------------------------------
 
 export const sharingApi = {
   enable: (resumeId: string) => request<{ slug: string; isEnabled: boolean }>(`/resumes/${resumeId}/share`, { method: 'POST' }),
