@@ -122,11 +122,13 @@ export const resumeApi = {
   get: (id: string) => request<{ resume: Resume }>(`/resumes/${id}`),
   update: (id: string, input: UpdateResumeRequest) => request<{ resume: Resume }>(`/resumes/${id}`, { method: 'PATCH', body: input }),
   delete: (id: string) => request<void>(`/resumes/${id}`, { method: 'DELETE' }),
+  remove: (id: string) => request<void>(`/resumes/${id}`, { method: 'DELETE' }),
   listVersions: (id: string) => request<{ versions: ResumeVersionSummary[] }>(`/resumes/${id}/versions`),
   createVersion: (id: string, label?: string) => request<{ version: ResumeVersion }>(`/resumes/${id}/versions`, { method: 'POST', body: { label } }),
   getVersion: (id: string, versionId: string) => request<{ version: ResumeVersion }>(`/resumes/${id}/versions/${versionId}`),
   restoreVersion: (id: string, versionId: string) => request<{ resume: Resume }>(`/resumes/${id}/versions/${versionId}/restore`, { method: 'POST' }),
   diffVersions: (id: string, fromId: string, toId: string) => request<{ diff: ResumeVersionDiff }>(`/resumes/${id}/versions/diff?from=${fromId}&to=${toId}`),
+  compareVersions: (id: string, fromId: string, toId: string) => request<{ diff: ResumeVersionDiff }>(`/resumes/${id}/versions/diff?from=${fromId}&to=${toId}`),
 };
 
 // --- Dashboard --------------------------------------------------------------
