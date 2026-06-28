@@ -1,13 +1,8 @@
 # =============================================================================
-# CareerForge — Root Dockerfile (API service)
+# CareerForge — Root Dockerfile (single service: API + frontend)
 #
-# Render picks this up when the repo root is set as the Docker context and no
-# specific Dockerfile path is configured. It builds the API service only.
-# The web app is deployed separately as a static site (see docs/deployment.md).
-#
-# This file is intentionally identical in behaviour to apps/api/Dockerfile.
-# Having it at the root removes the need to configure a custom Dockerfile path
-# in Render — sensible defaults work out of the box.
+# The API serves the React frontend as static files in production.
+# One service, one domain, zero CORS.
 # =============================================================================
 
 # ---- Stage 1: Install dependencies ------------------------------------------
@@ -19,6 +14,7 @@ COPY package.json ./
 COPY packages/schema/package.json     ./packages/schema/
 COPY packages/templates/package.json  ./packages/templates/
 COPY apps/api/package.json            ./apps/api/
+COPY apps/web/package.json            ./apps/web/
 
 RUN npm install --frozen-lockfile
 
@@ -31,24 +27,27 @@ COPY tsconfig.base.json ./
 COPY packages/schema    ./packages/schema
 COPY packages/templates ./packages/templates
 COPY apps/api           ./apps/api
+COPY apps/web           ./apps/web
 
-# 1. Compile shared schema package
+# 1. Shared schema (both API and web depend on it)
 RUN npm run build -w packages/schema
 
-# 2. Generate Prisma client — MUST happen before tsc runs on apps/api.
-#    Without this step @prisma/client has no model types and the build fails
-#    with "has no exported member 'User'" / 'Resume' / 'OAuthProviderName' etc.
+# 2. Generate Prisma client before compiling TypeScript
 RUN ./node_modules/.bin/prisma generate --schema=apps/api/prisma/schema.prisma
 
-# 3. Compile templates package (API imports @careerforge/templates)
+# 3. Templates (API imports for PDF/DOCX export and preview)
 RUN npm run build -w packages/templates
 
-# 4. Compile API — all dependencies now have types
+# 4. API
 RUN npm run build -w apps/api
+
+# 5. Web frontend (served statically from the API process)
+RUN npm run build -w apps/web
 
 # ---- Stage 3: Production runtime --------------------------------------------
 FROM node:20-bookworm-slim AS production
 
+# Chromium for Puppeteer PDF export
 RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
     fonts-liberation \
@@ -85,6 +84,8 @@ COPY --from=builder /app/packages/templates/package.json ./packages/templates/
 COPY --from=builder /app/apps/api/dist              ./apps/api/dist
 COPY --from=builder /app/apps/api/package.json      ./apps/api/
 COPY --from=builder /app/apps/api/prisma            ./apps/api/prisma
+# Frontend static files — served by Express in production
+COPY --from=builder /app/apps/web/dist              ./apps/web/dist
 COPY package.json ./
 
 RUN groupadd --gid 1001 careerforge \
