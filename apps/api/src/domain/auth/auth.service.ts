@@ -52,7 +52,11 @@ export async function register(input: RegisterRequest): Promise<{ user: User; to
     data: { email: input.email, fullName: input.fullName, passwordHash },
   });
 
-  await sendVerificationOtp(user.id);
+  // Email sending is best-effort — a Resend failure should never prevent
+  // account creation. The user can request a new OTP from the verify page.
+  sendVerificationOtp(user.id).catch((err) => {
+    console.error('Failed to send verification OTP after registration:', err);
+  });
 
   const tokens = await issueSession(user);
   return { user, tokens };
@@ -94,13 +98,18 @@ export async function verifyEmail(userId: string, code: string): Promise<User> {
 
 export async function forgotPassword(email: string): Promise<void> {
   const user = await prisma.user.findUnique({ where: { email } });
-  // Deliberately do not reveal whether the account exists — the HTTP layer
-  // always returns the same generic message regardless of this branch.
+  // Deliberately do not reveal whether the account exists.
   if (!user || !user.passwordHash) return;
 
-  const code = await issueOtp(user.id, 'PASSWORD_RESET').catch(() => null);
-  if (!code) return; // swallow resend-cooldown errors here too, for the same enumeration-resistance reason
-  await emailProvider.sendOtpEmail({ to: user.email, fullName: user.fullName, code, purpose: 'reset' });
+  // Both OTP generation and email sending are best-effort — the caller always
+  // gets the same generic 202 response regardless of outcome.
+  issueOtp(user.id, 'PASSWORD_RESET')
+    .then((code) =>
+      emailProvider.sendOtpEmail({ to: user.email, fullName: user.fullName, code, purpose: 'reset' }),
+    )
+    .catch((err) => {
+      console.error('Failed to send password reset email:', err);
+    });
 }
 
 export async function resetPassword(email: string, code: string, newPassword: string): Promise<void> {
