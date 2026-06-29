@@ -58,7 +58,7 @@ async function rawRequest(path: string, options: RequestOptions = {}): Promise<R
   });
 }
 
-async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   let res = await rawRequest(path, options);
 
   if (res.status === 401 && !options.skipAuthRetry && path !== '/auth/refresh') {

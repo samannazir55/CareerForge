@@ -5,3 +5,5 @@ export * from './resumeMigrations.js';
 export * from './sectionOperations.js';
 export * from './payments.js';
 export * from './ai.js';
+export * from './profile.js';
+export * from './conversation.js';

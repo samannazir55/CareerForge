@@ -18,6 +18,8 @@ import { VersionHistoryPage } from './pages/resumes/VersionHistoryPage';
 import { AIChatBuilderPage } from './pages/resumes/AIChatBuilderPage';
 import { MarketplacePage } from './pages/marketplace/MarketplacePage';
 import { SettingsPage } from './pages/settings/SettingsPage';
+import { CareerProfilePage } from '../pages/profile/CareerProfilePage';
+import { ProfileSetupWizard } from '../pages/profile/ProfileSetupWizard';
 
 export function App() {
   return (
@@ -34,6 +36,8 @@ export function App() {
 
           {/* Protected app routes */}
           <Route element={<ProtectedRoute />}>
+            <Route path="/app/profile" element={<CareerProfilePage />} />
+            <Route path="/app/profile/setup" element={<ProfileSetupWizard />} />
             <Route path="/" element={<DashboardPage />} />
             <Route path="/resumes" element={<ResumesListPage />} />
             <Route path="/resumes/new/chat" element={<AIChatBuilderPage />} />

@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FileText, Plus, Zap, Award } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
-import { dashboardApi, resumeApi } from '../../lib/api';
-import { ApiError } from '../../lib/api';
+import { dashboardApi, resumeApi, ApiError } from '../../lib/api';
+import { ProfileCompletionRing } from '../../components/profile/ProfileCompletionRing';
+import { useProfileStore } from '../../store/profile.store';
+import { fetchProfile } from '../../lib/profileApi';
 
 interface DashboardData {
   user: { fullName: string | null; email: string; subscriptionTier: string };
@@ -34,6 +36,16 @@ export function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Profile hook initialization and side effects
+  const navigate = useNavigate();
+  const { profile, setProfile } = useProfileStore();
+
+  useEffect(() => {
+    if (!profile) {
+      fetchProfile().then(setProfile).catch(() => undefined);
+    }
+  }, [profile, setProfile]);
 
   useEffect(() => {
     dashboardApi.get().then(setData).catch((err) => {
@@ -73,6 +85,23 @@ export function DashboardPage() {
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <StatCard label="Resumes" value={data?.stats.resumeCount ?? '—'} icon="📄" />
+          
+          {profile && (
+            <div
+              className="glass-panel rounded-3xl p-6 relative overflow-hidden group cursor-pointer"
+              onClick={() => navigate('/app/profile')}
+            >
+              <div className="absolute -right-10 -top-10 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-colors" />
+              <div className="relative z-10 flex flex-col items-center text-center">
+                <ProfileCompletionRing score={profile.completeness.score} size={72} strokeWidth={6} />
+                <p className="text-sm font-semibold mt-3">Career Profile</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {profile.completeness.score >= 80 ? 'Looking great' : 'Needs attention'}
+                </p>
+              </div>
+            </div>
+          )}
+
           <StatCard label="Points Balance" value={data?.stats.pointsBalance ?? '—'} icon="⭐" sub="Earn by using CareerForge" />
           <StatCard
             label="ATS Score"

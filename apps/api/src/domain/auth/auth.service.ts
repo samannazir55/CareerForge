@@ -8,7 +8,7 @@ import { oauthProviders } from '../providers/oauth/index.js';
 import { env } from '../../config/env.js';
 import { BadRequestError, ConflictError, UnauthorizedError } from '../../lib/errors.js';
 import type { RegisterRequest, LoginRequest, UserPublic } from '@careerforge/schema';
-
+import { ensureCareerProfile } from '../profile/profile.service.js';
 export function toPublicUser(user: User): UserPublic {
   return {
     id: user.id,
@@ -50,6 +50,15 @@ export async function register(input: RegisterRequest): Promise<{ user: User; to
   const passwordHash = await hashPassword(input.password);
   const user = await prisma.user.create({
     data: { email: input.email, fullName: input.fullName, passwordHash },
+  });
+  // In register(), after user creation — add:
+  await ensureCareerProfile(user.id).catch((err) => {
+    console.error('Failed to create career profile after registration:', err);
+  });
+
+  // In completeOAuth(), after new user creation — add:
+  await ensureCareerProfile(user.id).catch((err) => {
+    console.error('Failed to create career profile after OAuth registration:', err);
   });
 
   // Email sending is best-effort — a Resend failure should never prevent
@@ -186,7 +195,12 @@ export async function completeOAuth(
       },
     });
   }
-
+  await ensureCareerProfile(user.id).catch((err) => {
+    console.error(
+      'Failed to create career profile after OAuth registration:',
+      err
+    );
+  });
   await prisma.oAuthAccount.create({
     data: { provider, providerUserId: profile.providerUserId, userId: user.id },
   });

@@ -57,6 +57,10 @@ model User {
   resumes             Resume[]
   pointsTransactions  PointsTransaction[]
   subscription        Subscription?
+  // ADD to model User relations:
+  careerProfile       CareerProfile?
+  conversationSessions ConversationSession[]
+  jobApplications     JobApplication[]
 
   @@map("users")
 }
@@ -251,4 +255,138 @@ model ShareableLink {
   updatedAt  DateTime @default(now()) @updatedAt
 
   @@map("shareable_links")
+}
+// ---------------------------------------------------------------------------
+// NEW ENUMS — Phase 6: Career Knowledge Base
+// ---------------------------------------------------------------------------
+
+enum ProfileFactCategory {
+  IDENTITY
+  EXPERIENCE
+  EDUCATION
+  SKILL
+  PROJECT
+  CERTIFICATION
+  LANGUAGE
+  AWARD
+  PUBLICATION
+  GOAL
+  PREFERENCE
+  WRITING_STYLE
+  MISSING_INFO
+}
+
+enum FactSource {
+  USER_CONFIRMED
+  AI_EXTRACTED
+  AI_INFERRED
+  SYSTEM_GENERATED
+}
+
+enum ConversationMode {
+  RESUME_BUILDING
+  JOB_APPLICATION
+  CAREER_EXPLORATION
+  ATS_OPTIMIZATION
+  COVER_LETTER
+  INTERVIEW_PREP
+}
+
+enum ApplicationStatus {
+  SAVED
+  APPLIED
+  PHONE_SCREEN
+  INTERVIEW
+  OFFER
+  REJECTED
+  WITHDRAWN
+}
+
+// ---------------------------------------------------------------------------
+// Career Knowledge Base
+// ---------------------------------------------------------------------------
+
+model CareerProfile {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  facts    ProfileFact[]
+
+  @@map("career_profiles")
+}
+
+model ProfileFact {
+  id              String              @id @default(uuid())
+  profile         CareerProfile       @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId       String
+  category        ProfileFactCategory
+  key             String
+  value           Json
+  confidenceScore Int                 @default(50)
+  source          FactSource          @default(AI_INFERRED)
+  lastVerifiedAt  DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@unique([profileId, key])
+  @@index([profileId, category])
+  @@map("profile_facts")
+}
+
+// ---------------------------------------------------------------------------
+// Conversation Memory
+// ---------------------------------------------------------------------------
+
+model ConversationSession {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  title     String?
+  context   Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages  ConversationMessage[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("conversation_sessions")
+}
+
+model ConversationMessage {
+  id        String              @id @default(uuid())
+  session   ConversationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId String
+  role      String
+  content   String
+  toolCalls Json?
+  createdAt DateTime            @default(now())
+
+  @@index([sessionId, createdAt])
+  @@map("conversation_messages")
+}
+
+// ---------------------------------------------------------------------------
+// Job Tracker (feature-flagged — schema ready, routes guarded by flag)
+// ---------------------------------------------------------------------------
+
+model JobApplication {
+  id             String            @id @default(uuid())
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String
+  company        String
+  role           String
+  jobDescription String?
+  url            String?
+  status         ApplicationStatus @default(SAVED)
+  appliedAt      DateTime?
+  notes          String?
+  resumeId       String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([userId, status])
+  @@map("job_applications")
 }
