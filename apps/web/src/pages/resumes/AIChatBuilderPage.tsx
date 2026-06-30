@@ -75,11 +75,12 @@ export function AIChatBuilderPage() {
       setMessages((prev) => [...prev, { role: 'assistant', content: result.reply }]);
 
       // Update live preview if AI returned a resume update
-      if (result.resumeUpdate) {
+      const resumeUpdate = result.resumeUpdate;
+      if (resumeUpdate) {
         setPreviewResume((prev) => ({
           ...prev,
-          ...(result.resumeUpdate.title ? { title: result.resumeUpdate.title } : {}),
-          ...(result.resumeUpdate.sections ? { sections: result.resumeUpdate.sections } : {}),
+          ...(resumeUpdate.title ? { title: resumeUpdate.title } : {}),
+          ...(resumeUpdate.sections ? { sections: resumeUpdate.sections } : {}),
         }));
       }
     } catch (err) {

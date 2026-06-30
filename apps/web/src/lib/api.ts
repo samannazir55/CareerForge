@@ -11,6 +11,7 @@ import type {
   ResumeVersionDiff,
   CreateResumeRequest,
   UpdateResumeRequest,
+  Section,
 } from '@careerforge/schema';
 
 let accessToken: string | null = null;
@@ -144,7 +145,7 @@ export const paymentsApi = {
 
 interface ChatResumeUpdate {
   title?: string;
-  sections?: unknown;
+  sections?: Section[];
 }
 
 export const aiApi = {
