@@ -3,9 +3,9 @@ import { motion } from 'framer-motion';
 import { cn } from '../../lib/utils';
 
 interface ProfileCompletionRingProps {
-  score: number;          // 0–100
-  size?: number;          // px, default 80
-  strokeWidth?: number;   // default 6
+  score: number;
+  size?: number;
+  strokeWidth?: number;
   className?: string;
   showLabel?: boolean;
 }
@@ -36,7 +36,6 @@ export function ProfileCompletionRing({
   return (
     <div className={cn('relative inline-flex items-center justify-center', className)}>
       <svg width={size} height={size} className="-rotate-90">
-        {/* Track */}
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -46,7 +45,6 @@ export function ProfileCompletionRing({
           strokeWidth={strokeWidth}
           className="text-muted"
         />
-        {/* Progress */}
         <motion.circle
           cx={size / 2}
           cy={size / 2}

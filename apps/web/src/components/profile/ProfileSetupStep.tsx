@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import { Check } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -21,8 +20,8 @@ export function ProfileSetupStep({
 }: ProfileSetupStepProps) {
   return (
     <div className={cn('flex items-start gap-4 p-4', isActive && 'opacity-100', !isActive && !isCompleted && 'opacity-40')}>
-      {/* Step indicator */}
-      <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-colors"
+      <div
+        className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-colors"
         style={{
           borderColor: isCompleted ? '#10b981' : isActive ? 'hsl(var(--primary))' : 'hsl(var(--border))',
           background: isCompleted ? '#10b981' : 'transparent',

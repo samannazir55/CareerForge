@@ -8,7 +8,6 @@ interface UIState {
   sidebarCollapsed: boolean;
   activeModal: ActiveModal;
   modalPayload: unknown;
-
   setTheme: (theme: Theme) => void;
   toggleSidebar: () => void;
   openModal: (modal: ActiveModal, payload?: unknown) => void;
@@ -36,7 +35,6 @@ export const useUIStore = create<UIState>()((set) => ({
   },
 
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
-
   openModal: (activeModal, modalPayload = null) => set({ activeModal, modalPayload }),
   closeModal: () => set({ activeModal: null, modalPayload: null }),
 }));

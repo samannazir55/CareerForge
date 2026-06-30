@@ -41,7 +41,6 @@ function formatValue(value: unknown): string {
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
   if (typeof value === 'object') {
     const obj = value as Record<string, unknown>;
-    // For objects, format as "key: value" pairs, skipping empty values
     return Object.entries(obj)
       .filter(([, v]) => v !== undefined && v !== null && v !== '')
       .map(([k, v]) => `${k}: ${String(v)}`)
@@ -74,9 +73,8 @@ export function FactCard({ fact, onEdit, onDelete, className }: FactCardProps) {
         className,
       )}
     >
-      {/* Confidence indicator */}
       <div
-        className="mt-0.5 w-1.5 h-1.5 rounded-full flex-shrink-0 mt-2"
+        className="mt-2 w-1.5 h-1.5 rounded-full flex-shrink-0"
         style={{
           background:
             fact.confidenceScore >= 80
@@ -89,20 +87,16 @@ export function FactCard({ fact, onEdit, onDelete, className }: FactCardProps) {
       />
 
       <div className="flex-1 min-w-0">
-        {/* Key label */}
         <p className="text-xs text-muted-foreground font-mono truncate mb-0.5">{fact.key}</p>
-        {/* Value */}
         <p className="text-sm text-foreground leading-snug break-words">
           {formatValue(fact.value)}
         </p>
-        {/* Source badge */}
         <div className={cn('flex items-center gap-1 mt-1.5', sourceMeta.color)}>
           {sourceMeta.icon}
           <span className="text-xs">{sourceMeta.label}</span>
         </div>
       </div>
 
-      {/* Actions — visible on hover */}
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
         {onEdit && (
           <Button

@@ -1,12 +1,8 @@
 import { z } from 'zod';
 
 export const ConversationModeSchema = z.enum([
-  'RESUME_BUILDING',
-  'JOB_APPLICATION',
-  'CAREER_EXPLORATION',
-  'ATS_OPTIMIZATION',
-  'COVER_LETTER',
-  'INTERVIEW_PREP',
+  'RESUME_BUILDING', 'JOB_APPLICATION', 'CAREER_EXPLORATION',
+  'ATS_OPTIMIZATION', 'COVER_LETTER', 'INTERVIEW_PREP',
 ]);
 export type ConversationMode = z.infer<typeof ConversationModeSchema>;
 

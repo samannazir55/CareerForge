@@ -13,12 +13,6 @@ import type {
   UpdateResumeRequest,
 } from '@careerforge/schema';
 
-/**
- * All requests use relative /api/* URLs. In production, Render's _redirects
- * file proxies these server-side to the API service — same origin to the
- * browser, no CORS needed. In local dev, Vite's proxy does the same job.
- * VITE_API_URL is no longer used.
- */
 let accessToken: string | null = null;
 
 export function setAccessToken(token: string | null): void {
@@ -99,8 +93,6 @@ async function tryRefresh(): Promise<boolean> {
   return refreshInFlight;
 }
 
-// --- Auth -------------------------------------------------------------------
-
 export const authApi = {
   register: (input: RegisterRequest) => request<AuthResponse>('/auth/register', { method: 'POST', body: input }),
   login: (input: LoginRequest) => request<AuthResponse>('/auth/login', { method: 'POST', body: input }),
@@ -113,8 +105,6 @@ export const authApi = {
   resetPassword: (input: ResetPasswordRequest) => request<{ message: string }>('/auth/reset-password', { method: 'POST', body: input }),
   oauthStartUrl: (provider: 'google' | 'github') => `/api/auth/oauth/${provider}`,
 };
-
-// --- Resumes ----------------------------------------------------------------
 
 export const resumeApi = {
   list: () => request<{ resumes: ResumeSummary[] }>('/resumes'),
@@ -131,8 +121,6 @@ export const resumeApi = {
   compareVersions: (id: string, fromId: string, toId: string) => request<{ diff: ResumeVersionDiff }>(`/resumes/${id}/versions/diff?from=${fromId}&to=${toId}`),
 };
 
-// --- Dashboard --------------------------------------------------------------
-
 export const dashboardApi = {
   get: () => request<{
     user: { fullName: string | null; email: string; subscriptionTier: string; isEmailVerified: boolean };
@@ -142,15 +130,11 @@ export const dashboardApi = {
   }>('/dashboard'),
 };
 
-// --- Points -----------------------------------------------------------------
-
 export const pointsApi = {
   get: () => request<{ balance: number; transactions: Array<{ id: string; type: string; amount: number; description: string | null; createdAt: string }> }>('/points'),
   getTemplates: () => request<{ templates: Array<{ id: string; name: string; category: string; cost: number }> }>('/points/templates'),
   purchaseTemplate: (templateId: string) => request<{ message: string }>('/points/purchase-template', { method: 'POST', body: { templateId } }),
 };
-
-// --- Payments ---------------------------------------------------------------
 
 export const paymentsApi = {
   getStatus: () => request<{ tier: string; subscription: { status: string; currentPeriodEnd: string | null; cancelAtPeriodEnd: boolean } | null }>('/payments/status'),
@@ -158,11 +142,9 @@ export const paymentsApi = {
   createPortal: () => request<{ url: string }>('/payments/portal', { method: 'POST' }),
 };
 
-// --- AI ---------------------------------------------------------------------
-
 export const aiApi = {
   chat: (messages: Array<{ role: 'user' | 'assistant'; content: string }>, resumeId?: string) =>
-    request<{ reply: string; resumeUpdate?: any }>('/ai/chat', { method: 'POST', body: { messages, resumeId } }),
+    request<{ reply: string; resumeUpdate?: unknown }>('/ai/chat', { method: 'POST', body: { messages, resumeId } }),
   scoreATS: (resumeId: string, jobDescription?: string) =>
     request<{ score: number; missingKeywords: string[]; missingSections: string[]; suggestions: string[] }>('/ai/ats-score', { method: 'POST', body: { resumeId, jobDescription } }),
   matchJob: (resumeId: string, jobDescription: string) =>
@@ -170,10 +152,8 @@ export const aiApi = {
   generateCoverLetter: (resumeId: string, jobDescription: string, tone?: string) =>
     request<{ coverLetter: string }>('/ai/cover-letter', { method: 'POST', body: { resumeId, jobDescription, tone } }),
   importResume: (rawText: string) =>
-    request<{ extracted: any }>('/ai/import', { method: 'POST', body: { rawText } }),
+    request<{ extracted: unknown }>('/ai/import', { method: 'POST', body: { rawText } }),
 };
-
-// --- Sharing ----------------------------------------------------------------
 
 export const sharingApi = {
   enable: (resumeId: string) => request<{ slug: string; isEnabled: boolean }>(`/resumes/${resumeId}/share`, { method: 'POST' }),

@@ -1,53 +1,15 @@
 import { z } from 'zod';
 
-// ---------------------------------------------------------------------------
-// Enums — mirrored from Prisma so both sides stay in sync from one file.
-// The Prisma schema uses these string values; never change them without
-// a DB migration + schema version bump.
-// ---------------------------------------------------------------------------
-
 export const ProfileFactCategorySchema = z.enum([
-  'IDENTITY',       // name, email, phone, location, website, linkedin
-  'EXPERIENCE',     // individual work history entries
-  'EDUCATION',      // degree / institution / year entries
-  'SKILL',          // technical or soft skill entries
-  'PROJECT',        // personal or work project entries
-  'CERTIFICATION',  // professional certifications
-  'LANGUAGE',       // spoken / written languages + proficiency
-  'AWARD',          // honours, recognitions
-  'PUBLICATION',    // papers, articles, books
-  'GOAL',           // career aspirations, desired roles / industries
-  'PREFERENCE',     // job type, location, salary range, work style
-  'WRITING_STYLE',  // inferred tone, tense, vocabulary density
-  'MISSING_INFO',   // gaps the AI has identified and wants to fill
+  'IDENTITY', 'EXPERIENCE', 'EDUCATION', 'SKILL', 'PROJECT', 'CERTIFICATION',
+  'LANGUAGE', 'AWARD', 'PUBLICATION', 'GOAL', 'PREFERENCE', 'WRITING_STYLE', 'MISSING_INFO',
 ]);
 export type ProfileFactCategory = z.infer<typeof ProfileFactCategorySchema>;
 
 export const FactSourceSchema = z.enum([
-  'USER_CONFIRMED',   // user explicitly entered or confirmed
-  'AI_EXTRACTED',     // AI extracted from an uploaded document
-  'AI_INFERRED',      // AI inferred from conversation context
-  'SYSTEM_GENERATED', // auto-generated (e.g. from OAuth profile name/email)
+  'USER_CONFIRMED', 'AI_EXTRACTED', 'AI_INFERRED', 'SYSTEM_GENERATED',
 ]);
 export type FactSource = z.infer<typeof FactSourceSchema>;
-
-// ---------------------------------------------------------------------------
-// ProfileFact — one atomic unit of career knowledge.
-//
-// `key` is a namespaced string that uniquely identifies this fact within a
-// profile. Convention: category:entity:attribute, e.g.
-//   "experience:google:title"
-//   "skill:typescript"
-//   "preference:work_style"
-//
-// `value` is an untyped Json blob validated at the application layer by the
-// per-category value schemas below. Storing typed column-per-attribute would
-// require a DB migration every time a new attribute is needed; Json lets the
-// schema evolve without touching the database.
-//
-// `confidenceScore` 0–100. 100 = user confirmed. 50 = AI inferred.
-// Values below 40 are surfaced to the AI as "unverified — ask user to confirm."
-// ---------------------------------------------------------------------------
 
 export const ProfileFactSchema = z.object({
   id: z.string().uuid(),
@@ -71,12 +33,6 @@ export const CareerProfileSchema = z.object({
 });
 export type CareerProfile = z.infer<typeof CareerProfileSchema>;
 
-// ---------------------------------------------------------------------------
-// Per-category value schemas.
-// These validate the `value` field at runtime before any fact is saved.
-// The discriminated union ensures the right shape for each category.
-// ---------------------------------------------------------------------------
-
 export const IdentityValueSchema = z.object({
   fullName: z.string().optional(),
   email: z.string().email().optional(),
@@ -85,7 +41,7 @@ export const IdentityValueSchema = z.object({
   website: z.string().url().optional().or(z.literal('')),
   linkedin: z.string().optional(),
   github: z.string().optional(),
-  headline: z.string().optional(), // e.g. "Senior Frontend Engineer"
+  headline: z.string().optional(),
 });
 export type IdentityValue = z.infer<typeof IdentityValueSchema>;
 
@@ -93,9 +49,9 @@ export const ExperienceValueSchema = z.object({
   title: z.string(),
   company: z.string(),
   location: z.string().optional(),
-  startDate: z.string().optional(),   // ISO date string or "Present"
+  startDate: z.string().optional(),
   endDate: z.string().optional(),
-  description: z.string().optional(), // bullet points as newline-separated string
+  description: z.string().optional(),
   isCurrent: z.boolean().default(false),
 });
 export type ExperienceValue = z.infer<typeof ExperienceValueSchema>;
@@ -116,7 +72,7 @@ export const SkillValueSchema = z.object({
   name: z.string(),
   level: z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']).optional(),
   yearsOfExperience: z.number().optional(),
-  category: z.string().optional(), // e.g. "Frontend", "DevOps", "Soft Skills"
+  category: z.string().optional(),
 });
 export type SkillValue = z.infer<typeof SkillValueSchema>;
 
@@ -167,7 +123,7 @@ export const GoalValueSchema = z.object({
   targetRole: z.string().optional(),
   targetIndustry: z.string().optional(),
   targetCountry: z.string().optional(),
-  timeframe: z.string().optional(),   // e.g. "6 months"
+  timeframe: z.string().optional(),
   description: z.string().optional(),
 });
 export type GoalValue = z.infer<typeof GoalValueSchema>;
@@ -185,30 +141,26 @@ export type PreferenceValue = z.infer<typeof PreferenceValueSchema>;
 
 export const WritingStyleValueSchema = z.object({
   tense: z.enum(['PAST', 'PRESENT', 'MIXED']).optional(),
-  person: z.enum(['FIRST', 'THIRD', 'NONE']).optional(),   // "I led" vs "Led"
+  person: z.enum(['FIRST', 'THIRD', 'NONE']).optional(),
   tone: z.enum(['FORMAL', 'PROFESSIONAL', 'CONVERSATIONAL']).optional(),
-  usesMetrics: z.boolean().optional(),   // tends to include numbers/percentages
+  usesMetrics: z.boolean().optional(),
   prefersBullets: z.boolean().optional(),
   avgSentenceLength: z.enum(['SHORT', 'MEDIUM', 'LONG']).optional(),
 });
 export type WritingStyleValue = z.infer<typeof WritingStyleValueSchema>;
 
 export const MissingInfoValueSchema = z.object({
-  description: z.string(), // what the AI wants to know
+  description: z.string(),
   priority: z.enum(['HIGH', 'MEDIUM', 'LOW']),
   relatedCategory: ProfileFactCategorySchema.optional(),
 });
 export type MissingInfoValue = z.infer<typeof MissingInfoValueSchema>;
 
-// ---------------------------------------------------------------------------
-// API request / response DTOs
-// ---------------------------------------------------------------------------
-
 export const UpsertProfileFactRequestSchema = z.object({
   category: ProfileFactCategorySchema,
   key: z.string().min(1).max(250),
   value: z.unknown(),
-  confidenceScore: z.number().int().min(0).max(100).optional().default(100), // user edits = 100
+  confidenceScore: z.number().int().min(0).max(100).optional().default(100),
   source: FactSourceSchema.optional().default('USER_CONFIRMED'),
 });
 export type UpsertProfileFactRequest = z.infer<typeof UpsertProfileFactRequestSchema>;
