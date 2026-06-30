@@ -55,6 +55,16 @@ const EnvSchema = z.object({
   OPENAI_API_KEY: z.string().optional().default(''),
   GROQ_API_KEY: z.string().optional().default(''),
   OPENROUTER_API_KEY: z.string().optional().default(''),
+  // Free-tier model slugs on OpenRouter rotate without notice (providers
+  // retire specific ":free" models regularly — this has already broken
+  // this adapter once). "openrouter/free", OpenRouter's own auto-router,
+  // was tried as a default but observed billing small charges even on
+  // free-tier requests (its pricing is listed as variable/-1, meaning it
+  // can fall through to a paid model). For guaranteed $0 cost, pin a
+  // specific ":free" slug instead and verify it's still free periodically
+  // at https://openrouter.ai/api/v1/models (look for "pricing":{"prompt":"0"}).
+  // Override here without a code change if this slug is retired.
+  OPENROUTER_MODEL: z.string().optional().default('poolside/laguna-m.1:free'),
 
   // Feature flags — set to 'true' to enable; false by default so future
   // modules can be deployed behind flags without affecting current users

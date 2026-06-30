@@ -6,20 +6,25 @@ import { ConfigurationError } from '../../lib/errors.js';
 
 /**
  * OpenRouter adapter. OpenRouter exposes an OpenAI-compatible API so we
- * use the openai npm package with a custom baseURL. No additional package
- * needed. Model selection uses a cheap/fast default that can be changed
- * via OPENROUTER_MODEL without a code deployment.
+ * use the openai npm package with a custom baseURL. Model selection comes
+ * entirely from OPENROUTER_MODEL (see config/env.ts), which can be changed
+ * in Render environment variables without a code deployment.
  *
- * Free models on OpenRouter (good for development):
- *   meta-llama/llama-3.1-8b-instruct:free
- *   mistralai/mistral-7b-instruct:free
- *   google/gemma-2-9b-it:free
+ * Default (set in env.ts): a pinned ":free" model slug. Do NOT default to
+ * "openrouter/free" (OpenRouter's auto-router) — it was tried and observed
+ * billing small charges on requests despite being marketed as free; its
+ * pricing entry is "-1" (variable), meaning it can route to a paid model
+ * under conditions that aren't fully documented. Pinning a specific
+ * ":free" slug with confirmed $0 pricing avoids that risk.
  *
- * The env variable OPENROUTER_MODEL defaults to a reliable free model.
- * Change it to any model slug from openrouter.ai/models in Render env vars.
+ * Individual ":free" slugs are NOT permanently stable — providers retire
+ * them without notice (this adapter has broken once already from this).
+ * Verify the current slug is still free periodically at
+ * https://openrouter.ai/openrouter/free (router member list) or
+ * GET https://openrouter.ai/api/v1/models ("pricing":{"prompt":"0"}).
+ * For production, set OPENROUTER_MODEL to a specific paid model slug for
+ * predictable availability and quality.
  */
-
-const DEFAULT_MODEL = 'meta-llama/llama-3.1-8b-instruct:free';
 
 function getClient(): OpenAI {
   if (!env.OPENROUTER_API_KEY) {
@@ -69,7 +74,7 @@ Use section types: experience, education, skills, certifications, projects, summ
 Only emit RESUME_UPDATE when you have meaningful new data.`;
 
 export class OpenRouterProvider implements AIProvider {
-  private model = DEFAULT_MODEL;
+  private model = env.OPENROUTER_MODEL;
 
   async chat(messages: ChatMessage[], _systemPrompt: string) {
     const client = getClient();
