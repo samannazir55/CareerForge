@@ -24,7 +24,7 @@ export function VerifyOtpPage() {
   }, [cooldown]);
 
   if (status === 'unauthenticated') return <Navigate to="/login" replace />;
-  if (user?.isEmailVerified) return <Navigate to="/" replace />;
+  if (user?.isEmailVerified) return <Navigate to="/dashboard" replace />;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -32,7 +32,7 @@ export function VerifyOtpPage() {
     setIsSubmitting(true);
     try {
       await verifyOtp(code);
-      navigate('/');
+      navigate('/dashboard');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
     } finally {

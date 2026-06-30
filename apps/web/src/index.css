@@ -92,3 +92,35 @@
     scrollbar-width: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Welcome page — neon/floating-square hero treatment.
+   Scoped under .welcome-page so it never bleeds into the rest of the app's
+   (mostly light, glassmorphism-on-white) design language.
+--------------------------------------------------------------------------- */
+.welcome-page {
+  --neon-indigo: 99 102 241;
+  --neon-purple: 168 85 247;
+  --neon-pink: 236 72 153;
+  --neon-cyan: 34 211 238;
+  background: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(99, 102, 241, 0.25), transparent),
+    #06060c;
+  color: #f5f5f8;
+}
+.welcome-page .neon-square {
+  position: absolute;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(1px);
+  pointer-events: none;
+}
+@keyframes drift-float {
+  0%, 100% { transform: translate(0, 0) rotate(var(--rot, 0deg)); }
+  50% { transform: translate(var(--dx, 14px), var(--dy, -18px)) rotate(var(--rot2, 6deg)); }
+}
+.welcome-page .neon-square {
+  animation: drift-float var(--dur, 9s) ease-in-out infinite;
+}
+.welcome-page .neon-glow-text {
+  text-shadow: 0 0 24px rgba(99, 102, 241, 0.6), 0 0 60px rgba(168, 85, 247, 0.3);
+}

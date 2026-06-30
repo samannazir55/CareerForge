@@ -10,7 +10,7 @@ interface AppShellProps {
 }
 
 const NAV_ITEMS = [
-  { path: '/', label: 'Dashboard', icon: '⬡' },
+  { path: '/dashboard', label: 'Dashboard', icon: '⬡' },
   { path: '/resumes', label: 'Resumes', icon: '📄' },
   { path: '/marketplace', label: 'Templates', icon: '🎨' },
   { path: '/settings', label: 'Settings', icon: '⚙️' },

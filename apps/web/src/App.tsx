@@ -2,6 +2,9 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 
+// Public
+import { WelcomePage } from './pages/welcome/WelcomePage';
+
 // Auth pages
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
@@ -26,6 +29,9 @@ export function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
+          {/* Public marketing/landing page */}
+          <Route path="/" element={<WelcomePage />} />
+
           {/* Public auth routes */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
@@ -36,7 +42,7 @@ export function App() {
 
           {/* Protected app routes */}
           <Route element={<ProtectedRoute />}>
-            <Route path="/" element={<DashboardPage />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/resumes" element={<ResumesListPage />} />
             <Route path="/resumes/new/chat" element={<AIChatBuilderPage />} />
             <Route path="/resumes/:id" element={<ResumeEditorPage />} />
