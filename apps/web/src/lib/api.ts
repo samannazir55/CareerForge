@@ -158,7 +158,7 @@ export const aiApi = {
   generateCoverLetter: (resumeId: string, jobDescription: string, tone?: string) =>
     request<{ coverLetter: string }>('/ai/cover-letter', { method: 'POST', body: { resumeId, jobDescription, tone } }),
   importResume: (rawText: string) =>
-    request<{ extracted: unknown }>('/ai/import', { method: 'POST', body: { rawText } }),
+    request<{ extracted: ChatResumeUpdate }>('/ai/import', { method: 'POST', body: { rawText } }),
 };
 
 export const sharingApi = {

@@ -16,8 +16,8 @@ interface UIState {
 
 export const useUIStore = create<UIState>()((set) => ({
   theme: (typeof window !== 'undefined'
-    ? (localStorage.getItem('cf-theme') as Theme) ?? 'system'
-    : 'system'),
+    ? (localStorage.getItem('cf-theme') as Theme) ?? 'dark'
+    : 'dark'),
   sidebarCollapsed: false,
   activeModal: null,
   modalPayload: null,

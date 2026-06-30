@@ -1,13 +1,14 @@
 import { useState, useRef, useEffect, type FormEvent, type ChangeEvent } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, ArrowLeft } from 'lucide-react';
+import { Send, ArrowLeft, Upload } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
 import { ResumePreview } from '../../components/preview/ResumePreview';
+import { ImportResumeModal } from '../../components/import/ImportResumeModal';
 import { aiApi, resumeApi } from '../../lib/api';
 import { ApiError } from '../../lib/api';
-import type { Resume } from '@careerforge/schema';
+import type { Resume, Section } from '@careerforge/schema';
 import { buildDefaultSections, DEFAULT_THEME, CURRENT_SCHEMA_VERSION } from '@careerforge/schema';
 
 interface ChatMessage {
@@ -35,16 +36,27 @@ const EMPTY_RESUME: Resume = {
 export function AIChatBuilderPage() {
   const { resumeId } = useParams<{ resumeId: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [messages, setMessages] = useState<ChatMessage[]>([INITIAL_MESSAGE]);
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [previewResume, setPreviewResume] = useState<Resume>(EMPTY_RESUME);
   const [error, setError] = useState<string | null>(null);
+  const [importModalOpen, setImportModalOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    if (searchParams.get('import') === 'true') {
+      setImportModalOpen(true);
+      searchParams.delete('import');
+      setSearchParams(searchParams, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Load existing resume if resumeId provided
   useEffect(() => {
@@ -90,20 +102,42 @@ export function AIChatBuilderPage() {
     }
   }
 
+  function handleImported(extracted: { title?: string; sections?: Section[] }) {
+    setPreviewResume((prev) => ({
+      ...prev,
+      ...(extracted.title ? { title: extracted.title } : {}),
+      ...(extracted.sections ? { sections: extracted.sections } : {}),
+    }));
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: 'assistant',
+        content:
+          "I've pulled in your resume — take a look at the preview. Tell me what you'd like to change or add, and we'll refine it together.",
+      },
+    ]);
+  }
+
   return (
     <AppShell>
       <div className="flex h-[calc(100vh-0px)] overflow-hidden">
         {/* Left: Chat Panel */}
         <div className="flex flex-col w-full lg:w-[420px] border-r border-border shrink-0">
           {/* Header */}
-          <div className="flex items-center gap-3 p-4 border-b border-border">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-              <ArrowLeft size={18} />
-            </Button>
-            <div>
-              <h2 className="font-semibold text-sm">AI Resume Builder</h2>
-              <p className="text-xs text-muted-foreground">Chat to build your resume</p>
+          <div className="flex items-center justify-between gap-3 p-4 border-b border-border">
+            <div className="flex items-center gap-3 min-w-0">
+              <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+                <ArrowLeft size={18} />
+              </Button>
+              <div className="min-w-0">
+                <h2 className="font-semibold text-sm">AI Resume Builder</h2>
+                <p className="text-xs text-muted-foreground">Chat to build your resume</p>
+              </div>
             </div>
+            <Button variant="outline" size="sm" onClick={() => setImportModalOpen(true)} className="shrink-0">
+              <Upload size={14} className="mr-1.5" />
+              Import
+            </Button>
           </div>
 
           {/* Messages */}
@@ -176,6 +210,12 @@ export function AIChatBuilderPage() {
           </div>
         </div>
       </div>
+
+      <ImportResumeModal
+        open={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onImported={handleImported}
+      />
     </AppShell>
   );
 }

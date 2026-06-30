@@ -1,11 +1,20 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FileText, Plus, Zap, Award } from 'lucide-react';
+import {
+  FileText,
+  Plus,
+  Coins,
+  Crown,
+  Trophy,
+  History,
+  ArrowRight,
+  Target,
+} from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
-import { dashboardApi, resumeApi, ApiError } from '../../lib/api';
+import { dashboardApi, resumeApi, pointsApi, paymentsApi, ApiError } from '../../lib/api';
 import { ProfileCompletionRing } from '../../components/profile/ProfileCompletionRing';
 import { useProfileStore } from '../../store/profile.store';
 import { fetchProfile } from '../../lib/profileApi';
@@ -17,27 +26,21 @@ interface DashboardData {
   subscription: { tier: string; status: string; currentPeriodEnd: string | null } | null;
 }
 
-function StatCard({ label, value, icon, sub }: { label: string; value: string | number; icon: string; sub?: string }) {
-  return (
-    <motion.div whileHover={{ y: -2 }} transition={{ duration: 0.15 }}>
-      <GlassCard className="flex items-start gap-4">
-        <div className="text-2xl">{icon}</div>
-        <div>
-          <p className="text-2xl font-bold">{value}</p>
-          <p className="text-sm text-muted-foreground">{label}</p>
-          {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
-        </div>
-      </GlassCard>
-    </motion.div>
-  );
+interface PointsTransaction {
+  id: string;
+  type: string;
+  amount: number;
+  description: string | null;
+  createdAt: string;
 }
 
 export function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
+  const [transactions, setTransactions] = useState<PointsTransaction[]>([]);
   const [isCreating, setIsCreating] = useState(false);
+  const [isUpgrading, setIsUpgrading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Profile hook initialization and side effects
   const navigate = useNavigate();
   const { profile, setProfile } = useProfileStore();
 
@@ -51,6 +54,7 @@ export function DashboardPage() {
     dashboardApi.get().then(setData).catch((err) => {
       setError(err instanceof ApiError ? err.message : 'Failed to load dashboard.');
     });
+    pointsApi.get().then((d) => setTransactions(d.transactions)).catch(() => undefined);
   }, []);
 
   async function handleCreateResume() {
@@ -63,13 +67,26 @@ export function DashboardPage() {
     }
   }
 
+  async function handleUpgrade(tier: 'PROFESSIONAL' | 'PREMIUM') {
+    setIsUpgrading(tier);
+    try {
+      const { url } = await paymentsApi.createCheckout(tier);
+      window.location.href = url;
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not start checkout.');
+      setIsUpgrading(null);
+    }
+  }
+
+  const isFree = data?.user.subscriptionTier === 'FREE';
+
   return (
     <AppShell>
-      <div className="p-6 sm:p-8 max-w-6xl mx-auto">
+      <div className="p-6 sm:p-8 max-w-6xl mx-auto space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
               Welcome back{data?.user.fullName ? `, ${data.user.fullName.split(' ')[0]}` : ''} 👋
             </h1>
             <p className="text-muted-foreground mt-1">Here's your career overview.</p>
@@ -80,116 +97,253 @@ export function DashboardPage() {
           </Button>
         </div>
 
-        {error && <p className="text-destructive mb-6">{error}</p>}
+        {error && <p className="text-destructive">{error}</p>}
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <StatCard label="Resumes" value={data?.stats.resumeCount ?? '—'} icon="📄" />
-          
+        {/* Points + Subscription + Profile glow cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Points card */}
+          <motion.div whileHover={{ y: -2 }} transition={{ duration: 0.15 }} className="glass-panel rounded-3xl p-6 relative overflow-hidden group">
+            <div className="absolute -right-10 -top-10 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl group-hover:bg-amber-500/20 transition-colors" />
+            <div className="relative z-10">
+              <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-medium mb-4">
+                <Coins size={20} />
+                <span>Available Points</span>
+              </div>
+              <div className="text-5xl font-bold mb-2 tabular-nums">{data?.stats.pointsBalance ?? '—'}</div>
+              <p className="text-sm text-muted-foreground mb-6">
+                Use points to unlock premium templates.
+              </p>
+              <Button variant="outline" className="w-full" onClick={() => navigate('/marketplace')}>
+                Browse Store
+              </Button>
+            </div>
+          </motion.div>
+
+          {/* Subscription card */}
+          <motion.div whileHover={{ y: -2 }} transition={{ duration: 0.15 }} className="glass-panel rounded-3xl p-6 relative overflow-hidden group md:col-span-2">
+            <div className="absolute -right-20 -top-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl group-hover:bg-indigo-500/20 transition-colors" />
+            <div className="relative z-10 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between h-full">
+              <div>
+                <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-medium mb-2">
+                  <Crown size={20} />
+                  <span>Current Plan</span>
+                </div>
+                <div className="text-3xl font-bold capitalize mb-2">
+                  {data?.user.subscriptionTier?.toLowerCase() ?? '—'} Plan
+                </div>
+                <p className="text-sm text-muted-foreground max-w-sm">
+                  {isFree
+                    ? 'Upgrade to Professional or Premium to get monthly points and exclusive features.'
+                    : data?.subscription?.currentPeriodEnd
+                    ? `Renews ${new Date(data.subscription.currentPeriodEnd).toLocaleDateString()}.`
+                    : "You're enjoying premium features and monthly point drops."}
+                </p>
+              </div>
+
+              {isFree && (
+                <div className="flex flex-col gap-3 w-full md:w-auto shrink-0">
+                  <Button
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white border-0"
+                    onClick={() => handleUpgrade('PROFESSIONAL')}
+                    disabled={isUpgrading !== null}
+                  >
+                    {isUpgrading === 'PROFESSIONAL' ? 'Redirecting…' : 'Upgrade to Pro ($12/mo)'}
+                  </Button>
+                  <Button
+                    className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 hover:opacity-90"
+                    onClick={() => handleUpgrade('PREMIUM')}
+                    disabled={isUpgrading !== null}
+                  >
+                    {isUpgrading === 'PREMIUM' ? 'Redirecting…' : 'Upgrade to Premium ($29/mo)'}
+                  </Button>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Profile + ATS row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {profile && (
-            <div
+            <motion.div
+              whileHover={{ y: -2 }}
+              transition={{ duration: 0.15 }}
               className="glass-panel rounded-3xl p-6 relative overflow-hidden group cursor-pointer"
-              onClick={() => navigate('/app/profile')}
+              onClick={() => navigate('/profile')}
             >
               <div className="absolute -right-10 -top-10 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-colors" />
-              <div className="relative z-10 flex flex-col items-center text-center">
+              <div className="relative z-10 flex items-center gap-5">
                 <ProfileCompletionRing score={profile.completeness.score} size={72} strokeWidth={6} />
-                <p className="text-sm font-semibold mt-3">Career Profile</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {profile.completeness.score >= 80 ? 'Looking great' : 'Needs attention'}
+                <div>
+                  <p className="text-sm font-semibold">Career Profile</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {profile.completeness.score >= 80 ? 'Looking great' : 'Needs attention'}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          <motion.div whileHover={{ y: -2 }} transition={{ duration: 0.15 }} className="glass-panel rounded-3xl p-6 relative overflow-hidden group">
+            <div className="absolute -right-10 -top-10 w-40 h-40 bg-cyan-500/10 rounded-full blur-3xl group-hover:bg-cyan-500/20 transition-colors" />
+            <div className="relative z-10 flex items-center gap-5">
+              <div className="h-[72px] w-[72px] rounded-full bg-cyan-500/10 flex items-center justify-center shrink-0">
+                <Target size={28} className="text-cyan-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold tabular-nums">
+                  {data?.stats.atsScore != null ? `${data.stats.atsScore}%` : '—'}
+                </p>
+                <p className="text-sm font-semibold">ATS Score</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {data?.stats.atsScore == null ? 'Open a resume to score' : 'Latest resume analysis'}
                 </p>
               </div>
             </div>
-          )}
-
-          <StatCard label="Points Balance" value={data?.stats.pointsBalance ?? '—'} icon="⭐" sub="Earn by using CareerForge" />
-          <StatCard
-            label="ATS Score"
-            value={data?.stats.atsScore != null ? `${data.stats.atsScore}%` : '—'}
-            icon="🎯"
-            sub={data?.stats.atsScore == null ? 'Open a resume to score' : undefined}
-          />
-          <StatCard
-            label="Plan"
-            value={data?.user.subscriptionTier ?? '—'}
-            icon="💎"
-            sub={data?.subscription?.currentPeriodEnd
-              ? `Renews ${new Date(data.subscription.currentPeriodEnd).toLocaleDateString()}`
-              : undefined}
-          />
+          </motion.div>
         </div>
 
-        {/* Recent Resumes */}
-        <GlassCard>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold flex items-center gap-2">
-              <FileText size={16} /> Recent Resumes
-            </h2>
-            <Link to="/resumes" className="text-sm text-muted-foreground hover:text-foreground">
-              View all →
-            </Link>
-          </div>
-
-          {!data ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-14 rounded-xl bg-muted/50 animate-pulse" />
-              ))}
-            </div>
-          ) : data.recentResumes.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground mb-4">No resumes yet. Create your first one.</p>
-              <Button variant="secondary" onClick={handleCreateResume} disabled={isCreating}>
-                <Plus size={14} className="mr-1.5" /> Create resume
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {data.recentResumes.map((resume) => (
-                <Link
-                  key={resume.id}
-                  to={`/resumes/${resume.id}`}
-                  className="flex items-center justify-between p-3 rounded-xl hover:bg-accent transition-colors group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <FileText size={16} className="text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm">{resume.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Updated {new Date(resume.updatedAt).toLocaleDateString()}
-                      </p>
-                    </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left: achievements + recent resumes */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* Achievements */}
+            <GlassCard>
+              <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+                <Trophy size={20} className="text-yellow-500" /> Achievements & Rewards
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-4 rounded-2xl bg-muted/50 border border-border">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-medium text-sm">Profile Completion</span>
+                    <span className="text-xs font-bold text-emerald-500">+50 pts</span>
                   </div>
-                  <span className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity text-sm">
-                    Edit →
+                  <div className="w-full h-2 bg-muted rounded-full overflow-hidden mb-2">
+                    <div
+                      className="h-full bg-emerald-500 transition-all duration-500"
+                      style={{ width: `${profile?.completeness.score ?? 0}%` }}
+                    />
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {profile?.completeness.score ?? 0}% complete
                   </span>
-                </Link>
-              ))}
-            </div>
-          )}
-        </GlassCard>
-
-        {/* Upgrade prompt for free users */}
-        {data?.user.subscriptionTier === 'FREE' && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
-            <GlassCard className="mt-4 bg-gradient-ai border-primary/20">
-              <div className="flex items-center gap-4">
-                <div className="text-3xl">🚀</div>
-                <div className="flex-1">
-                  <p className="font-semibold">Unlock Premium Templates & AI Features</p>
-                  <p className="text-sm text-muted-foreground">
-                    Get unlimited downloads, advanced ATS optimization, and all premium templates.
-                  </p>
                 </div>
-                <Link to="/settings">
-                  <Button size="sm">Upgrade</Button>
-                </Link>
+                <div className="p-4 rounded-2xl bg-muted/50 border border-border">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-medium text-sm">Resumes Created</span>
+                    <span className="text-xs font-bold text-orange-500">
+                      {data?.stats.resumeCount ?? 0} total
+                    </span>
+                  </div>
+                  <div className="flex gap-1 mb-2">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <div
+                        key={n}
+                        className={`h-2 flex-1 rounded-full ${
+                          (data?.stats.resumeCount ?? 0) >= n ? 'bg-orange-500' : 'bg-muted'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {(data?.stats.resumeCount ?? 0) === 0
+                      ? 'Create your first resume to start'
+                      : 'Keep building to unlock more templates'}
+                  </span>
+                </div>
               </div>
             </GlassCard>
-          </motion.div>
-        )}
+
+            {/* Recent Resumes */}
+            <GlassCard>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-semibold flex items-center gap-2">
+                  <FileText size={16} /> Recent Resumes
+                </h2>
+                <Link to="/resumes" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1">
+                  View all <ArrowRight size={14} />
+                </Link>
+              </div>
+
+              {!data ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-14 rounded-xl bg-muted/50 animate-pulse" />
+                  ))}
+                </div>
+              ) : data.recentResumes.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground mb-4">No resumes yet. Create your first one.</p>
+                  <Button variant="secondary" onClick={handleCreateResume} disabled={isCreating}>
+                    <Plus size={14} className="mr-1.5" /> Create resume
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {data.recentResumes.map((resume) => (
+                    <Link
+                      key={resume.id}
+                      to={`/resumes/${resume.id}`}
+                      className="flex items-center justify-between p-3 rounded-xl hover:bg-accent transition-colors group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                          <FileText size={16} className="text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">{resume.title}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Updated {new Date(resume.updatedAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity text-sm">
+                        Edit →
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </GlassCard>
+          </div>
+
+          {/* Right: transaction history */}
+          <div>
+            <GlassCard className="h-full">
+              <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+                <History size={20} /> History
+              </h2>
+              {transactions.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">
+                  No point activity yet.
+                </p>
+              ) : (
+                <div className="space-y-1 -mx-2">
+                  {transactions.slice(0, 8).map((tx) => (
+                    <div
+                      key={tx.id}
+                      className="flex items-center justify-between p-3 rounded-xl hover:bg-muted/50 transition-colors"
+                    >
+                      <div>
+                        <div className="font-medium text-sm">{tx.description ?? tx.type}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {new Date(tx.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                      <div
+                        className={`font-bold text-sm tabular-nums ${
+                          tx.amount > 0 ? 'text-emerald-500' : 'text-foreground'
+                        }`}
+                      >
+                        {tx.amount > 0 ? '+' : ''}
+                        {tx.amount}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </GlassCard>
+          </div>
+        </div>
       </div>
     </AppShell>
   );

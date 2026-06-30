@@ -1,6 +1,6 @@
 import { useEffect, useState, type MouseEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Plus, FileText, Trash2, Sparkles } from 'lucide-react';
+import { Plus, FileText, Trash2, Sparkles, Upload } from 'lucide-react';
 import type { ResumeSummary } from '@careerforge/schema';
 import { resumeApi } from '../../lib/api';
 import { GlassCard } from '../../components/ui/GlassCard';
@@ -32,6 +32,18 @@ export function ResumesListPage() {
     }
   }
 
+  async function handleImportClick() {
+    setIsCreating(true);
+    try {
+      const { resume } = await resumeApi.create({ title: 'Imported Resume' });
+      navigate(`/resumes/${resume.id}/chat?import=true`);
+    } catch {
+      setError('Could not start the import.');
+    } finally {
+      setIsCreating(false);
+    }
+  }
+
   async function handleDelete(id: string) {
     setResumes((prev) => prev?.filter((r) => r.id !== id) ?? null);
     await resumeApi.remove(id).catch(() => setError('Could not delete that resume.'));
@@ -48,6 +60,9 @@ export function ResumesListPage() {
                 <Sparkles size={14} className="mr-1.5" /> AI Builder
               </Button>
             </Link>
+            <Button variant="outline" size="sm" onClick={handleImportClick} disabled={isCreating}>
+              <Upload size={14} className="mr-1.5" /> Import
+            </Button>
             <Button onClick={handleCreate} disabled={isCreating} size="sm">
               <Plus size={14} className="mr-1.5" /> New resume
             </Button>
@@ -62,10 +77,13 @@ export function ResumesListPage() {
           <GlassCard className="text-center">
             <p className="text-muted-foreground mb-2">You don't have any resumes yet.</p>
             <p className="text-sm text-muted-foreground mb-4">Try the AI Builder for a guided experience, or create a blank resume.</p>
-            <div className="flex gap-2 justify-center">
+            <div className="flex gap-2 justify-center flex-wrap">
               <Link to="/resumes/new/chat">
                 <Button variant="secondary"><Sparkles size={14} className="mr-1.5" /> AI Builder</Button>
               </Link>
+              <Button variant="outline" onClick={handleImportClick} disabled={isCreating}>
+                <Upload size={14} className="mr-1.5" /> Import existing
+              </Button>
               <Button onClick={handleCreate} disabled={isCreating}>
                 <Plus size={14} className="mr-1.5" /> Blank resume
               </Button>
