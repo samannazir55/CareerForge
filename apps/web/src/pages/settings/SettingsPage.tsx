@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+import { User, CreditCard, Zap, CheckCircle2, Star } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
@@ -13,6 +15,43 @@ interface PointsTransaction {
   description: string | null;
   createdAt: string;
 }
+
+const PLANS = [
+  {
+    id: 'FREE' as const,
+    name: 'Free',
+    price: '$0',
+    period: 'forever',
+    icon: '✦',
+    features: ['2 free templates', 'PDF & DOCX export', '3 resumes', 'Basic ATS scoring'],
+    accent: 'from-slate-500/20 to-slate-600/20',
+    border: 'border-white/10',
+    ring: '',
+  },
+  {
+    id: 'PROFESSIONAL' as const,
+    name: 'Professional',
+    price: '$9',
+    period: '/month',
+    icon: '⚡',
+    features: ['All free features', '5 premium templates', 'Unlimited resumes', 'Advanced ATS scoring', 'AI job matching'],
+    accent: 'from-indigo-500/20 to-purple-600/20',
+    border: 'border-indigo-400/40',
+    ring: 'ring-1 ring-indigo-400/20',
+    highlight: true,
+  },
+  {
+    id: 'PREMIUM' as const,
+    name: 'Premium',
+    price: '$19',
+    period: '/month',
+    icon: '💎',
+    features: ['Everything in Pro', 'All premium templates', 'AI cover letters', 'Priority AI features', 'Career coach (coming soon)'],
+    accent: 'from-purple-500/20 to-pink-600/20',
+    border: 'border-purple-400/30',
+    ring: '',
+  },
+];
 
 export function SettingsPage() {
   const { user, refreshUser } = useAuth();
@@ -29,7 +68,6 @@ export function SettingsPage() {
       setTransactions(d.transactions);
     }).catch(() => undefined);
 
-    // Handle returning from Stripe
     const params = new URLSearchParams(window.location.search);
     if (params.get('success') === 'true') {
       setInfo('Subscription activated! Welcome to your new plan.');
@@ -64,45 +102,37 @@ export function SettingsPage() {
     }
   }
 
-  const isPro = user?.subscriptionTier === 'PROFESSIONAL';
-  const isPremium = user?.subscriptionTier === 'PREMIUM';
-  const isFree = user?.subscriptionTier === 'FREE';
-
-  const PLANS = [
-    {
-      id: 'FREE' as const,
-      name: 'Free',
-      price: '$0',
-      features: ['2 free templates', 'PDF & DOCX export', '3 resumes', 'Basic ATS scoring'],
-      current: isFree,
-    },
-    {
-      id: 'PROFESSIONAL' as const,
-      name: 'Professional',
-      price: '$9/mo',
-      features: ['All free features', '5 premium templates', 'Unlimited resumes', 'Advanced ATS scoring', 'AI job matching'],
-      current: isPro,
-      highlight: true,
-    },
-    {
-      id: 'PREMIUM' as const,
-      name: 'Premium',
-      price: '$19/mo',
-      features: ['Everything in Pro', 'All premium templates', 'AI cover letters', 'Priority AI features', 'Career coach (coming soon)'],
-      current: isPremium,
-    },
-  ];
+  const currentTier = user?.subscriptionTier ?? 'FREE';
+  const isPro = currentTier === 'PROFESSIONAL';
+  const isPremium = currentTier === 'PREMIUM';
 
   return (
     <AppShell>
-      <div className="p-6 sm:p-8 max-w-4xl mx-auto">
-        <h1 className="text-2xl font-semibold mb-2">Settings</h1>
-        <p className="text-muted-foreground mb-8">Manage your account and subscription.</p>
+      <div className="relative p-6 sm:p-8 max-w-4xl mx-auto">
+        {/* Ambient glow orbs */}
+        <div className="pointer-events-none absolute top-0 right-0 h-64 w-64 rounded-full bg-indigo-500/5 blur-3xl" />
+        <div className="pointer-events-none absolute bottom-20 left-0 h-48 w-48 rounded-full bg-purple-500/5 blur-3xl" />
 
-        {info && (
-          <div className="mb-6 p-4 rounded-xl bg-green-500/10 border border-green-500/20 text-green-700 dark:text-green-400 text-sm">
-            {info}
+        {/* Page header */}
+        <div className="flex items-start gap-4 mb-8">
+          <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center shrink-0">
+            <Zap size={20} className="text-indigo-400" />
           </div>
+          <div>
+            <h1 className="text-2xl font-semibold">Settings</h1>
+            <p className="text-muted-foreground text-sm mt-0.5">Manage your account and subscription.</p>
+          </div>
+        </div>
+
+        {/* Feedback banners */}
+        {info && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm flex items-center gap-2"
+          >
+            <CheckCircle2 size={16} /> {info}
+          </motion.div>
         )}
         {error && (
           <div className="mb-6 p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm">
@@ -110,77 +140,108 @@ export function SettingsPage() {
           </div>
         )}
 
-        {/* Account */}
+        {/* Account card */}
         <GlassCard className="mb-6">
-          <h2 className="font-semibold mb-4">Account</h2>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Email</span>
-              <span className="text-sm font-medium">{user?.email}</span>
+          <div className="flex items-center gap-3 mb-5">
+            <div className="h-8 w-8 rounded-lg bg-indigo-500/15 flex items-center justify-center">
+              <User size={15} className="text-indigo-400" />
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Name</span>
-              <span className="text-sm font-medium">{user?.fullName ?? '—'}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Email verified</span>
-              <span className={`text-sm font-medium ${user?.isEmailVerified ? 'text-green-600' : 'text-amber-600'}`}>
-                {user?.isEmailVerified ? 'Verified ✓' : 'Not verified'}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Points balance</span>
-              <span className="text-sm font-medium">⭐ {balance} points</span>
-            </div>
+            <h2 className="font-semibold">Account</h2>
+          </div>
+          <div className="space-y-3 divide-y divide-border">
+            {[
+              { label: 'Email', value: user?.email },
+              { label: 'Name', value: user?.fullName ?? '—' },
+              {
+                label: 'Email verified',
+                value: user?.isEmailVerified ? 'Verified ✓' : 'Pending',
+                valueClass: user?.isEmailVerified ? 'text-emerald-400' : 'text-amber-400',
+              },
+              {
+                label: 'Points balance',
+                value: `⭐ ${balance} pts`,
+                valueClass: 'text-yellow-400 font-semibold',
+              },
+              { label: 'Current plan', value: currentTier, valueClass: 'capitalize' },
+            ].map(({ label, value, valueClass }) => (
+              <div key={label} className="flex justify-between items-center py-2.5 first:pt-0">
+                <span className="text-sm text-muted-foreground">{label}</span>
+                <span className={`text-sm font-medium ${valueClass ?? ''}`}>{value}</span>
+              </div>
+            ))}
           </div>
         </GlassCard>
 
-        {/* Subscription Plans */}
-        <h2 className="font-semibold mb-4">Subscription</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          {PLANS.map((plan) => (
-            <GlassCard
-              key={plan.id}
-              className={`flex flex-col ${plan.highlight ? 'border-primary/50 ring-1 ring-primary/20' : ''}`}
-            >
-              {plan.highlight && (
-                <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full w-fit mb-3">
-                  Most Popular
-                </span>
-              )}
-              <h3 className="font-semibold">{plan.name}</h3>
-              <p className="text-2xl font-bold mt-1 mb-4">{plan.price}</p>
-              <ul className="space-y-1.5 flex-1 mb-4">
-                {plan.features.map((f) => (
-                  <li key={f} className="text-sm text-muted-foreground flex items-start gap-2">
-                    <span className="text-green-500 mt-0.5">✓</span> {f}
-                  </li>
-                ))}
-              </ul>
-              {plan.current ? (
-                <Button variant="secondary" size="sm" disabled>Current plan</Button>
-              ) : plan.id === 'FREE' ? (
-                <Button variant="outline" size="sm" disabled>Downgrade</Button>
-              ) : (
-                <Button
-                  size="sm"
-                  onClick={() => handleUpgrade(plan.id as 'PROFESSIONAL' | 'PREMIUM')}
-                  disabled={loadingCheckout !== null}
-                >
-                  {loadingCheckout === plan.id ? 'Redirecting…' : `Upgrade to ${plan.name}`}
-                </Button>
-              )}
-            </GlassCard>
-          ))}
+        {/* Subscription plans */}
+        <div className="flex items-center gap-3 mb-4">
+          <div className="h-8 w-8 rounded-lg bg-purple-500/15 flex items-center justify-center">
+            <CreditCard size={15} className="text-purple-400" />
+          </div>
+          <h2 className="font-semibold">Subscription</h2>
         </div>
 
-        {/* Billing portal for paying customers */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          {PLANS.map((plan, i) => {
+            const isCurrent = currentTier === plan.id;
+            return (
+              <motion.div
+                key={plan.id}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.06 }}
+                className={`relative rounded-2xl border p-5 flex flex-col bg-gradient-to-br ${plan.accent} ${plan.border} ${plan.ring} ${isCurrent ? 'opacity-100' : ''}`}
+              >
+                {plan.highlight && (
+                  <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 text-[10px] bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-3 py-0.5 rounded-full font-semibold tracking-wide uppercase">
+                    Most Popular
+                  </span>
+                )}
+                {isCurrent && (
+                  <span className="absolute top-3 right-3 text-[10px] bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 px-2 py-0.5 rounded-full">
+                    Current
+                  </span>
+                )}
+                <div className="text-2xl mb-2">{plan.icon}</div>
+                <h3 className="font-semibold mb-0.5">{plan.name}</h3>
+                <div className="flex items-baseline gap-0.5 mb-4">
+                  <span className="text-2xl font-bold">{plan.price}</span>
+                  <span className="text-sm text-muted-foreground">{plan.period}</span>
+                </div>
+                <ul className="space-y-1.5 flex-1 mb-5">
+                  {plan.features.map((f) => (
+                    <li key={f} className="text-xs text-muted-foreground flex items-start gap-2">
+                      <span className="text-emerald-400 mt-0.5 shrink-0">✓</span> {f}
+                    </li>
+                  ))}
+                </ul>
+                {isCurrent ? (
+                  <Button variant="secondary" size="sm" disabled>Current plan</Button>
+                ) : plan.id === 'FREE' ? (
+                  <Button variant="outline" size="sm" disabled>Downgrade</Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    className={plan.id === 'PROFESSIONAL'
+                      ? 'bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-500/90 hover:to-purple-600/90 shadow-lg shadow-indigo-500/20'
+                      : 'bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-500/90 hover:to-pink-600/90 shadow-lg shadow-purple-500/20'}
+                    onClick={() => handleUpgrade(plan.id as 'PROFESSIONAL' | 'PREMIUM')}
+                    disabled={loadingCheckout !== null}
+                  >
+                    {loadingCheckout === plan.id ? 'Redirecting…' : `Upgrade to ${plan.name}`}
+                  </Button>
+                )}
+              </motion.div>
+            );
+          })}
+        </div>
+
+        {/* Billing portal */}
         {(isPro || isPremium) && (
           <GlassCard className="mb-6">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-semibold">Billing</h3>
-                <p className="text-sm text-muted-foreground">Manage payment methods, invoices, and cancel subscription.</p>
+                <p className="text-sm text-muted-foreground mt-0.5">Manage payment methods, invoices, and cancel your subscription.</p>
               </div>
               <Button variant="outline" size="sm" onClick={handleManageBilling} disabled={loadingPortal}>
                 {loadingPortal ? 'Opening…' : 'Manage billing'}
@@ -192,17 +253,18 @@ export function SettingsPage() {
         {/* Points history */}
         {transactions.length > 0 && (
           <GlassCard>
-            <h2 className="font-semibold mb-4">Points History</h2>
-            <div className="space-y-2">
+            <div className="flex items-center gap-3 mb-4">
+              <Star size={15} className="text-yellow-400" />
+              <h2 className="font-semibold">Points History</h2>
+            </div>
+            <div className="space-y-0 divide-y divide-border">
               {transactions.slice(0, 10).map((tx) => (
-                <div key={tx.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                <div key={tx.id} className="flex items-center justify-between py-2.5">
                   <div>
                     <p className="text-sm font-medium">{tx.description ?? tx.type}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(tx.createdAt).toLocaleDateString()}
-                    </p>
+                    <p className="text-xs text-muted-foreground">{new Date(tx.createdAt).toLocaleDateString()}</p>
                   </div>
-                  <span className={`text-sm font-semibold ${tx.amount > 0 ? 'text-green-600' : 'text-destructive'}`}>
+                  <span className={`text-sm font-bold ${tx.amount > 0 ? 'text-emerald-400' : 'text-destructive'}`}>
                     {tx.amount > 0 ? '+' : ''}{tx.amount}
                   </span>
                 </div>

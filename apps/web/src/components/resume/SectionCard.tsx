@@ -1,7 +1,7 @@
 import { useState, type ChangeEvent } from 'react';
 import type { Section } from '@careerforge/schema';
 import { addEntry, removeEntry, updateEntry, removeSection, renameSection, addCustomField } from '@careerforge/schema';
-import { Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, ChevronUp, ChevronDown, GripVertical } from 'lucide-react';
 import { EntryCard } from './EntryCard';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -29,14 +29,17 @@ export function SectionCard({ sections, sectionId, onSectionsChange, onMove, isF
   if (!section) return null;
 
   return (
-    <div className="glass-panel rounded-2xl p-5">
+    <div className="glass-panel rounded-2xl p-5 border border-white/10 hover:border-indigo-400/20 transition-colors group">
       <div className="flex items-center justify-between mb-4">
-        <input
-          value={section.title}
-          onChange={(e: ChangeEvent<HTMLInputElement>) => onSectionsChange(renameSection(sections, sectionId, e.target.value))}
-          className="text-lg font-semibold bg-transparent border-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md px-1 -ml-1"
-        />
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <GripVertical size={14} className="text-muted-foreground/40 shrink-0" />
+          <input
+            value={section.title}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => onSectionsChange(renameSection(sections, sectionId, e.target.value))}
+            className="text-lg font-semibold bg-transparent border-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md px-1 -ml-1 min-w-0 flex-1"
+          />
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"
             disabled={isFirst}
@@ -58,7 +61,7 @@ export function SectionCard({ sections, sectionId, onSectionsChange, onMove, isF
           <button
             type="button"
             onClick={() => onSectionsChange(removeSection(sections, sectionId))}
-            className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-destructive"
+            className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
             aria-label="Remove section"
           >
             <Trash2 size={16} />
@@ -82,7 +85,7 @@ export function SectionCard({ sections, sectionId, onSectionsChange, onMove, isF
         type="button"
         variant="outline"
         size="sm"
-        className="mt-3"
+        className="mt-3 border-dashed hover:border-solid hover:border-indigo-400/40 hover:bg-indigo-500/5"
         onClick={() => onSectionsChange(addEntry(sections, sectionId))}
       >
         <Plus size={14} className="mr-1.5" /> Add entry

@@ -166,3 +166,30 @@
 .auth-page ::placeholder {
   color: rgba(245, 245, 248, 0.35);
 }
+
+/* ---------------------------------------------------------------------------
+   App-wide ambient treatment for authenticated pages
+   The .dark root gets a very subtle radial glow so that glass panels read
+   as glowing/floating rather than sitting on a flat surface.
+--------------------------------------------------------------------------- */
+.dark body {
+  background:
+    radial-gradient(ellipse 80% 40% at 20% -10%, rgba(99,102,241,0.07), transparent),
+    radial-gradient(ellipse 60% 30% at 80% 110%, rgba(168,85,247,0.06), transparent),
+    hsl(var(--background));
+}
+
+/* Neon glow on primary buttons in dark mode */
+.dark button[class*="bg-primary"] {
+  box-shadow: 0 0 20px rgba(99,102,241,0.25);
+}
+.dark button[class*="bg-primary"]:hover {
+  box-shadow: 0 0 28px rgba(99,102,241,0.4);
+}
+
+/* Glass panel depth in dark mode */
+.dark .glass-panel {
+  background: var(--glass-bg);
+  border-color: var(--glass-border);
+  box-shadow: 0 1px 0 0 rgba(255,255,255,0.04) inset, 0 8px 32px -8px rgba(0,0,0,0.4);
+}

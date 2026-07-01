@@ -28,15 +28,9 @@ interface UseResumeFileParserResult {
 async function extractPdfText(file: File): Promise<string> {
   // Dynamic import keeps pdfjs-dist (sizeable) out of the main bundle —
   // it only loads when someone actually uploads a PDF.
-  //
-  // Worker loading: the ?url import approach is unreliable with pdfjs-dist
-  // v4 + Vite — Vite may inline the worker as base64 or fail to resolve it
-  // entirely depending on config. The stable approach is pointing workerSrc
-  // at a static file in the public/ directory, copied there by the
-  // postinstall script in package.json. The path '/pdf.worker.min.mjs' is
-  // always available at the server root regardless of environment.
   const pdfjsLib = await import('pdfjs-dist');
-  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+  const pdfjsWorker = await import('pdfjs-dist/build/pdf.worker.min.mjs?url');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker.default;
 
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;

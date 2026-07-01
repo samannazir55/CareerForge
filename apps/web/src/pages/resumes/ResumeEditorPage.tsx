@@ -1,6 +1,7 @@
 import { useEffect, useState, type ChangeEvent } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Plus, History, Download } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { Plus, History, Download, FileType2, Sparkles } from 'lucide-react';
 import type { Resume, Section, SectionType } from '@careerforge/schema';
 import { createSection, createCustomSection, addSection, reorderSections } from '@careerforge/schema';
 import { resumeApi } from '../../lib/api';
@@ -8,6 +9,7 @@ import { useAutosave } from '../../hooks/useAutosave';
 import { Button } from '../../components/ui/Button';
 import { SectionCard } from '../../components/resume/SectionCard';
 import { ResumePreview } from '../../components/preview/ResumePreview';
+import { AppShell } from '../../components/layout/AppShell';
 
 const ADDABLE_SECTION_TYPES: Array<{ value: Exclude<SectionType, 'custom'> | 'custom'; label: string }> = [
   { value: 'experience', label: 'Experience' },
@@ -74,8 +76,6 @@ export function ResumeEditorPage() {
     if (!id) return;
     setIsSavingVersion(true);
     try {
-      // Flush the latest edits before snapshotting, so the version reflects
-      // what's on screen right now rather than whatever autosave last sent.
       await resumeApi.update(id, { title, sections });
       await resumeApi.createVersion(id);
       setVersionSaved(true);
@@ -87,113 +87,125 @@ export function ResumeEditorPage() {
 
   if (loadError) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <p className="text-destructive">{loadError}</p>
-      </div>
+      <AppShell>
+        <div className="min-h-[60vh] flex items-center justify-center p-4">
+          <p className="text-destructive">{loadError}</p>
+        </div>
+      </AppShell>
     );
   }
 
   if (!resume) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-muted-foreground">Loading…</p>
-      </div>
+      <AppShell>
+        <div className="min-h-[60vh] flex items-center justify-center">
+          <p className="text-muted-foreground">Loading…</p>
+        </div>
+      </AppShell>
     );
   }
 
   return (
-    <div className="min-h-screen w-full bg-background">
-      {/* Top bar */}
-      <div className="border-b border-border bg-card/50 backdrop-blur px-4 sm:px-8 py-3 flex items-center justify-between gap-4 sticky top-0 z-10">
-        <div className="flex items-center gap-3 min-w-0">
-          <Link to="/resumes" className="text-muted-foreground hover:text-foreground shrink-0">
-            <ArrowLeft size={20} />
-          </Link>
-          <input
-            value={title}
-            onChange={(e: ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
-            className="text-lg font-semibold bg-transparent border-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md px-1 min-w-0 flex-1"
-          />
+    <AppShell>
+      <div className="flex flex-col h-[calc(100vh-64px)]">
+        {/* Contextual editor bar */}
+        <div className="glass-panel border-b border-border px-4 sm:px-6 py-3 flex items-center justify-between gap-4 shrink-0">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-500/15 to-purple-500/15 flex items-center justify-center shrink-0">
+              <Sparkles size={15} className="text-indigo-400" />
+            </div>
+            <input
+              value={title}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
+              className="text-lg font-semibold bg-transparent border-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md px-1 min-w-0 flex-1"
+            />
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <AutosaveIndicator status={autosaveStatus} />
+            <Button variant="ghost" size="sm" onClick={() => navigate(`/resumes/${id}/versions`)}>
+              <History size={14} className="mr-1.5" /> History
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSaveVersion}
+              disabled={isSavingVersion}
+              className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-500/90 hover:to-purple-600/90 shadow-lg shadow-indigo-500/20"
+            >
+              {versionSaved ? 'Saved ✓' : isSavingVersion ? 'Saving…' : 'Save version'}
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <AutosaveIndicator status={autosaveStatus} />
-          <Button variant="ghost" size="sm" onClick={() => navigate(`/resumes/${id}/versions`)}>
-            <History size={14} className="mr-1.5" /> History
-          </Button>
-          <Button size="sm" onClick={handleSaveVersion} disabled={isSavingVersion}>
-            {versionSaved ? 'Saved ✓' : isSavingVersion ? 'Saving…' : 'Save version'}
-          </Button>
-        </div>
-      </div>
 
-      {/* Two-pane layout */}
-      <div className="flex h-[calc(100vh-57px)]">
-        {/* Left: editor */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-          <div className="max-w-xl mx-auto flex flex-col gap-4">
-            {sections
-              .slice()
-              .sort((a, b) => a.order - b.order)
-              .map((section, i) => (
-                <SectionCard
-                  key={section.id}
-                  sections={sections}
-                  sectionId={section.id}
-                  onSectionsChange={setSections}
-                  onMove={handleMoveSection}
-                  isFirst={i === 0}
-                  isLast={i === sections.length - 1}
-                />
-              ))}
-
-            <div className="flex items-end gap-2 mt-2">
-              <select
-                value={sectionTypeToAdd}
-                onChange={(e: ChangeEvent<HTMLSelectElement>) => setSectionTypeToAdd(e.target.value)}
-                className="h-11 rounded-xl border border-input bg-background px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                {ADDABLE_SECTION_TYPES.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
+        {/* Two-pane layout */}
+        <div className="flex flex-1 overflow-hidden">
+          {/* Left: editor */}
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+            <div className="max-w-xl mx-auto flex flex-col gap-4">
+              {sections
+                .slice()
+                .sort((a, b) => a.order - b.order)
+                .map((section, i) => (
+                  <motion.div
+                    key={section.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <SectionCard
+                      sections={sections}
+                      sectionId={section.id}
+                      onSectionsChange={setSections}
+                      onMove={handleMoveSection}
+                      isFirst={i === 0}
+                      isLast={i === sections.length - 1}
+                    />
+                  </motion.div>
                 ))}
-              </select>
-              <Button variant="secondary" onClick={handleAddSection}>
-                <Plus size={16} className="mr-1.5" /> Add section
-              </Button>
+
+              <div className="flex items-end gap-2 mt-2">
+                <select
+                  value={sectionTypeToAdd}
+                  onChange={(e: ChangeEvent<HTMLSelectElement>) => setSectionTypeToAdd(e.target.value)}
+                  className="h-11 rounded-xl border border-input bg-background px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {ADDABLE_SECTION_TYPES.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                <Button variant="secondary" onClick={handleAddSection}>
+                  <Plus size={16} className="mr-1.5" /> Add section
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Right: live preview + export buttons (hidden on small screens) */}
-        <div className="hidden lg:flex flex-col items-center gap-4 p-6 bg-muted/30 border-l border-border overflow-y-auto">
-          <div className="flex gap-2 self-end">
-            <a
-              href={`/api/resumes/${id}/export/pdf`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-input bg-background text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
-            >
-              <Download size={14} /> PDF
-            </a>
-            <a
-              href={`/api/resumes/${id}/export/docx`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-input bg-background text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
-            >
-              <Download size={14} /> DOCX
-            </a>
+          {/* Right: live preview + export buttons */}
+          <div className="hidden lg:flex flex-col items-center gap-4 p-6 bg-gradient-to-b from-indigo-500/[0.03] to-transparent border-l border-border overflow-y-auto">
+            <div className="flex gap-2 self-end">
+              <a
+                href={`/api/resumes/${id}/export/pdf`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-input bg-background text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
+              >
+                <Download size={14} /> PDF
+              </a>
+              <a
+                href={`/api/resumes/${id}/export/docx`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-input bg-background text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
+              >
+                <FileType2 size={14} /> DOCX
+              </a>
+            </div>
+            {resume && <ResumePreview resume={{ ...resume, title, sections }} scale={0.48} className="ring-1 ring-white/10 shadow-2xl shadow-indigo-500/10" />}
           </div>
-          {resume && (
-            <ResumePreview
-              resume={{ ...resume, title, sections }}
-              scale={0.48}
-            />
-          )}
         </div>
       </div>
-    </div>
+    </AppShell>
   );
 }
 

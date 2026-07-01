@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, RotateCcw } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { ArrowLeft, RotateCcw, GitCompare, History } from 'lucide-react';
 import type { ResumeVersionSummary, ResumeVersionDiff } from '@careerforge/schema';
 import { resumeApi } from '../../lib/api';
 import { Button } from '../../components/ui/Button';
 import { GlassCard } from '../../components/ui/GlassCard';
+import { AppShell } from '../../components/layout/AppShell';
 
 export function VersionHistoryPage() {
   const { id } = useParams<{ id: string }>();
@@ -53,40 +55,51 @@ export function VersionHistoryPage() {
   }
 
   return (
-    <div className="min-h-screen w-full bg-background p-4 sm:p-8">
-      <div className="max-w-2xl mx-auto">
+    <AppShell>
+      <div className="p-4 sm:p-8 max-w-2xl mx-auto">
         <div className="flex items-center gap-3 mb-6">
-          <Link to={`/resumes/${id}`} className="text-muted-foreground hover:text-foreground">
-            <ArrowLeft size={20} />
-          </Link>
+          <button
+            onClick={() => navigate(`/resumes/${id}`)}
+            className="text-muted-foreground hover:text-foreground h-9 w-9 rounded-xl flex items-center justify-center hover:bg-accent transition-colors"
+            aria-label="Back to editor"
+          >
+            <ArrowLeft size={18} />
+          </button>
+          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-500/15 to-purple-500/15 flex items-center justify-center">
+            <History size={16} className="text-indigo-400" />
+          </div>
           <h1 className="text-xl font-semibold">Version history</h1>
         </div>
 
         {error && <p className="text-sm text-destructive mb-4">{error}</p>}
         {versions === null && <p className="text-muted-foreground">Loading…</p>}
         {versions?.length === 0 && (
-          <p className="text-muted-foreground">
+          <GlassCard className="text-center text-muted-foreground">
             No saved versions yet — use "Save version" in the editor to create one.
-          </p>
+          </GlassCard>
         )}
 
         <div className="flex flex-col gap-2 mb-4">
-          {versions?.map((version) => (
-            <div
+          {versions?.map((version, i) => (
+            <motion.div
               key={version.id}
-              className={`glass-panel rounded-xl p-4 flex items-center justify-between gap-3 ${
-                selected.includes(version.id) ? 'ring-2 ring-ring' : ''
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2, delay: i * 0.03 }}
+              className={`glass-panel rounded-xl p-4 flex items-center justify-between gap-3 border transition-colors ${
+                selected.includes(version.id) ? 'border-indigo-400/50 ring-1 ring-indigo-400/30' : 'border-white/10'
               }`}
             >
-              <label className="flex items-center gap-3 cursor-pointer flex-1">
+              <label className="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
                 <input
                   type="checkbox"
                   checked={selected.includes(version.id)}
                   onChange={() => toggleSelect(version.id)}
                   aria-label="Select for comparison"
+                  className="accent-indigo-500"
                 />
-                <div>
-                  <p className="text-sm font-medium">{version.label ?? 'Autosave checkpoint'}</p>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{version.label ?? 'Autosave checkpoint'}</p>
                   <p className="text-xs text-muted-foreground">{new Date(version.createdAt).toLocaleString()}</p>
                 </div>
               </label>
@@ -95,16 +108,17 @@ export function VersionHistoryPage() {
                 size="sm"
                 disabled={isRestoring === version.id}
                 onClick={() => handleRestore(version.id)}
+                className="shrink-0"
               >
                 <RotateCcw size={14} className="mr-1.5" /> Restore
               </Button>
-            </div>
+            </motion.div>
           ))}
         </div>
 
         {selected.length === 2 && (
           <Button variant="secondary" onClick={handleCompare}>
-            Compare selected
+            <GitCompare size={14} className="mr-1.5" /> Compare selected
           </Button>
         )}
 
@@ -117,11 +131,11 @@ export function VersionHistoryPage() {
                   <span
                     className={
                       s.status === 'added'
-                        ? 'text-green-600'
+                        ? 'text-emerald-400'
                         : s.status === 'removed'
                           ? 'text-destructive'
                           : s.status === 'changed'
-                            ? 'text-amber-600'
+                            ? 'text-amber-400'
                             : 'text-muted-foreground'
                     }
                   >
@@ -143,6 +157,6 @@ export function VersionHistoryPage() {
           </GlassCard>
         )}
       </div>
-    </div>
+    </AppShell>
   );
 }

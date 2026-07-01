@@ -6,7 +6,6 @@ import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
 import { ResumePreview } from '../../components/preview/ResumePreview';
 import { ImportResumeModal } from '../../components/import/ImportResumeModal';
-import { SuggestionCapsules } from '../../components/ai/SuggestionCapsules';
 import { aiApi, resumeApi } from '../../lib/api';
 import { ApiError } from '../../lib/api';
 import type { Resume, Section } from '@careerforge/schema';
@@ -44,7 +43,6 @@ export function AIChatBuilderPage() {
   const [previewResume, setPreviewResume] = useState<Resume>(EMPTY_RESUME);
   const [error, setError] = useState<string | null>(null);
   const [importModalOpen, setImportModalOpen] = useState(false);
-  const [currentSuggestions, setCurrentSuggestions] = useState<string[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -68,9 +66,9 @@ export function AIChatBuilderPage() {
     }).catch(() => undefined);
   }, [resumeId]);
 
-  async function handleSend(e: FormEvent, overrideText?: string) {
+  async function handleSend(e: FormEvent) {
     e.preventDefault();
-    const text = (overrideText ?? input).trim();
+    const text = input.trim();
     if (!text || isSending) return;
 
     const userMessage: ChatMessage = { role: 'user', content: text };
@@ -79,7 +77,6 @@ export function AIChatBuilderPage() {
     setInput('');
     setIsSending(true);
     setError(null);
-    setCurrentSuggestions([]); // clear capsules immediately — they answered the previous question
 
     try {
       const result = await aiApi.chat(
@@ -88,7 +85,6 @@ export function AIChatBuilderPage() {
       );
 
       setMessages((prev) => [...prev, { role: 'assistant', content: result.reply }]);
-      setCurrentSuggestions(result.suggestions ?? []);
 
       // Update live preview if AI returned a resume update
       const resumeUpdate = result.resumeUpdate;
@@ -106,12 +102,7 @@ export function AIChatBuilderPage() {
     }
   }
 
-  function handleSuggestionSelect(suggestion: string) {
-    handleSend({ preventDefault: () => undefined } as FormEvent, suggestion);
-  }
-
   function handleImported(extracted: { title?: string; sections?: Section[] }) {
-    setCurrentSuggestions([]);
     setPreviewResume((prev) => ({
       ...prev,
       ...(extracted.title ? { title: extracted.title } : {}),
@@ -197,27 +188,18 @@ export function AIChatBuilderPage() {
           </div>
 
           {/* Input */}
-          <div className="border-t border-border">
-            {!isSending && (
-              <SuggestionCapsules
-                suggestions={currentSuggestions}
-                onSelect={handleSuggestionSelect}
-                disabled={isSending}
-              />
-            )}
-            <form onSubmit={handleSend} className="px-4 pb-4 pt-2 flex gap-2">
-              <input
-                value={input}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setInput(e.target.value)}
-                placeholder="Type your answer…"
-                disabled={isSending}
-                className="flex-1 h-11 rounded-xl border border-input bg-background px-4 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-              />
-              <Button type="submit" size="icon" disabled={isSending || !input.trim()}>
-                <Send size={16} />
-              </Button>
-            </form>
-          </div>
+          <form onSubmit={handleSend} className="p-4 border-t border-border flex gap-2">
+            <input
+              value={input}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setInput(e.target.value)}
+              placeholder="Type your answer…"
+              disabled={isSending}
+              className="flex-1 h-11 rounded-xl border border-input bg-background px-4 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+            />
+            <Button type="submit" size="icon" disabled={isSending || !input.trim()}>
+              <Send size={16} />
+            </Button>
+          </form>
         </div>
 
         {/* Right: Live Preview */}
