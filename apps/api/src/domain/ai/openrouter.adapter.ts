@@ -117,6 +117,19 @@ function extractChatMarkers(rawText: string): {
   return { reply: reply.trim(), resumeUpdate, suggestions };
 }
 
+/** Safely extracts content from an OpenAI-compatible chat completion response.
+ * Guards against `choices` being `undefined`, which happens when OpenRouter
+ * returns an error JSON body with HTTP 200 (rate-limit / model-unavailable
+ * responses that some providers surface as 200+error rather than 4xx). */
+function extractChoiceText(
+  response: { choices?: Array<{ message?: { content?: string | null } }>; error?: { message?: string } },
+): string {
+  if (response.error?.message) {
+    throw new Error(`OpenRouter: ${response.error.message}`);
+  }
+  return response.choices?.[0]?.message?.content ?? '';
+}
+
 export class OpenRouterProvider implements AIProvider {
   private model = DEFAULT_MODEL;
 
@@ -132,7 +145,7 @@ export class OpenRouterProvider implements AIProvider {
       max_tokens: 1024,
     });
 
-    const text = response.choices[0]?.message?.content ?? '';
+    const text = extractChoiceText(response);
     return extractChatMarkers(text);
   }
 
@@ -157,7 +170,7 @@ export class OpenRouterProvider implements AIProvider {
       max_tokens: 512,
     });
 
-    const text = response.choices[0]?.message?.content ?? '';
+    const text = extractChoiceText(response);
     return safeJsonParse<ATSResult>(text, {
       score: 0,
       missingKeywords: [],
@@ -186,7 +199,7 @@ export class OpenRouterProvider implements AIProvider {
       max_tokens: 512,
     });
 
-    const text = response.choices[0]?.message?.content ?? '';
+    const text = extractChoiceText(response);
     return safeJsonParse<JobMatchResult>(text, {
       matchScore: 0,
       matchedKeywords: [],
@@ -214,7 +227,7 @@ export class OpenRouterProvider implements AIProvider {
       max_tokens: 1024,
     });
 
-    return response.choices[0]?.message?.content ?? '';
+    return extractChoiceText(response);
   }
 
   async extractResumeFromText(rawText: string): Promise<Partial<Pick<Resume, 'title' | 'sections'>>> {
@@ -237,7 +250,7 @@ For skills: key name. Use simple IDs like s1, s2, e1, e2.`,
       max_tokens: 2048,
     });
 
-    const text = response.choices[0]?.message?.content ?? '';
+    const text = extractChoiceText(response);
     return safeJsonParse<Partial<Pick<Resume, 'title' | 'sections'>>>(text, {});
   }
 }

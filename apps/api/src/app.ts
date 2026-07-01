@@ -14,9 +14,17 @@ import { dashboardRouter } from './domain/dashboard/dashboard.routes.js';
 import { sharingRouter } from './domain/sharing/sharing.routes.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { profileRouter } from './domain/profile/profile.routes.js';
+import { adminRouter } from './domain/admin/admin.routes.js';
 
 export function createApp() {
   const app = express();
+
+  // Render (and most production hosting) puts the app behind a load balancer
+  // that adds X-Forwarded-For headers. Without this, express-rate-limit throws
+  // ERR_ERL_UNEXPECTED_X_FORWARDED_FOR on every request because Express refuses
+  // to trust proxy headers by default (correct for self-hosted, wrong for Render).
+  // Value 1 means "trust exactly one proxy hop" — correct for Render's topology.
+  app.set('trust proxy', 1);
 
   // CORS — allow all origins. With the consolidated single-service deployment
   // (API serves the frontend too) there are no cross-origin requests in
@@ -56,6 +64,7 @@ export function createApp() {
   app.use('/api/dashboard', dashboardRouter);
   app.use('/api/public', sharingRouter);
   app.use('/api/profile', profileRouter);
+  app.use('/api/admin', adminRouter);
 
   // Serve the React SPA in production.
   // The Dockerfile builds apps/web and copies its dist here so the API and
