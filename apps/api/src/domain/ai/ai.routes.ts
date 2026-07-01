@@ -25,7 +25,15 @@ Keep responses concise and encouraging.
 When you have gathered enough information to update the resume (at least name and one section),
 append "RESUME_UPDATE:" followed by a JSON object with the resume data.
 The JSON should have this shape: {"title":"Full Name","sections":[...]}
-Only emit RESUME_UPDATE when you have meaningful data to add, not on every message.`;
+Only emit RESUME_UPDATE when you have meaningful data to add, not on every message.
+
+After every question you ask, append "SUGGESTIONS:" followed by a JSON array of
+2 to 4 short example answers for the question you just asked, in the user's own
+voice — things they could tap instead of typing. Keep each suggestion under
+6 words. Suggestions must be answers to YOUR question, not generic options.
+Example: if you asked for their job title, SUGGESTIONS:["Software Engineer","Product Manager","Marketing Lead","Sales Representative"]
+Omit SUGGESTIONS entirely if your message isn't asking a question (e.g. a confirmation or summary).
+SUGGESTIONS must come after RESUME_UPDATE if both are present.`;
 
 aiRouter.post(
   '/chat',

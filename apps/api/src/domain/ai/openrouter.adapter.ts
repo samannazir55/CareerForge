@@ -60,41 +60,80 @@ function safeJsonParse<T>(text: string, fallback: T): T {
   }
 }
 
-const RESUME_CHAT_SYSTEM = `You are CareerForge AI, a friendly resume-building assistant.
-Help users build a professional resume through conversation.
-Ask about experience, education, skills, and achievements one topic at a time.
-Keep responses concise and encouraging.
-When you have enough data to update the resume, append exactly:
-RESUME_UPDATE:{"title":"Full Name","sections":[...]}
-Use section types: experience, education, skills, certifications, projects, summary.
-Only emit RESUME_UPDATE when you have meaningful new data.`;
+/** Same idea as safeJsonParse but for arrays — used for the SUGGESTIONS
+ * marker, which the model is asked to emit as a JSON array of strings
+ * rather than an object. safeJsonParse's regex only matches `{...}` and
+ * would never match `[...]`. */
+function safeJsonArrayParse(text: string): string[] {
+  try {
+    const match = text.match(/\[[\s\S]*\]/);
+    if (!match) return [];
+    const parsed = JSON.parse(match[0]);
+    return Array.isArray(parsed) ? parsed.filter((s): s is string => typeof s === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Extracts the RESUME_UPDATE and/or SUGGESTIONS markers from a raw model
+ * response, in whichever order they actually appear (the prompt requests
+ * SUGGESTIONS after RESUME_UPDATE, but the model isn't always compliant —
+ * this handles either order rather than assuming one). Returns the
+ * human-facing reply with both markers stripped out. Shared logic with
+ * anthropic.adapter.ts — kept duplicated rather than extracted to a
+ * shared file because the two adapters' build setups are independent
+ * and this is a small, stable amount of code.
+ */
+function extractChatMarkers(rawText: string): {
+  reply: string;
+  resumeUpdate?: Partial<Pick<Resume, 'title' | 'sections'>>;
+  suggestions?: string[];
+} {
+  let reply = rawText;
+  let resumeUpdate: Partial<Pick<Resume, 'title' | 'sections'>> | undefined;
+  let suggestions: string[] | undefined;
+
+  const resumeIdx = reply.indexOf('RESUME_UPDATE:');
+  if (resumeIdx !== -1) {
+    const before = reply.slice(0, resumeIdx);
+    const after = reply.slice(resumeIdx + 'RESUME_UPDATE:'.length);
+    resumeUpdate = safeJsonParse<Partial<Pick<Resume, 'title' | 'sections'>>>(after, {});
+    const objMatch = after.match(/\{[\s\S]*\}/);
+    const tail = objMatch ? after.slice(after.indexOf(objMatch[0]) + objMatch[0].length) : '';
+    reply = before + tail;
+  }
+
+  const suggestionsIdx = reply.indexOf('SUGGESTIONS:');
+  if (suggestionsIdx !== -1) {
+    const before = reply.slice(0, suggestionsIdx);
+    const after = reply.slice(suggestionsIdx + 'SUGGESTIONS:'.length);
+    const parsed = safeJsonArrayParse(after);
+    if (parsed.length > 0) suggestions = parsed;
+    const arrMatch = after.match(/\[[\s\S]*\]/);
+    const tail = arrMatch ? after.slice(after.indexOf(arrMatch[0]) + arrMatch[0].length) : '';
+    reply = before + tail;
+  }
+
+  return { reply: reply.trim(), resumeUpdate, suggestions };
+}
 
 export class OpenRouterProvider implements AIProvider {
   private model = DEFAULT_MODEL;
 
-  async chat(messages: ChatMessage[], _systemPrompt: string) {
+  async chat(messages: ChatMessage[], systemPrompt: string) {
     const client = getClient();
 
     const response = await client.chat.completions.create({
       model: this.model,
       messages: [
-        { role: 'system', content: RESUME_CHAT_SYSTEM },
+        { role: 'system', content: systemPrompt },
         ...messages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
       ],
       max_tokens: 1024,
     });
 
     const text = response.choices[0]?.message?.content ?? '';
-
-    if (text.includes('RESUME_UPDATE:')) {
-      const idx = text.indexOf('RESUME_UPDATE:');
-      const reply = text.slice(0, idx).trim();
-      const jsonPart = text.slice(idx + 'RESUME_UPDATE:'.length);
-      const resumeUpdate = safeJsonParse<Partial<Pick<Resume, 'title' | 'sections'>>>(jsonPart, {});
-      return { reply, resumeUpdate };
-    }
-
-    return { reply: text };
+    return extractChatMarkers(text);
   }
 
   async scoreATS(resume: Resume, jobDescription?: string): Promise<ATSResult> {
