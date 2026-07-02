@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './routes/ProtectedRoute';
+import { AdminRoute } from './routes/AdminRoute';
 
 // Public
 import { WelcomePage } from './pages/welcome/WelcomePage';
@@ -23,6 +24,15 @@ import { MarketplacePage } from './pages/marketplace/MarketplacePage';
 import { SettingsPage } from './pages/settings/SettingsPage';
 import { CareerProfilePage } from './pages/profile/CareerProfilePage';
 import { ProfileSetupWizard } from './pages/profile/ProfileSetupWizard';
+
+// Admin pages
+import { AdminLayout } from './pages/admin/AdminLayout';
+import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
+import { AdminUsersPage } from './pages/admin/AdminUsersPage';
+import { AdminTemplatesPage } from './pages/admin/AdminTemplatesPage';
+import { AdminPlansPage } from './pages/admin/AdminPlansPage';
+import { AdminPointsPage } from './pages/admin/AdminPointsPage';
+import { AdminAuditPage } from './pages/admin/AdminAuditPage';
 
 export function App() {
   return (
@@ -53,6 +63,18 @@ export function App() {
             <Route path="/profile/setup" element={<ProfileSetupWizard />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/settings/subscription" element={<SettingsPage />} />
+
+            {/* Admin panel — ADMIN role required */}
+            <Route element={<AdminRoute />}>
+              <Route path="/admin" element={<AdminLayout />}>
+                <Route index element={<AdminDashboardPage />} />
+                <Route path="users" element={<AdminUsersPage />} />
+                <Route path="templates" element={<AdminTemplatesPage />} />
+                <Route path="plans" element={<AdminPlansPage />} />
+                <Route path="points" element={<AdminPointsPage />} />
+                <Route path="audit" element={<AdminAuditPage />} />
+              </Route>
+            </Route>
           </Route>
         </Routes>
       </AuthProvider>

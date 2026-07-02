@@ -1,13 +1,8 @@
 import { prisma } from '../../lib/prisma.js';
 import type { Prisma } from '@prisma/client';
 
-/**
- * Records an admin mutation to the append-only audit log. Called from
- * every admin service method that changes data — points grants, plan
- * edits, template toggles, role changes. There are deliberately no
- * update/delete methods for this model; the log is a historical record,
- * not application state.
- */
+const toJson = (v: unknown): Prisma.InputJsonValue => v as Prisma.InputJsonValue;
+
 export async function recordAuditLog(
   adminId: string,
   action: string,
@@ -21,7 +16,7 @@ export async function recordAuditLog(
       action,
       targetType,
       targetId,
-      metadata: metadata ? (metadata as Prisma.InputJsonValue) : undefined,
+      metadata: metadata !== undefined ? toJson(metadata) : undefined,
     },
   });
 }
