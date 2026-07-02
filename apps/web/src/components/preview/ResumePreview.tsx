@@ -37,7 +37,13 @@ export function ResumePreview({ resume, scale = 0.5, className = '' }: ResumePre
       .then((html) => {
         if (!cancelled && iframeRef.current) iframeRef.current.srcdoc = html;
       })
-      .catch(() => undefined);
+      .catch((err) => {
+        // Not surfaced to the user (a broken preview shouldn't block chatting),
+        // but logged so this class of bug — a validation rejection, a network
+        // failure, etc. — is visible in devtools instead of just an eternally
+        // stale iframe with no clue why.
+        console.error('Resume preview render failed:', err);
+      });
 
     return () => {
       cancelled = true;

@@ -90,7 +90,12 @@ The JSON should have this shape:
 
 Only emit RESUME_UPDATE when you have meaningful data to add, not on every message.
 Always use real UUIDs (e.g. crypto.randomUUID() format) for id fields.
-Dates must be in YYYY-MM format.`;
+Dates must be in YYYY-MM format.
+
+After every response, suggest 2-3 natural follow-up replies the user could send.
+Append them as: SUGGESTIONS:["suggestion one","suggestion two","suggestion three"]
+Keep suggestions short (under 8 words each) and relevant to what you just asked.
+If you also emit RESUME_UPDATE, put SUGGESTIONS after it.`;
 
 aiRouter.post(
   '/chat',

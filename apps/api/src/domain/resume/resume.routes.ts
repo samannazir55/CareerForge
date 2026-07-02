@@ -5,7 +5,8 @@ import {
   UpdateResumeRequestSchema,
   CreateVersionRequestSchema,
   ResumeThemeSchema,
-  SectionSchema,
+  FieldDefSchema,
+  SectionTypeSchema,
 } from '@careerforge/schema';
 import * as resumeService from './resume.service.js';
 import { asyncHandler } from '../../lib/asyncHandler.js';
@@ -117,10 +118,28 @@ resumeRouter.get(
 // is both simpler and more accurate than round-tripping through a DB row
 // that may lag behind unsaved edits. requireVerifiedEmail (applied above via
 // resumeRouter.use) still gates this — it's cheap but not free.
+// Deliberately laxer than the real SectionSchema/EntrySchema (which require
+// id: z.string().uuid(), correct for persisted DB records). This endpoint
+// renders whatever draft the client currently has, which may be entirely
+// unsaved — e.g. the AI chat builder's sample resume uses ids like
+// 'sample-summary', not UUIDs. Rendering only needs a stable string key,
+// not a real UUID, so requiring one here would reject valid unsaved drafts.
+const PreviewEntrySchema = z.object({
+  id: z.string().min(1),
+  values: z.record(z.string(), z.unknown()),
+});
+const PreviewSectionSchema = z.object({
+  id: z.string().min(1),
+  type: SectionTypeSchema,
+  title: z.string().min(1),
+  order: z.number().int(),
+  fields: z.array(FieldDefSchema),
+  entries: z.array(PreviewEntrySchema),
+});
 const PreviewRenderRequestSchema = z.object({
   title: z.string().min(1),
   theme: ResumeThemeSchema,
-  sections: z.array(SectionSchema),
+  sections: z.array(PreviewSectionSchema),
 });
 
 resumeRouter.post(
