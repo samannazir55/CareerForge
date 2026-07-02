@@ -1,5 +1,5 @@
 import { type ReactNode, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
@@ -61,7 +61,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-export function AdminLayout({ children }: { children: ReactNode }) {
+export function AdminLayout({ children }: { children?: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -264,7 +264,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
           transition={{ duration: 0.18 }}
           className="flex-1 overflow-auto"
         >
-          {children}
+          {children ?? <Outlet />}
         </motion.main>
       </div>
     </div>
