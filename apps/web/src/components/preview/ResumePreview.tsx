@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, type CSSProperties } from 'react';
 import type { Resume } from '@careerforge/schema';
 import { getAccessToken } from '../../lib/api';
+import { useAuth } from '../../context/AuthContext';
 
 interface ResumePreviewProps {
   resume: Resume;
@@ -11,102 +12,47 @@ interface ResumePreviewProps {
 const A4_WIDTH_PX = 794;
 const A4_HEIGHT_PX = 1123;
 
-/**
- * Renders the resume inside a sandboxed iframe by fetching the rendered
- * HTML from /api/resumes/:id/preview.
- *
- * The old "id === 'preview'" gate has been removed. AIChatBuilderPage now
- * always creates a real DB resume on mount, so resume.id is always a
- * real UUID by the time this component renders. The gate was the direct
- * cause of the preview never showing anything in the chat builder.
- *
- * sandbox="allow-same-origin" only — templates have no scripts, only
- * <style> tags, so allow-scripts was unnecessary and caused browser warnings.
- */
 export function ResumePreview({ resume, scale = 0.5, className = '' }: ResumePreviewProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // `status` is React state — including it in the dependency array means the
+  // effect re-runs once the auth refresh resolves and the token is available,
+  // even if the resume props haven't changed since mount.
+  const { status } = useAuth();
 
   useEffect(() => {
-    if (!resume.id) return;
-
+    if (!resume.id || resume.id === 'preview') {
+      if (iframeRef.current) {
+        iframeRef.current.srcdoc = `<html><body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;color:#888;font-size:14px;">Start typing to see your resume preview</body></html>`;
+      }
+      return;
+    }
+    // Wait for auth to resolve before trying to fetch the preview. Without
+    // this guard, getAccessToken() returns null on mount (the refresh is async)
+    // and the fetch exits early — and never retries because getAccessToken is a
+    // plain module variable that doesn't trigger React re-renders when it changes.
+    if (status !== 'authenticated') return;
     const token = getAccessToken();
     if (!token) return;
-
-    setIsLoading(true);
-
     fetch(`/api/resumes/${resume.id}/preview`, {
       headers: { Authorization: `Bearer ${token}` },
       credentials: 'include',
     })
-      .then((res) => {
-        if (!res.ok) throw new Error(`${res.status}`);
-        return res.text();
-      })
-      .then((html) => {
-        if (iframeRef.current) {
-          iframeRef.current.srcdoc = html;
-          setIsLoading(false);
-        }
-      })
-      .catch(() => setIsLoading(false));
-  }, [
-    resume.id,
-    resume.theme?.templateId,
-    resume.theme?.accentColor,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    JSON.stringify(resume.sections),
-    resume.title,
-  ]);
+      .then((res) => res.text())
+      .then((html) => { if (iframeRef.current) iframeRef.current.srcdoc = html; })
+      .catch(() => undefined);
+  // `status` added so the effect re-fires once auth confirms the token is ready.
+  }, [resume.id, resume.theme.templateId, resume.theme.accentColor, resume.sections, resume.title, status]);
 
-  const containerStyle: CSSProperties = {
-    width: A4_WIDTH_PX * scale,
-    height: A4_HEIGHT_PX * scale,
-    overflow: 'hidden',
-    flexShrink: 0,
-    position: 'relative',
-  };
-
-  const iframeStyle: CSSProperties = {
-    width: A4_WIDTH_PX,
-    height: A4_HEIGHT_PX,
-    border: 'none',
-    transformOrigin: 'top left',
-    transform: `scale(${scale})`,
-    pointerEvents: 'none',
-    display: isLoading ? 'none' : 'block',
-  };
+  const containerStyle: CSSProperties = { width: A4_WIDTH_PX * scale, height: A4_HEIGHT_PX * scale, overflow: 'hidden', flexShrink: 0 };
+  const iframeStyle: CSSProperties = { width: A4_WIDTH_PX, height: A4_HEIGHT_PX, border: 'none', transformOrigin: 'top left', transform: `scale(${scale})`, pointerEvents: 'none' };
 
   return (
-    <div
-      style={containerStyle}
-      className={`bg-white shadow-lg rounded-sm ${className}`}
-    >
-      {/* Skeleton shown while first fetch completes */}
-      {isLoading && (
-        <div
-          style={{ width: '100%', height: '100%' }}
-          className="flex flex-col gap-3 p-6 animate-pulse"
-        >
-          <div className="h-16 bg-indigo-100 rounded" />
-          <div className="h-3 bg-gray-100 rounded w-3/4 mt-4" />
-          <div className="h-3 bg-gray-100 rounded w-1/2" />
-          <div className="h-3 bg-gray-100 rounded w-2/3 mt-6" />
-          <div className="h-3 bg-gray-100 rounded" />
-          <div className="h-3 bg-gray-100 rounded w-5/6" />
-          <div className="h-3 bg-gray-100 rounded w-3/4 mt-6" />
-          <div className="h-3 bg-gray-100 rounded" />
-          <div className="h-3 bg-gray-100 rounded w-4/5" />
-        </div>
-      )}
-
-      <iframe
-        ref={iframeRef}
-        title="Resume preview"
-        sandbox="allow-same-origin"
-        style={iframeStyle}
-        aria-label="Live resume preview"
-      />
+    <div style={containerStyle} className={`bg-white shadow-lg rounded-sm ${className}`}>
+      {/* sandbox="" (no flags) is safe because the preview HTML is pure HTML+CSS —
+          the templates contain no <script> tags. Combining allow-scripts with
+          allow-same-origin is explicitly forbidden as it lets the iframe escape
+          its sandbox by removing the sandbox attribute on itself. */}
+      <iframe ref={iframeRef} title="Resume preview" sandbox="" style={iframeStyle} aria-label="Live resume preview" />
     </div>
   );
 }
