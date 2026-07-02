@@ -1,4 +1,5 @@
 import { prisma } from '../../lib/prisma.js';
+import type { Prisma } from '@prisma/client';
 
 /**
  * Records an admin mutation to the append-only audit log. Called from
@@ -20,7 +21,7 @@ export async function recordAuditLog(
       action,
       targetType,
       targetId,
-      metadata: metadata ?? undefined,
+      metadata: metadata ? (metadata as Prisma.InputJsonValue) : undefined,
     },
   });
 }
