@@ -31,7 +31,7 @@ const INITIAL_MESSAGE: ChatMessage = {
  * using that id and renders correctly as soon as the AI updates the resume.
  */
 export function AIChatBuilderPage() {
-  const { resumeId } = useParams<{ resumeId: string }>();
+  const { id: resumeId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
