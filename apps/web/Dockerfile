@@ -24,7 +24,7 @@ COPY packages/schema/package.json ./packages/schema/
 COPY packages/templates/package.json ./packages/templates/
 COPY apps/web/package.json ./apps/web/
 
-RUN npm install --frozen-lockfile
+RUN npm install
 
 # ---- Stage 2: Build ---------------------------------------------------------
 FROM deps AS builder

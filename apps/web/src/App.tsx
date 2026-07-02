@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './routes/ProtectedRoute';
-import { AdminRoute } from './routes/AdminRoute';
 
 // Public
 import { WelcomePage } from './pages/welcome/WelcomePage';
@@ -24,14 +23,6 @@ import { MarketplacePage } from './pages/marketplace/MarketplacePage';
 import { SettingsPage } from './pages/settings/SettingsPage';
 import { CareerProfilePage } from './pages/profile/CareerProfilePage';
 import { ProfileSetupWizard } from './pages/profile/ProfileSetupWizard';
-
-// Admin pages
-import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
-import { AdminTemplatesPage } from './pages/admin/AdminTemplatesPage';
-import { AdminPlansPage } from './pages/admin/AdminPlansPage';
-import { AdminUsersPage } from './pages/admin/AdminUsersPage';
-import { AdminPointsPage } from './pages/admin/AdminPointsPage';
-import { AdminAuditPage } from './pages/admin/AdminAuditPage';
 
 export function App() {
   return (
@@ -62,16 +53,6 @@ export function App() {
             <Route path="/profile/setup" element={<ProfileSetupWizard />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/settings/subscription" element={<SettingsPage />} />
-
-            {/* Admin routes — further gated by AdminRoute (role === 'ADMIN') */}
-            <Route element={<AdminRoute />}>
-              <Route path="/admin" element={<AdminDashboardPage />} />
-              <Route path="/admin/templates" element={<AdminTemplatesPage />} />
-              <Route path="/admin/plans" element={<AdminPlansPage />} />
-              <Route path="/admin/users" element={<AdminUsersPage />} />
-              <Route path="/admin/points" element={<AdminPointsPage />} />
-              <Route path="/admin/audit" element={<AdminAuditPage />} />
-            </Route>
           </Route>
         </Routes>
       </AuthProvider>

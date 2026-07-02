@@ -34,6 +34,7 @@ export interface AIProvider {
   chat(messages: ChatMessage[], systemPrompt: string): Promise<{
     reply: string;
     resumeUpdate?: Partial<Pick<Resume, 'title' | 'sections'>>;
+    suggestions?: string[];
   }>;
 
   /**

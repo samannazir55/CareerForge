@@ -67,7 +67,11 @@ Keep responses concise and encouraging.
 When you have enough data to update the resume, append exactly:
 RESUME_UPDATE:{"title":"Full Name","sections":[...]}
 Use section types: experience, education, skills, certifications, projects, summary.
-Only emit RESUME_UPDATE when you have meaningful new data.`;
+Only emit RESUME_UPDATE when you have meaningful new data.
+
+After every response, suggest 2-3 natural follow-up replies the user could send.
+Append them as: SUGGESTIONS:["suggestion one","suggestion two","suggestion three"]
+Keep suggestions short (under 8 words each) and relevant to what you just asked.`;
 
 export class OpenRouterProvider implements AIProvider {
   private model = DEFAULT_MODEL;
@@ -84,17 +88,32 @@ export class OpenRouterProvider implements AIProvider {
       max_tokens: 1024,
     });
 
-    const text = response.choices[0]?.message?.content ?? '';
+    let text = response.choices[0]?.message?.content ?? '';
 
+    // Extract SUGGESTIONS: marker
+    let suggestions: string[] = [];
+    if (text.includes('SUGGESTIONS:')) {
+      const sugIdx = text.indexOf('SUGGESTIONS:');
+      const sugPart = text.slice(sugIdx + 'SUGGESTIONS:'.length).trim();
+      text = text.slice(0, sugIdx).trim();
+      try {
+        const match = sugPart.match(/\[[\s\S]*?\]/);
+        if (match) suggestions = JSON.parse(match[0]) as string[];
+      } catch {
+        suggestions = [];
+      }
+    }
+
+    // Extract RESUME_UPDATE: marker
     if (text.includes('RESUME_UPDATE:')) {
       const idx = text.indexOf('RESUME_UPDATE:');
       const reply = text.slice(0, idx).trim();
       const jsonPart = text.slice(idx + 'RESUME_UPDATE:'.length);
       const resumeUpdate = safeJsonParse<Partial<Pick<Resume, 'title' | 'sections'>>>(jsonPart, {});
-      return { reply, resumeUpdate };
+      return { reply, resumeUpdate, suggestions };
     }
 
-    return { reply: text };
+    return { reply: text, suggestions };
   }
 
   async scoreATS(resume: Resume, jobDescription?: string): Promise<ATSResult> {
