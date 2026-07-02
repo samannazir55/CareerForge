@@ -62,13 +62,13 @@ export function AIChatBuilderPage() {
 
     setIsCreatingResume(true);
     resumeApi
-      .create({ title: 'My Resume' })
-      .then(({ resume }) => {
-        navigate(`/resumes/${resume.id}/chat`, { replace: true });
-      })
-      .catch(() => {
-        setIsCreatingResume(false);
-        setError('Could not start a new resume. Please try again.');
+    .create({ title: 'My Resume' })
+    .then(({ resume }) => {
+      navigate(`/resumes/${resume.id}/chat`, { replace: true });
+ +    setIsCreatingResume(false);
+    })
+    .catch(() => {
+      setIsCreatingResume(false);
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resumeId]);
