@@ -36,16 +36,16 @@ export function createApp() {
   });
 
   app.use(
-        helmet({
-          crossOriginResourcePolicy: { policy: 'cross-origin' },
-          contentSecurityPolicy: {
-            directives: {
-              ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-              scriptSrc: ["'self'", "'sha256-9flWX4yX1evPgQSfTFk0Ahh8d8AhomVOTzUKHTnGgks='"],
+         helmet({
+           crossOriginResourcePolicy: { policy: 'cross-origin' },
+            contentSecurityPolicy: {
+              directives: {
+                ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+                scriptSrc: ["'self'", "'sha256-9flWX4yX1evPgQSfTFk0Ahh8d8AhomVOTzUKHTnGgks='"],
+              },
             },
-          },
-        }),
-      );
+          }),
+        );
   app.use(cookieParser());
 
   // Stripe webhook needs raw body before json parser
