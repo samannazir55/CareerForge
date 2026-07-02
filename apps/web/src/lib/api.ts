@@ -74,6 +74,32 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   return res.json() as Promise<T>;
 }
 
+/**
+ * Same request/retry semantics as request<T>, but for endpoints that return
+ * raw text (e.g. resume preview HTML) instead of JSON. Extracted as a
+ * sibling rather than folded into request<T> so JSON callers keep their
+ * existing typed return without every call site needing a parse-mode flag.
+ */
+export async function requestText(path: string, options: RequestOptions = {}): Promise<string> {
+  let res = await rawRequest(path, options);
+
+  if (res.status === 401 && !options.skipAuthRetry && path !== '/auth/refresh') {
+    const refreshed = await tryRefresh();
+    if (refreshed) res = await rawRequest(path, options);
+  }
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new ApiError(
+      res.status,
+      body?.error?.code ?? 'UNKNOWN_ERROR',
+      body?.error?.message ?? `Request failed with status ${res.status}`,
+    );
+  }
+
+  return res.text();
+}
+
 let refreshInFlight: Promise<boolean> | null = null;
 
 async function tryRefresh(): Promise<boolean> {

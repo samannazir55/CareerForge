@@ -1,8 +1,11 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import {
   CreateResumeRequestSchema,
   UpdateResumeRequestSchema,
   CreateVersionRequestSchema,
+  ResumeThemeSchema,
+  SectionSchema,
 } from '@careerforge/schema';
 import * as resumeService from './resume.service.js';
 import { asyncHandler } from '../../lib/asyncHandler.js';
@@ -103,6 +106,33 @@ resumeRouter.get(
     }
     const diff = await resumeService.compareVersions(req.params.id, versionAId, versionBId, req.user!.id);
     res.status(200).json({ diff });
+  }),
+);
+
+// Stateless preview endpoint — renders whatever resume JSON the client has
+// in memory right now, with no DB read or write. Exists specifically for
+// drafts that aren't persisted yet (e.g. the AI chat builder's sample/in-
+// progress resume before the user has saved anything): the client always
+// has the authoritative current draft in state, so rendering that directly
+// is both simpler and more accurate than round-tripping through a DB row
+// that may lag behind unsaved edits. requireVerifiedEmail (applied above via
+// resumeRouter.use) still gates this — it's cheap but not free.
+const PreviewRenderRequestSchema = z.object({
+  title: z.string().min(1),
+  theme: ResumeThemeSchema,
+  sections: z.array(SectionSchema),
+});
+
+resumeRouter.post(
+  '/preview-render',
+  asyncHandler(async (req, res) => {
+    const input = PreviewRenderRequestSchema.parse(req.body);
+    const { getTemplate } = await import('@careerforge/templates');
+    const template = getTemplate(input.theme.templateId ?? 'modern');
+    const html = template.renderHtml(input as any);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(html);
   }),
 );
 

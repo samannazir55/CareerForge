@@ -1,6 +1,6 @@
 import { useEffect, useRef, type CSSProperties } from 'react';
 import type { Resume } from '@careerforge/schema';
-import { getAccessToken } from '../../lib/api';
+import { requestText } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 
 interface ResumePreviewProps {
@@ -20,28 +20,29 @@ export function ResumePreview({ resume, scale = 0.5, className = '' }: ResumePre
   const { status } = useAuth();
 
   useEffect(() => {
-    if (!resume.id || resume.id === 'preview') {
-      if (iframeRef.current) {
-        iframeRef.current.srcdoc = `<html><body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;color:#888;font-size:14px;">Start typing to see your resume preview</body></html>`;
-      }
-      return;
-    }
-    // Wait for auth to resolve before trying to fetch the preview. Without
-    // this guard, getAccessToken() returns null on mount (the refresh is async)
-    // and the fetch exits early — and never retries because getAccessToken is a
-    // plain module variable that doesn't trigger React re-renders when it changes.
+    // Wait for auth to resolve before trying to render. requestText also
+    // retries once via the refresh cookie on a 401 mid-session, so this
+    // guard only matters for the very first render before auth resolves.
     if (status !== 'authenticated') return;
-    const token = getAccessToken();
-    if (!token) return;
-    fetch(`/api/resumes/${resume.id}/preview`, {
-      headers: { Authorization: `Bearer ${token}` },
-      credentials: 'include',
+
+    let cancelled = false;
+    // Stateless render: posts the current in-memory draft (title/theme/
+    // sections) straight to the template engine — no DB id required, so
+    // this works identically for a saved resume, an unsaved draft, or the
+    // sample resume shown before any real data exists.
+    requestText('/resumes/preview-render', {
+      method: 'POST',
+      body: { title: resume.title, theme: resume.theme, sections: resume.sections },
     })
-      .then((res) => res.text())
-      .then((html) => { if (iframeRef.current) iframeRef.current.srcdoc = html; })
+      .then((html) => {
+        if (!cancelled && iframeRef.current) iframeRef.current.srcdoc = html;
+      })
       .catch(() => undefined);
-  // `status` added so the effect re-fires once auth confirms the token is ready.
-  }, [resume.id, resume.theme.templateId, resume.theme.accentColor, resume.sections, resume.title, status]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [resume.title, resume.theme.templateId, resume.theme.accentColor, resume.sections, status]);
 
   const containerStyle: CSSProperties = { width: A4_WIDTH_PX * scale, height: A4_HEIGHT_PX * scale, overflow: 'hidden', flexShrink: 0 };
   const iframeStyle: CSSProperties = { width: A4_WIDTH_PX, height: A4_HEIGHT_PX, border: 'none', transformOrigin: 'top left', transform: `scale(${scale})`, pointerEvents: 'none' };
