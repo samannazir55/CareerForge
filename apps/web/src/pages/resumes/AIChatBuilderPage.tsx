@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, type FormEvent, type ChangeEvent } from 'react';
+import { useState, useRef, useEffect, type FormEvent, type ChangeEvent } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, ArrowLeft, Upload } from 'lucide-react';
@@ -7,8 +7,10 @@ import { Button } from '../../components/ui/Button';
 import { ResumePreview } from '../../components/preview/ResumePreview';
 import { ImportResumeModal } from '../../components/import/ImportResumeModal';
 import { SuggestionCapsules } from '../../components/ai/SuggestionCapsules';
-import { aiApi, resumeApi, ApiError } from '../../lib/api';
+import { aiApi, resumeApi } from '../../lib/api';
+import { ApiError } from '../../lib/api';
 import type { Resume, Section } from '@careerforge/schema';
+import { DEFAULT_THEME, CURRENT_SCHEMA_VERSION } from '@careerforge/schema';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -20,58 +22,140 @@ const INITIAL_MESSAGE: ChatMessage = {
   content: "Hi! I'm your CareerForge AI. Let's build your resume together. What's your full name?",
 };
 
-/**
- * AI Chat Resume Builder.
- *
- * Preview fix: the old code kept previewResume as EMPTY_RESUME (id='preview')
- * when entering via /resumes/new/chat. ResumePreview gated on id==='preview'
- * and showed "Start typing" forever. Fix: create a real DB resume immediately
- * on mount when no resumeId exists, then navigate to /resumes/:id/chat so
- * the component re-mounts with a real id. The preview fetches from the API
- * using that id and renders correctly as soon as the AI updates the resume.
- */
+// ---------------------------------------------------------------------------
+// Sample resume — shown in the preview pane from the moment the page loads so
+// users immediately see what a finished resume looks like in the selected
+// template.  As the AI collects real data it replaces sections one by one;
+// sample sections for types not yet covered stay visible so the preview is
+// never an empty white box.
+// ---------------------------------------------------------------------------
+const SAMPLE_RESUME: Resume = {
+  id: 'preview',
+  ownerId: '',
+  title: 'Alex Morgan',
+  theme: DEFAULT_THEME,
+  schemaVersion: CURRENT_SCHEMA_VERSION,
+  migrationVersion: CURRENT_SCHEMA_VERSION,
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  sections: [
+    {
+      id: 'sample-summary',
+      type: 'summary',
+      title: 'Summary',
+      order: 0,
+      fields: [{ key: 'text', label: 'Summary', kind: 'richtext', required: true }],
+      entries: [
+        {
+          id: 'sample-summary-entry',
+          values: {
+            // contact / personal info — read by getPersonalInfo() in templates
+            jobTitle: 'Senior Software Engineer',
+            email: 'alex.morgan@email.com',
+            phone: '+1 (555) 234-5678',
+            location: 'San Francisco, CA',
+            linkedin: 'linkedin.com/in/alexmorgan',
+            website: 'alexmorgan.dev',
+            // summary text
+            text: 'Full-stack engineer with 7+ years building scalable web products at high-growth companies. Passionate about clean architecture, developer experience, and shipping software that users love.',
+          },
+        },
+      ],
+    },
+    {
+      id: 'sample-experience',
+      type: 'experience',
+      title: 'Experience',
+      order: 1,
+      fields: [
+        { key: 'title',       label: 'Job Title',    kind: 'text',     required: true  },
+        { key: 'company',     label: 'Company',      kind: 'text',     required: true  },
+        { key: 'location',    label: 'Location',     kind: 'text',     required: false },
+        { key: 'startDate',   label: 'Start Date',   kind: 'date',     required: false },
+        { key: 'endDate',     label: 'End Date',     kind: 'date',     required: false },
+        { key: 'description', label: 'Description',  kind: 'richtext', required: false },
+      ],
+      entries: [
+        {
+          id: 'sample-exp-1',
+          values: {
+            title: 'Senior Software Engineer',
+            company: 'Stripe',
+            location: 'San Francisco, CA',
+            startDate: '2021-06',
+            endDate: '',
+            description:
+              'Led development of the next-generation payments dashboard serving 2M+ merchants.\nReduced API latency by 40% through query optimisation and caching strategies.\nMentored a team of 4 engineers and introduced a design-system component library.',
+          },
+        },
+        {
+          id: 'sample-exp-2',
+          values: {
+            title: 'Software Engineer',
+            company: 'Accenture',
+            location: 'New York, NY',
+            startDate: '2018-08',
+            endDate: '2021-05',
+            description:
+              'Built microservices architecture for a Fortune 500 retail client.\nDelivered a real-time inventory sync system handling 50k events per second.\nCollaborated closely with product and design to ship 3 major feature releases per quarter.',
+          },
+        },
+      ],
+    },
+    {
+      id: 'sample-education',
+      type: 'education',
+      title: 'Education',
+      order: 2,
+      fields: [
+        { key: 'degree',    label: 'Degree',     kind: 'text', required: true  },
+        { key: 'school',    label: 'School',     kind: 'text', required: true  },
+        { key: 'startDate', label: 'Start Date', kind: 'date', required: false },
+        { key: 'endDate',   label: 'End Date',   kind: 'date', required: false },
+      ],
+      entries: [
+        {
+          id: 'sample-edu-1',
+          values: {
+            degree: 'B.S. Computer Science',
+            school: 'Carnegie Mellon University',
+            startDate: '2014-09',
+            endDate: '2018-05',
+          },
+        },
+      ],
+    },
+    {
+      id: 'sample-skills',
+      type: 'skills',
+      title: 'Skills',
+      order: 3,
+      fields: [{ key: 'name', label: 'Skill', kind: 'text', required: true }],
+      entries: [
+        { id: 'sample-skill-1', values: { name: 'TypeScript / JavaScript' } },
+        { id: 'sample-skill-2', values: { name: 'React & Next.js' } },
+        { id: 'sample-skill-3', values: { name: 'Node.js' } },
+        { id: 'sample-skill-4', values: { name: 'PostgreSQL' } },
+        { id: 'sample-skill-5', values: { name: 'AWS' } },
+        { id: 'sample-skill-6', values: { name: 'System Design' } },
+      ],
+    },
+  ],
+};
+
 export function AIChatBuilderPage() {
-  const { id: resumeId } = useParams<{ id: string }>();
+  const { resumeId } = useParams<{ resumeId: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-
   const [messages, setMessages] = useState<ChatMessage[]>([INITIAL_MESSAGE]);
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [previewResume, setPreviewResume] = useState<Resume | null>(null);
+  // Start with the sample so the preview is never empty
+  const [previewResume, setPreviewResume] = useState<Resume>(SAMPLE_RESUME);
   const [error, setError] = useState<string | null>(null);
   const [importModalOpen, setImportModalOpen] = useState(false);
-  const [isCreatingResume, setIsCreatingResume] = useState(false);
-
   const bottomRef = useRef<HTMLDivElement>(null);
-
-  // ---------------------------------------------------------------------------
-  // Ensure we always have a real resumeId with a DB row.
-  // /resumes/new/chat → create resume → redirect to /resumes/:id/chat
-  // /resumes/:id/chat → load resume into preview state
-  // ---------------------------------------------------------------------------
-  useEffect(() => {
-    if (resumeId) {
-      resumeApi
-        .get(resumeId)
-        .then(({ resume }) => setPreviewResume(resume as unknown as Resume))
-        .catch(() => undefined);
-      return;
-    }
-
-    setIsCreatingResume(true);
-    resumeApi
-    .create({ title: 'My Resume' })
-    .then(({ resume }) => {
-      navigate(`/resumes/${resume.id}/chat`, { replace: true });
- +    setIsCreatingResume(false);
-    })
-    .catch(() => {
-      setIsCreatingResume(false);
-      });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resumeId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -83,70 +167,82 @@ export function AIChatBuilderPage() {
       searchParams.delete('import');
       setSearchParams(searchParams, { replace: true });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ---------------------------------------------------------------------------
-  // Send message
-  // ---------------------------------------------------------------------------
-  const handleSend = useCallback(
-    async (e: FormEvent, overrideText?: string) => {
-      e.preventDefault();
-      const text = (overrideText ?? input).trim();
-      if (!text || isSending) return;
+  // Load existing resume if resumeId provided
+  useEffect(() => {
+    if (!resumeId) return;
+    resumeApi.get(resumeId).then(({ resume }) => {
+      setPreviewResume(resume as unknown as Resume);
+    }).catch(() => undefined);
+  }, [resumeId]);
 
-      const userMessage: ChatMessage = { role: 'user', content: text };
-      const newMessages = [...messages, userMessage];
-      setMessages(newMessages);
-      setInput('');
-      setIsSending(true);
-      setError(null);
-      setSuggestions([]);
+  async function handleSend(e: FormEvent) {
+    e.preventDefault();
+    const text = input.trim();
+    if (!text || isSending) return;
 
-      try {
-        const result = await aiApi.chat(
-          newMessages.map((m) => ({ role: m.role, content: m.content })),
-          resumeId,
-        );
+    const userMessage: ChatMessage = { role: 'user', content: text };
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
+    setInput('');
+    setIsSending(true);
+    setError(null);
 
-        setMessages((prev) => [...prev, { role: 'assistant', content: result.reply }]);
-        setSuggestions(result.suggestions ?? []);
+    try {
+      const result = await aiApi.chat(
+        newMessages.map((m) => ({ role: m.role, content: m.content })),
+        resumeId,
+      );
 
-        // AI persisted the update to the DB (in ai.routes.ts) before sending
-        // this response. Updating previewResume triggers ResumePreview to
-        // re-fetch the rendered HTML from the server — it sees the new content.
-        const resumeUpdate = result.resumeUpdate;
-        if (resumeUpdate && previewResume) {
-          setPreviewResume((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  ...(resumeUpdate.title ? { title: resumeUpdate.title } : {}),
-                  ...(resumeUpdate.sections ? { sections: resumeUpdate.sections } : {}),
-                }
-              : prev,
-          );
-        }
-      } catch (err) {
-        setError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
-      } finally {
-        setIsSending(false);
+      setMessages((prev) => [...prev, { role: 'assistant', content: result.reply }]);
+      setSuggestions(result.suggestions ?? []);
+
+      const resumeUpdate = result.resumeUpdate;
+      if (resumeUpdate) {
+        setPreviewResume((prev) => {
+          const next = { ...prev };
+
+          // Update the title (user's real name) if provided
+          if (resumeUpdate.title) next.title = resumeUpdate.title;
+
+          // Merge sections: only replace a sample section once the AI has
+          // actual entries for that section type. This keeps the sample
+          // content visible for sections the user hasn't covered yet, so
+          // the preview always looks like a complete resume.
+          if (resumeUpdate.sections?.length) {
+            const aiByType = new Map(
+              resumeUpdate.sections
+                .filter((s) => s.entries.length > 0)
+                .map((s) => [s.type, s]),
+            );
+            if (aiByType.size > 0) {
+              next.sections = prev.sections.map((s) => aiByType.get(s.type) ?? s);
+              // Append any brand-new section types (e.g. projects, certifications)
+              const existingTypes = new Set(prev.sections.map((s) => s.type));
+              resumeUpdate.sections
+                .filter((s) => s.entries.length > 0 && !existingTypes.has(s.type))
+                .forEach((s) => next.sections.push(s));
+            }
+          }
+
+          return next;
+        });
       }
-    },
-    [input, isSending, messages, resumeId, previewResume],
-  );
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+    } finally {
+      setIsSending(false);
+    }
+  }
 
   function handleImported(extracted: { title?: string; sections?: Section[] }) {
-    setSuggestions([]);
-    setPreviewResume((prev) =>
-      prev
-        ? {
-            ...prev,
-            ...(extracted.title ? { title: extracted.title } : {}),
-            ...(extracted.sections ? { sections: extracted.sections } : {}),
-          }
-        : prev,
-    );
+    setPreviewResume((prev) => ({
+      ...prev,
+      ...(extracted.title ? { title: extracted.title } : {}),
+      ...(extracted.sections ? { sections: extracted.sections } : {}),
+    }));
     setMessages((prev) => [
       ...prev,
       {
@@ -157,34 +253,14 @@ export function AIChatBuilderPage() {
     ]);
   }
 
-  // ---------------------------------------------------------------------------
-  // Show loader while creating the resume row
-  // ---------------------------------------------------------------------------
-  if (isCreatingResume || (!resumeId && !error)) {
-    return (
-      <AppShell>
-        <div className="flex h-[calc(100vh-64px)] items-center justify-center">
-          <div className="text-center space-y-3">
-            <div className="flex gap-1 justify-center">
-              {[0, 1, 2].map((i) => (
-                <motion.div
-                  key={i}
-                  className="w-2 h-2 rounded-full bg-primary"
-                  animate={{ opacity: [0.3, 1, 0.3] }}
-                  transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
-                />
-              ))}
-            </div>
-            <p className="text-sm text-muted-foreground">Setting up your resume…</p>
-          </div>
-        </div>
-      </AppShell>
-    );
-  }
+  const templateLabel =
+    (previewResume.theme as { templateId?: string })?.templateId === 'classic'
+      ? 'Classic'
+      : 'Modern';
 
   return (
     <AppShell>
-      <div className="flex h-[calc(100vh-64px)] overflow-hidden">
+      <div className="flex h-[calc(100vh-0px)] overflow-hidden">
         {/* Left: Chat Panel */}
         <div className="flex flex-col w-full lg:w-[420px] border-r border-border shrink-0">
           {/* Header */}
@@ -198,12 +274,7 @@ export function AIChatBuilderPage() {
                 <p className="text-xs text-muted-foreground">Chat to build your resume</p>
               </div>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setImportModalOpen(true)}
-              className="shrink-0"
-            >
+            <Button variant="outline" size="sm" onClick={() => setImportModalOpen(true)} className="shrink-0">
               <Upload size={14} className="mr-1.5" />
               Import
             </Button>
@@ -234,11 +305,7 @@ export function AIChatBuilderPage() {
             </AnimatePresence>
 
             {isSending && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex justify-start"
-              >
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
                 <div className="bg-muted rounded-2xl rounded-bl-sm px-4 py-2.5">
                   <div className="flex gap-1">
                     {[0, 1, 2].map((i) => (
@@ -254,27 +321,23 @@ export function AIChatBuilderPage() {
               </motion.div>
             )}
 
-            {error && <p className="text-xs text-destructive text-center">{error}</p>}
+            {error && (
+              <p className="text-xs text-destructive text-center">{error}</p>
+            )}
             <div ref={bottomRef} />
           </div>
 
-          {/* Suggestion capsules */}
+          {/* Suggestion quick-replies */}
           <div className="px-4 pb-2">
             <SuggestionCapsules
               suggestions={suggestions}
-              onSelect={(s) => {
-                setSuggestions([]);
-                handleSend({ preventDefault: () => undefined } as FormEvent, s);
-              }}
+              onSelect={(s) => { setSuggestions([]); setInput(s); }}
               disabled={isSending}
             />
           </div>
 
           {/* Input */}
-          <form
-            onSubmit={(e) => { setSuggestions([]); handleSend(e); }}
-            className="p-4 border-t border-border flex gap-2"
-          >
+          <form onSubmit={(e) => { setSuggestions([]); handleSend(e); }} className="p-4 border-t border-border flex gap-2">
             <input
               value={input}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setInput(e.target.value)}
@@ -288,29 +351,75 @@ export function AIChatBuilderPage() {
           </form>
         </div>
 
-        {/* Right: Live Preview */}
-        <div className="hidden lg:flex flex-1 items-center justify-center bg-muted/30 overflow-auto p-8">
-          <div className="flex flex-col items-center gap-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">
+        {/* ---------------------------------------------------------------- */}
+        {/* Right: Live Preview                                               */}
+        {/* ---------------------------------------------------------------- */}
+        <div
+          className="hidden lg:flex flex-1 flex-col overflow-hidden relative"
+          style={{
+            background: '#0b0b10',
+            backgroundImage:
+              'radial-gradient(circle at 1px 1px, rgba(139,92,246,0.07) 1px, transparent 0)',
+            backgroundSize: '28px 28px',
+          }}
+        >
+          {/* Ambient glow */}
+          <div
+            aria-hidden
+            className="absolute inset-0 flex items-center justify-center pointer-events-none"
+          >
+            <div
+              style={{
+                width: 560,
+                height: 560,
+                background: 'radial-gradient(circle, rgba(99,102,241,0.13) 0%, transparent 70%)',
+                filter: 'blur(48px)',
+              }}
+            />
+          </div>
+
+          {/* Top bar */}
+          <div className="relative z-10 flex items-center justify-between px-6 py-3 border-b border-white/5">
+            <span className="text-[10px] font-semibold text-white/25 uppercase tracking-[0.18em]">
               Live Preview
-            </p>
-            {previewResume ? (
-              <ResumePreview resume={previewResume} scale={0.55} />
-            ) : (
-              <div className="flex flex-col items-center gap-3 text-muted-foreground">
-                <div className="flex gap-1">
-                  {[0, 1, 2].map((i) => (
-                    <motion.div
-                      key={i}
-                      className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40"
-                      animate={{ opacity: [0.3, 1, 0.3] }}
-                      transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
-                    />
-                  ))}
-                </div>
-                <p className="text-xs">Loading preview…</p>
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-white/25 bg-white/5 border border-white/8 rounded px-2 py-0.5">
+                {templateLabel}
+              </span>
+              <span className="text-[10px] text-white/25 bg-white/5 border border-white/8 rounded px-2 py-0.5">
+                A4
+              </span>
+            </div>
+          </div>
+
+          {/* Preview — always visible, starts as sample, fills in live */}
+          <div className="relative z-10 flex-1 flex items-center justify-center overflow-auto p-8">
+            <motion.div
+              className="flex flex-col items-center"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, ease: 'easeOut' }}
+            >
+              {/* Browser-chrome strip */}
+              <div
+                className="self-stretch flex items-center gap-1.5 px-3 py-2 rounded-t-lg border border-white/10 border-b-0"
+                style={{ background: 'rgba(255,255,255,0.04)' }}
+              >
+                <div className="w-2.5 h-2.5 rounded-full bg-red-500/40" />
+                <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/40" />
+                <div className="w-2.5 h-2.5 rounded-full bg-green-500/40" />
+                <span className="text-[10px] text-white/25 ml-auto mr-auto truncate">
+                  {previewResume.title}
+                </span>
               </div>
-            )}
+
+              <ResumePreview resume={previewResume} scale={0.55} />
+
+              <p className="mt-3 text-[10px] text-white/20 tracking-wide">
+                Updates as you chat · Sample data shown until you add yours
+              </p>
+            </motion.div>
           </div>
         </div>
       </div>
