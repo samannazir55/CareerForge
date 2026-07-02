@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, type FormEvent, type ChangeEvent } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, ArrowLeft, Upload } from 'lucide-react';
+import { Send, ArrowLeft, Upload, FileText } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
 import { ResumePreview } from '../../components/preview/ResumePreview';
@@ -34,6 +34,75 @@ const EMPTY_RESUME: Resume = {
   updatedAt: new Date().toISOString(),
 };
 
+// Skeleton shown before the AI has populated any resume content
+function EmptyPreviewState() {
+  return (
+    <div className="flex flex-col items-center gap-8">
+      {/* Mini resume skeleton */}
+      <div
+        className="relative overflow-hidden rounded-lg border border-white/10"
+        style={{
+          width: 200,
+          height: 280,
+          background: 'rgba(255,255,255,0.03)',
+          boxShadow: '0 32px 64px rgba(0,0,0,0.5)',
+        }}
+      >
+        {/* Header block */}
+        <div
+          style={{
+            height: 72,
+            background: 'linear-gradient(135deg, rgba(99,102,241,0.35) 0%, rgba(139,92,246,0.2) 100%)',
+            borderBottom: '1px solid rgba(255,255,255,0.07)',
+          }}
+          className="flex flex-col justify-center px-4 gap-1.5"
+        >
+          <div className="h-3 w-24 rounded-sm bg-white/20" />
+          <div className="h-2 w-16 rounded-sm bg-white/10" />
+        </div>
+
+        {/* Body lines */}
+        <div className="p-4 flex flex-col gap-2">
+          <div className="h-1.5 w-16 rounded-sm bg-indigo-400/30 mb-1" />
+          <div className="h-1.5 w-full rounded-sm bg-white/10" />
+          <div className="h-1.5 w-5/6 rounded-sm bg-white/10" />
+          <div className="h-1.5 w-4/5 rounded-sm bg-white/8" />
+
+          <div className="h-1.5 w-16 rounded-sm bg-indigo-400/30 mt-2 mb-1" />
+          <div className="h-1.5 w-full rounded-sm bg-white/10" />
+          <div className="h-1.5 w-3/4 rounded-sm bg-white/10" />
+          <div className="h-1.5 w-5/6 rounded-sm bg-white/8" />
+
+          <div className="h-1.5 w-16 rounded-sm bg-indigo-400/30 mt-2 mb-1" />
+          <div className="h-1.5 w-full rounded-sm bg-white/10" />
+          <div className="h-1.5 w-2/3 rounded-sm bg-white/10" />
+        </div>
+
+        {/* Shimmer sweep */}
+        <motion.div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.06) 50%, transparent 60%)',
+          }}
+          animate={{ x: ['-100%', '200%'] }}
+          transition={{ duration: 2.4, repeat: Infinity, repeatDelay: 1.6, ease: 'linear' }}
+        />
+      </div>
+
+      {/* Label */}
+      <div className="text-center">
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <FileText size={14} className="text-indigo-400/60" />
+          <span className="text-sm font-medium text-white/40">Your resume takes shape here</span>
+        </div>
+        <p className="text-xs text-white/20 max-w-[200px] leading-relaxed">
+          Answer the questions on the left and watch it fill in live
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function AIChatBuilderPage() {
   const { resumeId } = useParams<{ resumeId: string }>();
   const navigate = useNavigate();
@@ -45,6 +114,9 @@ export function AIChatBuilderPage() {
   const [previewResume, setPreviewResume] = useState<Resume>(EMPTY_RESUME);
   const [error, setError] = useState<string | null>(null);
   const [importModalOpen, setImportModalOpen] = useState(false);
+  // Track whether the AI has pushed any real content yet so we know when
+  // to swap from the skeleton state to the live preview.
+  const [hasAiContent, setHasAiContent] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -65,6 +137,7 @@ export function AIChatBuilderPage() {
     if (!resumeId) return;
     resumeApi.get(resumeId).then(({ resume }) => {
       setPreviewResume(resume as unknown as Resume);
+      setHasAiContent(true);
     }).catch(() => undefined);
   }, [resumeId]);
 
@@ -89,9 +162,9 @@ export function AIChatBuilderPage() {
       setMessages((prev) => [...prev, { role: 'assistant', content: result.reply }]);
       setSuggestions(result.suggestions ?? []);
 
-      // Update live preview if AI returned a resume update
       const resumeUpdate = result.resumeUpdate;
       if (resumeUpdate) {
+        setHasAiContent(true);
         setPreviewResume((prev) => ({
           ...prev,
           ...(resumeUpdate.title ? { title: resumeUpdate.title } : {}),
@@ -106,6 +179,7 @@ export function AIChatBuilderPage() {
   }
 
   function handleImported(extracted: { title?: string; sections?: Section[] }) {
+    setHasAiContent(true);
     setPreviewResume((prev) => ({
       ...prev,
       ...(extracted.title ? { title: extracted.title } : {}),
@@ -120,6 +194,12 @@ export function AIChatBuilderPage() {
       },
     ]);
   }
+
+  // Template display name from theme
+  const templateLabel =
+    (previewResume.theme as { templateId?: string })?.templateId === 'classic'
+      ? 'Classic'
+      : 'Modern';
 
   return (
     <AppShell>
@@ -214,11 +294,92 @@ export function AIChatBuilderPage() {
           </form>
         </div>
 
-        {/* Right: Live Preview */}
-        <div className="hidden lg:flex flex-1 items-center justify-center bg-muted/30 overflow-auto p-8">
-          <div className="flex flex-col items-center gap-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Live Preview</p>
-            <ResumePreview resume={previewResume} scale={0.55} />
+        {/* ---------------------------------------------------------------- */}
+        {/* Right: Live Preview                                               */}
+        {/* ---------------------------------------------------------------- */}
+        <div
+          className="hidden lg:flex flex-1 flex-col overflow-hidden relative"
+          style={{
+            background: '#0b0b10',
+            backgroundImage:
+              'radial-gradient(circle at 1px 1px, rgba(139,92,246,0.07) 1px, transparent 0)',
+            backgroundSize: '28px 28px',
+          }}
+        >
+          {/* Ambient purple glow centred behind the resume */}
+          <div
+            aria-hidden
+            className="absolute inset-0 flex items-center justify-center pointer-events-none"
+          >
+            <div
+              style={{
+                width: 560,
+                height: 560,
+                background:
+                  'radial-gradient(circle, rgba(99,102,241,0.13) 0%, transparent 70%)',
+                filter: 'blur(48px)',
+              }}
+            />
+          </div>
+
+          {/* Top bar */}
+          <div className="relative z-10 flex items-center justify-between px-6 py-3 border-b border-white/5">
+            <span className="text-[10px] font-semibold text-white/25 uppercase tracking-[0.18em]">
+              Live Preview
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-white/25 bg-white/5 border border-white/8 rounded px-2 py-0.5">
+                {templateLabel}
+              </span>
+              <span className="text-[10px] text-white/25 bg-white/5 border border-white/8 rounded px-2 py-0.5">
+                A4
+              </span>
+            </div>
+          </div>
+
+          {/* Content area */}
+          <div className="relative z-10 flex-1 flex items-center justify-center overflow-auto p-8">
+            <AnimatePresence mode="wait">
+              {hasAiContent ? (
+                <motion.div
+                  key="preview"
+                  initial={{ opacity: 0, scale: 0.97 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.35, ease: 'easeOut' }}
+                  className="flex flex-col items-center"
+                >
+                  {/* Browser-chrome strip above the resume */}
+                  <div
+                    className="self-stretch flex items-center gap-1.5 px-3 py-2 rounded-t-lg border border-white/10 border-b-0"
+                    style={{ background: 'rgba(255,255,255,0.04)' }}
+                  >
+                    <div className="w-2.5 h-2.5 rounded-full bg-red-500/40" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/40" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-green-500/40" />
+                    <span className="text-[10px] text-white/25 ml-auto mr-auto truncate">
+                      {previewResume.title}
+                    </span>
+                  </div>
+
+                  <ResumePreview resume={previewResume} scale={0.55} />
+
+                  {/* Footer badge */}
+                  <p className="mt-3 text-[10px] text-white/20 tracking-wide">
+                    Updates as you chat
+                  </p>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="empty"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <EmptyPreviewState />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>
