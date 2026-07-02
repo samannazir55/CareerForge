@@ -50,17 +50,17 @@ model User {
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @default(now()) @updatedAt
 
-  oauthAccounts     OAuthAccount[]
-  otpCodes          OtpCode[]
-  refreshTokens     RefreshToken[]
-  templatePurchases   TemplatePurchase[]
-  resumes             Resume[]
-  pointsTransactions  PointsTransaction[]
-  subscription        Subscription?
-  // ADD to model User relations:
-  careerProfile       CareerProfile?
+  oauthAccounts        OAuthAccount[]
+  otpCodes             OtpCode[]
+  refreshTokens        RefreshToken[]
+  templatePurchases    TemplatePurchase[]
+  resumes              Resume[]
+  pointsTransactions   PointsTransaction[]
+  subscription         Subscription?
+  careerProfile        CareerProfile?
   conversationSessions ConversationSession[]
-  jobApplications     JobApplication[]
+  jobApplications      JobApplication[]
+  adminAuditLogs       AdminAuditLog[]      @relation("AdminAuditLogAdmin")
 
   @@map("users")
 }
@@ -389,4 +389,61 @@ model JobApplication {
 
   @@index([userId, status])
   @@map("job_applications")
+}
+
+// ---------------------------------------------------------------------------
+// Admin: Template metadata layer
+// ---------------------------------------------------------------------------
+
+model TemplateListing {
+  id           String   @id
+  isActive     Boolean  @default(true)
+  category     String   @default("free")
+  pointsCost   Int      @default(0)
+  thumbnailUrl String?
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("template_listings")
+}
+
+// ---------------------------------------------------------------------------
+// Admin: Dynamic subscription plans
+// ---------------------------------------------------------------------------
+
+model SubscriptionPlan {
+  id                   String   @id @default(uuid())
+  tierKey              String   @unique
+  name                 String
+  priceMonthlyUsd      Decimal  @db.Decimal(10, 2)
+  description          String?
+  features             Json     @default("[]")
+  pointsGrantedMonthly Int      @default(0)
+  stripePriceId        String?
+  isActive             Boolean  @default(true)
+  displayOrder         Int      @default(0)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@map("subscription_plans")
+}
+
+// ---------------------------------------------------------------------------
+// Admin: Audit log (append-only)
+// ---------------------------------------------------------------------------
+
+model AdminAuditLog {
+  id         String   @id @default(uuid())
+  admin      User     @relation("AdminAuditLogAdmin", fields: [adminId], references: [id], onDelete: Cascade)
+  adminId    String
+  action     String
+  targetType String
+  targetId   String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([adminId, createdAt])
+  @@index([targetType, targetId])
+  @@map("admin_audit_logs")
 }
