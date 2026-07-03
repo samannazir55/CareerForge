@@ -214,7 +214,7 @@ export function AIChatBuilderPage() {
           if (resumeUpdate.sections?.length) {
             const aiByType = new Map(
               resumeUpdate.sections
-                .filter((s) => s.entries.length > 0)
+                .filter((s) => s && (s.entries?.length ?? 0) > 0)
                 .map((s) => [s.type, s]),
             );
             if (aiByType.size > 0) {
@@ -222,7 +222,7 @@ export function AIChatBuilderPage() {
               // Append any brand-new section types (e.g. projects, certifications)
               const existingTypes = new Set(prev.sections.map((s) => s.type));
               resumeUpdate.sections
-                .filter((s) => s.entries.length > 0 && !existingTypes.has(s.type))
+                .filter((s) => s && (s.entries?.length ?? 0) > 0 && !existingTypes.has(s.type))
                 .forEach((s) => next.sections.push(s));
             }
           }

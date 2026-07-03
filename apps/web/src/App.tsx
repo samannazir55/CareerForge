@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import { AdminRoute } from './routes/AdminRoute';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Public
 import { WelcomePage } from './pages/welcome/WelcomePage';
@@ -36,9 +37,10 @@ import { AdminAuditPage } from './pages/admin/AdminAuditPage';
 
 export function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <Routes>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
+          <Routes>
           {/* Public marketing/landing page */}
           <Route path="/" element={<WelcomePage />} />
 
@@ -76,8 +78,9 @@ export function App() {
               </Route>
             </Route>
           </Route>
-        </Routes>
-      </AuthProvider>
-    </BrowserRouter>
+          </Routes>
+        </AuthProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }
