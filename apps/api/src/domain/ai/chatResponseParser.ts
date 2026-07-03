@@ -20,14 +20,16 @@ function safeJsonParse<T>(text: string, fallback: T): T {
  * response, returning the remaining reply text with both fully stripped out.
  *
  * The system prompt asks for a plain "RESUME_UPDATE:" colon marker, but
- * weaker/free models (e.g. the llama-3.2-3b free tier) don't reliably follow
- * that exact shape — in practice they sometimes wrap it in XML-ish tags
- * instead: "<RESUME_UPDATE> {...} </RESUME_UPDATE>". A strict colon-only
- * check silently misses that case: the raw marker and JSON blob leak into
- * the visible chat message, and no update ever reaches the resume state
- * (the preview stays on sample data). This parser accepts either shape —
- * and an unclosed tag — so a model formatting quirk degrades gracefully
- * instead of breaking both the chat text and the live preview.
+ * weaker/free models don't reliably follow that exact shape — in practice
+ * they sometimes wrap it in XML-ish tags instead
+ * ("<RESUME_UPDATE> {...} </RESUME_UPDATE>"), or drop the marker entirely
+ * and just return the bare resume JSON as the whole message. A strict
+ * colon-only check silently misses those cases: the raw marker (or raw
+ * JSON) leaks into the visible chat message, and no update ever reaches
+ * the resume state (the preview stays on sample data). This parser accepts
+ * all three shapes — including an unclosed tag — so a model formatting
+ * quirk degrades gracefully instead of breaking both the chat text and the
+ * live preview.
  */
 export function parseChatResponse(rawText: string): ParsedChatResponse {
   let text = rawText;
@@ -72,6 +74,33 @@ export function parseChatResponse(rawText: string): ParsedChatResponse {
     const parsed = safeJsonParse<Partial<Pick<Resume, 'title' | 'sections'>> | null>(jsonPart, null);
     if (parsed) resumeUpdate = parsed;
     text = reply.trim();
+  } else {
+    // No marker at all — some small/weak models skip the instructed
+    // "RESUME_UPDATE:"/"<RESUME_UPDATE>" wrapper entirely and just return
+    // the raw resume JSON as the whole message (optionally with a short
+    // preamble before it). Without this fallback that raw JSON blob would
+    // otherwise be shown verbatim as the chat reply, and no update would
+    // ever reach the preview. Only trust it if it actually looks like a
+    // resume payload (has a "title" or "sections" key) to avoid mistaking
+    // an unrelated "{" in normal prose for structured data.
+    const braceIdx = text.indexOf('{');
+    if (braceIdx !== -1) {
+      const candidate = safeJsonParse<Partial<Pick<Resume, 'title' | 'sections'>> | null>(
+        text.slice(braceIdx),
+        null,
+      );
+      if (candidate && typeof candidate === 'object' && (candidate.title || candidate.sections)) {
+        resumeUpdate = candidate;
+        text = text.slice(0, braceIdx).trim();
+      }
+    }
+  }
+
+  // If the entire message was consumed as structured data, there's nothing
+  // left to show the user — give them a short human-readable acknowledgement
+  // instead of an empty chat bubble.
+  if (!text.trim() && resumeUpdate) {
+    text = "Got it — I've updated your resume with that.";
   }
 
   return { reply: text.trim(), resumeUpdate, suggestions };

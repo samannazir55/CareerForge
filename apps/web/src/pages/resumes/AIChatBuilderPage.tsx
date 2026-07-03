@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, type FormEvent, type ChangeEvent } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, ArrowLeft, Upload } from 'lucide-react';
+import { Send, ArrowLeft, Upload, CheckCircle2 } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
 import { ResumePreview } from '../../components/preview/ResumePreview';
@@ -155,6 +155,7 @@ export function AIChatBuilderPage() {
   const [previewResume, setPreviewResume] = useState<Resume>(SAMPLE_RESUME);
   const [error, setError] = useState<string | null>(null);
   const [importModalOpen, setImportModalOpen] = useState(false);
+  const [isFinishing, setIsFinishing] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -253,6 +254,39 @@ export function AIChatBuilderPage() {
     ]);
   }
 
+  // ---------------------------------------------------------------------
+  // "Continue to editor" — the chat has no natural end state (the AI just
+  // keeps asking follow-up questions), so without an explicit exit here
+  // there was no way to leave /resumes/new/chat: no save, no manual-edit
+  // screen, no download, no template switch. This persists whatever is
+  // currently in the live preview (title/theme/sections — real AI-filled
+  // content merged with any untouched sample sections) and routes into the
+  // full resume editor, where all of that becomes editable.
+  // ---------------------------------------------------------------------
+  async function handleFinish() {
+    if (isFinishing) return;
+    setIsFinishing(true);
+    setError(null);
+    try {
+      let targetId = resumeId;
+      if (!targetId) {
+        const { resume } = await resumeApi.create({
+          title: previewResume.title?.trim() || 'Untitled Resume',
+        });
+        targetId = resume.id;
+      }
+      await resumeApi.update(targetId, {
+        title: previewResume.title,
+        theme: previewResume.theme,
+        sections: previewResume.sections,
+      });
+      navigate(`/resumes/${targetId}`);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not save your resume. Please try again.');
+      setIsFinishing(false);
+    }
+  }
+
   const templateLabel =
     (previewResume.theme as { templateId?: string })?.templateId === 'classic'
       ? 'Classic'
@@ -274,10 +308,16 @@ export function AIChatBuilderPage() {
                 <p className="text-xs text-muted-foreground">Chat to build your resume</p>
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={() => setImportModalOpen(true)} className="shrink-0">
-              <Upload size={14} className="mr-1.5" />
-              Import
-            </Button>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button variant="outline" size="sm" onClick={() => setImportModalOpen(true)}>
+                <Upload size={14} className="mr-1.5" />
+                Import
+              </Button>
+              <Button size="sm" onClick={handleFinish} disabled={isFinishing}>
+                <CheckCircle2 size={14} className="mr-1.5" />
+                {isFinishing ? 'Saving…' : 'Continue to Editor'}
+              </Button>
+            </div>
           </div>
 
           {/* Messages */}
