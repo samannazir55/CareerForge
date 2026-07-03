@@ -60,32 +60,19 @@ function safeJsonParse<T>(text: string, fallback: T): T {
   }
 }
 
-const RESUME_CHAT_SYSTEM = `You are CareerForge AI, a friendly resume-building assistant.
-Help users build a professional resume through conversation.
-Ask about experience, education, skills, and achievements one topic at a time.
-Keep responses concise and encouraging.
-When you have enough data to update the resume, append exactly:
-RESUME_UPDATE:{"title":"Full Name","sections":[...]}
-Use section types: experience, education, skills, certifications, projects, summary.
-Only emit RESUME_UPDATE when you have meaningful new data.
-
-After every response, suggest 2-3 natural follow-up replies the user could send.
-Append them as: SUGGESTIONS:["suggestion one","suggestion two","suggestion three"]
-Keep suggestions short (under 8 words each) and relevant to what you just asked.`;
-
 export class OpenRouterProvider implements AIProvider {
   private model = DEFAULT_MODEL;
 
-  async chat(messages: ChatMessage[], _systemPrompt: string) {
+  async chat(messages: ChatMessage[], systemPrompt: string) {
     const client = getClient();
 
     const response = await client.chat.completions.create({
       model: this.model,
       messages: [
-        { role: 'system', content: RESUME_CHAT_SYSTEM },
+        { role: 'system', content: systemPrompt },
         ...messages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
       ],
-      max_tokens: 1024,
+      max_tokens: 2048,
     });
 
     let text = response.choices[0]?.message?.content ?? '';
