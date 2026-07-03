@@ -19,6 +19,14 @@ import { adminRouter } from './domain/admin/admin.routes.js';
 export function createApp() {
   const app = express();
 
+  // Render sits in front of the app as a single reverse-proxy hop, setting
+  // X-Forwarded-For on every request. Without this, express-rate-limit
+  // can't tell a real client IP from a spoofed header and throws
+  // ERR_ERL_UNEXPECTED_X_FORWARDED_FOR (visible in the Render logs) instead
+  // of rate-limiting correctly. `1` means "trust exactly one hop" — matches
+  // Render's proxy topology without over-trusting arbitrary forwarded IPs.
+  app.set('trust proxy', 1);
+
   // CORS — allow all origins. With the consolidated single-service deployment
   // (API serves the frontend too) there are no cross-origin requests in
   // production. This middleware is kept for local dev and future flexibility.

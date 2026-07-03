@@ -3,6 +3,7 @@ import type { AIProvider, ChatMessage, ATSResult, JobMatchResult } from './ai.pr
 import type { Resume } from '@careerforge/schema';
 import { env } from '../../config/env.js';
 import { ConfigurationError } from '../../lib/errors.js';
+import { parseChatResponse } from './chatResponseParser.js';
 
 const MODEL = 'claude-sonnet-4-6';
 
@@ -48,37 +49,15 @@ export class AnthropicProvider implements AIProvider {
       messages: messages.map((m) => ({ role: m.role, content: m.content })),
     });
 
-    let text = response.content
+    const text = response.content
       .filter((b) => b.type === 'text')
       .map((b) => (b as { type: 'text'; text: string }).text)
       .join('');
 
-    // Extract SUGGESTIONS: marker — always emitted last per the system
-    // prompt, so stripping it first leaves clean text for the RESUME_UPDATE
-    // split below, same as before this existed.
-    let suggestions: string[] = [];
-    if (text.includes('SUGGESTIONS:')) {
-      const sugIdx = text.indexOf('SUGGESTIONS:');
-      const sugPart = text.slice(sugIdx + 'SUGGESTIONS:'.length).trim();
-      text = text.slice(0, sugIdx).trim();
-      const match = sugPart.match(/\[[\s\S]*?\]/);
-      if (match) {
-        try {
-          suggestions = JSON.parse(match[0]) as string[];
-        } catch {
-          suggestions = [];
-        }
-      }
-    }
-
-    // Check for structured resume update marker
-    if (text.includes('RESUME_UPDATE:')) {
-      const [reply, jsonPart] = text.split('RESUME_UPDATE:');
-      const resumeUpdate = safeJsonParse<Partial<Pick<Resume, 'title' | 'sections'>>>(jsonPart ?? '', {});
-      return { reply: reply?.trim() ?? '', resumeUpdate, suggestions };
-    }
-
-    return { reply: text, suggestions };
+    // Tolerant of both the "RESUME_UPDATE:" colon format the system prompt
+    // asks for and a "<RESUME_UPDATE>...</RESUME_UPDATE>" tag format —
+    // see chatResponseParser for why both are handled.
+    return parseChatResponse(text);
   }
 
   async scoreATS(resume: Resume, jobDescription?: string): Promise<ATSResult> {

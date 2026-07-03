@@ -3,6 +3,7 @@ import type { AIProvider, ChatMessage, ATSResult, JobMatchResult } from './ai.pr
 import type { Resume } from '@careerforge/schema';
 import { env } from '../../config/env.js';
 import { ConfigurationError } from '../../lib/errors.js';
+import { parseChatResponse } from './chatResponseParser.js';
 
 /**
  * OpenRouter adapter. OpenRouter exposes an OpenAI-compatible API so we
@@ -75,32 +76,13 @@ export class OpenRouterProvider implements AIProvider {
       max_tokens: 2048,
     });
 
-    let text = response.choices[0]?.message?.content ?? '';
+    const text = response.choices[0]?.message?.content ?? '';
 
-    // Extract SUGGESTIONS: marker
-    let suggestions: string[] = [];
-    if (text.includes('SUGGESTIONS:')) {
-      const sugIdx = text.indexOf('SUGGESTIONS:');
-      const sugPart = text.slice(sugIdx + 'SUGGESTIONS:'.length).trim();
-      text = text.slice(0, sugIdx).trim();
-      try {
-        const match = sugPart.match(/\[[\s\S]*?\]/);
-        if (match) suggestions = JSON.parse(match[0]) as string[];
-      } catch {
-        suggestions = [];
-      }
-    }
-
-    // Extract RESUME_UPDATE: marker
-    if (text.includes('RESUME_UPDATE:')) {
-      const idx = text.indexOf('RESUME_UPDATE:');
-      const reply = text.slice(0, idx).trim();
-      const jsonPart = text.slice(idx + 'RESUME_UPDATE:'.length);
-      const resumeUpdate = safeJsonParse<Partial<Pick<Resume, 'title' | 'sections'>>>(jsonPart, {});
-      return { reply, resumeUpdate, suggestions };
-    }
-
-    return { reply: text, suggestions };
+    // Tolerant of both the "RESUME_UPDATE:" colon format the system prompt
+    // asks for and the "<RESUME_UPDATE>...</RESUME_UPDATE>" tag format this
+    // (free, weaker) model sometimes emits instead — see chatResponseParser
+    // for why that matters.
+    return parseChatResponse(text);
   }
 
   async scoreATS(resume: Resume, jobDescription?: string): Promise<ATSResult> {
