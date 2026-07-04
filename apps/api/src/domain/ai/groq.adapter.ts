@@ -69,7 +69,7 @@ export class GroqProvider implements AIProvider {
   async chat(messages: ChatMessage[], systemPrompt: string) {
     const client = getClient();
 
-    const response = await client.chat.completions.create({
+    const response = (await client.chat.completions.create({
       model: this.model,
       messages: [
         { role: 'system', content: systemPrompt },
@@ -92,8 +92,13 @@ export class GroqProvider implements AIProvider {
       reasoning_effort: 'low',
       // include_reasoning / reasoning_effort are Groq-specific extensions to
       // the OpenAI-compatible endpoint that the `openai` SDK's TS types
-      // don't model; they pass through fine on the wire.
-    } as unknown as Parameters<OpenAI['chat']['completions']['create']>[0]);
+      // don't model. `as any` on the argument bypasses the excess-property
+      // check without touching overload resolution; asserting the awaited
+      // result's type below is what keeps `stream` absent from the
+      // inferred type, so `create()` still resolves to its non-streaming
+      // overload (`ChatCompletion`, which has `.choices`) instead of the
+      // streaming one (`Stream<ChatCompletionChunk>`, which doesn't).
+    } as any)) as OpenAI.Chat.Completions.ChatCompletion;
 
     const text = response.choices[0]?.message?.content ?? '';
 
