@@ -23,16 +23,6 @@ Your goal is to help users build a professional resume through conversation.
 Ask about their experience, education, skills, projects, and achievements one topic at a time.
 Keep responses concise and encouraging.
 
-IMPORT TIP RULE (follow exactly once):
-After the user tells you their name and you are about to ask your SECOND question
-(the one about their job role, target position, or professional background),
-include this tip naturally at the end of that response — word it in your own voice but
-keep the meaning:
-  "💡 By the way — if you have an existing CV, you can click the Import button at the
-   top of the chat to paste it in and I'll pull all your details automatically.
-   Otherwise, let's keep going!"
-Only include this tip in that one response. Never repeat it.
-
 When you have gathered enough information to update the resume (at least name and one section),
 append "RESUME_UPDATE:" followed by a JSON object with the resume data.
 The JSON should have this shape:
@@ -105,7 +95,8 @@ the role actually involved, or one concrete result) to write something specific 
 than generic filler.
 
 After every response, suggest 2-3 natural follow-up replies the user could send.
-Append them as: SUGGESTIONS:["suggestion one","suggestion two","suggestion three"]
+Append them as: SUGGESTIONS:["Software Engineer","Product Manager","Data Analyst"] (an
+illustrative example only — always replace with suggestions relevant to what you just asked).
 Keep suggestions short (under 8 words each) and relevant to what you just asked.
 If you also emit RESUME_UPDATE, put SUGGESTIONS after it.
 
@@ -133,6 +124,21 @@ aiRouter.post(
     if (!messages?.length) throw new BadRequestError('messages array is required.');
 
     const result = await aiProvider.chat(messages, RESUME_CHAT_SYSTEM_PROMPT);
+
+    // The "click Import to paste your existing CV" nudge used to be a prompt
+    // instruction asking the model to detect "this is my second reply" and
+    // reword a canned message in its own voice. That's unnecessary risk for
+    // a fixed message: it asked the model to reason about conversation state
+    // inline, which is exactly the kind of multi-clause conditional that
+    // caused it to narrate its own compliance-checking instead of just
+    // answering (see the "We need to follow rules..." leak). The trigger
+    // condition is fully known from the request itself, so it's applied
+    // here deterministically instead — no wording risk, and by construction
+    // it can only ever fire once, on exactly the assistant's second reply.
+    const assistantTurnsSoFar = messages.filter((m) => m.role === 'assistant').length;
+    if (assistantTurnsSoFar === 1 && result.reply) {
+      result.reply = `${result.reply}\n\n💡 By the way — if you have an existing CV, you can click the Import button at the top of the chat to paste it in and I'll pull all your details automatically. Otherwise, let's keep going!`;
+    }
 
     // If the AI returned a resume update and we have a resumeId, persist it.
     //
