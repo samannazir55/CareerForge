@@ -3,7 +3,7 @@ import type { AIProvider, ChatMessage, ATSResult, JobMatchResult } from './ai.pr
 import type { Resume } from '@careerforge/schema';
 import { env } from '../../config/env.js';
 import { ConfigurationError } from '../../lib/errors.js';
-import { parseChatResponse } from './chatResponseParser.js';
+import { parseChatResponse, extractResumeJson } from './chatResponseParser.js';
 
 /**
  * OpenRouter adapter. OpenRouter exposes an OpenAI-compatible API so we
@@ -183,10 +183,14 @@ For skills: key name. Use simple IDs like s1, s2, e1, e2.`,
         },
         { role: 'user', content: `Parse this resume:\n\n${rawText}` },
       ],
-      max_tokens: 2048,
+      max_tokens: 4096,
     });
 
     const text = response.choices[0]?.message?.content ?? '';
-    return safeJsonParse<Partial<Pick<Resume, 'title' | 'sections'>>>(text, {});
+    // See groq.adapter.ts — same fix, same reason: the old greedy
+    // safeJsonParse silently fell back to {} the moment any preamble text
+    // preceded the JSON, with no signal to the caller that extraction
+    // actually failed.
+    return extractResumeJson(text) ?? {};
   }
 }

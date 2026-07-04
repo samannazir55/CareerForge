@@ -266,6 +266,28 @@ aiRouter.post(
     if (!rawText?.trim()) throw new BadRequestError('rawText is required.');
 
     const extracted = await aiProvider.extractResumeFromText(rawText);
+
+    // An empty {} here is indistinguishable, on its own, from "the model
+    // genuinely found nothing" vs "JSON extraction quietly failed" — both
+    // adapters fall back to {} rather than throwing (see chatResponseParser
+    // / extractResumeJson). Given the input was a real file the user chose
+    // to import, a fully-empty result is far more likely to mean extraction
+    // failed than that their resume had no name and no sections. Treat it
+    // as a failure so the UI's existing error/retry state (ImportResumeModal
+    // already has one) fires, instead of declaring success and silently
+    // leaving the sample resume in place with no indication anything went
+    // wrong — which is exactly the "AI said it imported my resume but the
+    // preview never changed" bug this closes.
+    const hasUsableContent =
+      (typeof extracted.title === 'string' && extracted.title.trim().length > 1) ||
+      (Array.isArray(extracted.sections) && extracted.sections.some((s) => (s.entries?.length ?? 0) > 0));
+    if (!hasUsableContent) {
+      throw new BadRequestError(
+        "Couldn't extract details from this file — try pasting the text directly, or fill in your details manually.",
+        'EXTRACTION_FAILED',
+      );
+    }
+
     res.status(200).json({ extracted });
   }),
 );

@@ -33,7 +33,7 @@ type ResumeUpdate = Partial<Pick<Resume, 'title' | 'sections'>>;
  * scanning from an anchored starting point only ever captures one complete,
  * self-contained JSON value.
  */
-function extractBalancedJson(text: string, fromIdx: number): { value: unknown; endIdx: number } | null {
+export function extractBalancedJson(text: string, fromIdx: number): { value: unknown; endIdx: number } | null {
   const start = text.indexOf('{', fromIdx);
   if (start === -1) return null;
 
@@ -75,7 +75,7 @@ function extractBalancedJson(text: string, fromIdx: number): { value: unknown; e
   return null; // braces never closed — truncated response (e.g. ran out of max_tokens)
 }
 
-function isPlausibleResumeUpdate(candidate: unknown): candidate is ResumeUpdate {
+export function isPlausibleResumeUpdate(candidate: unknown): candidate is ResumeUpdate {
   if (!candidate || typeof candidate !== 'object') return false;
   const c = candidate as Record<string, unknown>;
   // Require a non-trivial title or a sections array with at least one real
@@ -85,6 +85,34 @@ function isPlausibleResumeUpdate(candidate: unknown): candidate is ResumeUpdate 
   if (typeof c.title === 'string' && c.title.trim().length > 1 && c.title.trim() !== '...') return true;
   if (Array.isArray(c.sections) && c.sections.length > 0) return true;
   return false;
+}
+
+/**
+ * For prompts that ask a model to "return ONLY valid JSON" with no marker at
+ * all (extractResumeFromText's CV-parsing prompt, across all three
+ * adapters) — scans for the first balanced JSON object anywhere in the text
+ * rather than assuming the response starts with `{`. This is the same
+ * failure mode as the chat endpoint: a reasoning model can still preface
+ * its answer with analysis text even when told not to, and the old
+ * `/\{[\s\S]*\}/` greedy match would silently produce invalid JSON (or
+ * match nothing) the moment it did, falling back to `{}` with no signal
+ * that extraction actually failed. Returns undefined — never a lossy `{}` —
+ * so callers can tell "nothing usable came back" apart from "the model
+ * genuinely extracted nothing," and react accordingly (e.g. surface a real
+ * error to the user instead of a silently-empty import).
+ */
+export function extractResumeJson(rawText: string): Partial<Pick<Resume, 'title' | 'sections'>> | undefined {
+  let searchFrom = 0;
+  while (searchFrom < rawText.length) {
+    const extracted = extractBalancedJson(rawText, searchFrom);
+    if (!extracted) return undefined; // no more braces, or they never balanced
+    if (isPlausibleResumeUpdate(extracted.value)) return extracted.value;
+    // That balanced object wasn't a plausible resume (e.g. a small example
+    // fragment in a reasoning preamble) — keep scanning past it rather than
+    // giving up, in case the real payload follows later in the text.
+    searchFrom = extracted.endIdx;
+  }
+  return undefined;
 }
 
 /**

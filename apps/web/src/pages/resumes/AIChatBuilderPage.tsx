@@ -229,10 +229,28 @@ export function AIChatBuilderPage() {
   }
 
   function handleImported(extracted: { title?: string; sections?: Section[] }) {
+    // Defense-in-depth: the backend now rejects a genuinely-empty extraction
+    // before it ever reaches here (see /resumes/... ai.routes.ts /import),
+    // but this check costs nothing and means a future regression in that
+    // validation fails visibly instead of silently claiming success with an
+    // unchanged, still-sample preview — which is exactly the bug this closes.
+    const hasUsableContent =
+      (typeof extracted.title === 'string' && extracted.title.trim().length > 1) ||
+      (extracted.sections?.some((s) => (s.entries?.length ?? 0) > 0) ?? false);
+
+    if (!hasUsableContent) {
+      setError("Couldn't extract details from that file — try pasting the text directly, or fill in your details manually.");
+      return;
+    }
+
     setPreviewResume((prev) => ({
       ...prev,
       ...(extracted.title ? { title: extracted.title } : {}),
-      ...(extracted.sections ? { sections: extracted.sections } : {}),
+      // Merge by type rather than replacing the array outright, so any
+      // section the import didn't cover keeps showing its sample content
+      // instead of disappearing — same policy used everywhere else a
+      // partial AI-sourced update meets the working resume.
+      ...(extracted.sections ? { sections: mergeResumeSections(prev.sections, extracted.sections) } : {}),
     }));
     setMessages((prev) => [
       ...prev,

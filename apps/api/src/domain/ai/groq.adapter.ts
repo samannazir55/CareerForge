@@ -3,7 +3,7 @@ import type { AIProvider, ChatMessage, ATSResult, JobMatchResult } from './ai.pr
 import type { Resume } from '@careerforge/schema';
 import { env } from '../../config/env.js';
 import { ConfigurationError } from '../../lib/errors.js';
-import { parseChatResponse } from './chatResponseParser.js';
+import { parseChatResponse, extractResumeJson } from './chatResponseParser.js';
 
 /**
  * Groq adapter. Groq exposes an OpenAI-compatible API (LPU-accelerated
@@ -194,7 +194,7 @@ export class GroqProvider implements AIProvider {
   async extractResumeFromText(rawText: string): Promise<Partial<Pick<Resume, 'title' | 'sections'>>> {
     const client = getClient();
 
-    const response = await client.chat.completions.create({
+    const response = (await client.chat.completions.create({
       model: this.model,
       messages: [
         {
@@ -208,10 +208,23 @@ For skills: key name. Use simple IDs like s1, s2, e1, e2.`,
         },
         { role: 'user', content: `Parse this resume:\n\n${rawText}` },
       ],
-      max_tokens: 2048,
-    });
+      max_tokens: 4096,
+      // Same reasoning-suppression as chat() — this prompt says "return
+      // ONLY valid JSON" but a reasoning model can still preface its answer
+      // with analysis text regardless of instructions, and parsing a full
+      // resume gives it plenty to reason about. See chat() for the full
+      // explanation of why these two settings matter for gpt-oss models.
+      include_reasoning: false,
+      reasoning_effort: 'low',
+    } as any)) as OpenAI.Chat.Completions.ChatCompletion;
 
     const text = response.choices[0]?.message?.content ?? '';
-    return safeJsonParse<Partial<Pick<Resume, 'title' | 'sections'>>>(text, {});
+    // extractResumeJson scans for the first *plausible* balanced JSON object
+    // rather than a single greedy brace-to-brace regex match — the same fix
+    // as chat(), applied here because this call site had the identical bug:
+    // any reasoning preamble before the JSON caused the old greedy match to
+    // either fail outright or capture a corrupted span, silently falling
+    // back to `{}` with no signal to the caller that extraction failed.
+    return extractResumeJson(text) ?? {};
   }
 }

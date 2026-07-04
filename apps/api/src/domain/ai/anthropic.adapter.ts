@@ -3,7 +3,7 @@ import type { AIProvider, ChatMessage, ATSResult, JobMatchResult } from './ai.pr
 import type { Resume } from '@careerforge/schema';
 import { env } from '../../config/env.js';
 import { ConfigurationError } from '../../lib/errors.js';
-import { parseChatResponse } from './chatResponseParser.js';
+import { parseChatResponse, extractResumeJson } from './chatResponseParser.js';
 
 const MODEL = 'claude-sonnet-4-6';
 
@@ -163,6 +163,6 @@ For skills use key: name. Generate UUIDs as simple incrementing strings like "s1
       .map((b) => (b as { type: 'text'; text: string }).text)
       .join('');
 
-    return safeJsonParse<Partial<Pick<Resume, 'title' | 'sections'>>>(text, {});
+    return extractResumeJson(text) ?? {};
   }
 }
