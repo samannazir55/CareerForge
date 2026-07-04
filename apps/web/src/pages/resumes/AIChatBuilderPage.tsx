@@ -300,6 +300,16 @@ export function AIChatBuilderPage() {
       ? 'Classic'
       : 'Modern';
 
+  // Both templates are free-tier (see packages/templates/src/registry.ts) —
+  // no subscription/premium gating applies to switching between them here.
+  // ResumePreview already re-renders on any resume.theme.templateId change
+  // (it's in that component's effect dependency array), so updating this
+  // state alone is enough to get a real-time preview switch — no new
+  // plumbing needed beyond the state update itself.
+  function setTemplate(templateId: 'modern' | 'classic') {
+    setPreviewResume((prev) => ({ ...prev, theme: { ...prev.theme, templateId } }));
+  }
+
   return (
     <AppShell>
       <div className="flex h-[calc(100vh-0px)] overflow-hidden">
@@ -432,9 +442,23 @@ export function AIChatBuilderPage() {
               Live Preview
             </span>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] text-white/25 bg-white/5 border border-white/8 rounded px-2 py-0.5">
-                {templateLabel}
-              </span>
+              <div className="flex items-center rounded overflow-hidden border border-white/8 bg-white/5">
+                {(['modern', 'classic'] as const).map((id) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setTemplate(id)}
+                    aria-pressed={templateLabel.toLowerCase() === id}
+                    className={`text-[10px] px-2 py-0.5 capitalize transition-colors ${
+                      templateLabel.toLowerCase() === id
+                        ? 'bg-primary/80 text-white'
+                        : 'text-white/25 hover:text-white/50'
+                    }`}
+                  >
+                    {id}
+                  </button>
+                ))}
+              </div>
               <span className="text-[10px] text-white/25 bg-white/5 border border-white/8 rounded px-2 py-0.5">
                 A4
               </span>

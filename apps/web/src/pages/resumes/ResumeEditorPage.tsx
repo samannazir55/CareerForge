@@ -1,10 +1,10 @@
 import { useEffect, useState, type ChangeEvent } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Plus, History, Download, FileType2, Sparkles } from 'lucide-react';
+import { Plus, History, Download, FileType2, Sparkles, Lock } from 'lucide-react';
 import type { Resume, Section, SectionType } from '@careerforge/schema';
 import { createSection, createCustomSection, addSection, reorderSections } from '@careerforge/schema';
-import { resumeApi } from '../../lib/api';
+import { resumeApi, ApiError } from '../../lib/api';
 import { useAutosave } from '../../hooks/useAutosave';
 import { Button } from '../../components/ui/Button';
 import { SectionCard } from '../../components/resume/SectionCard';
@@ -33,6 +33,8 @@ export function ResumeEditorPage() {
   const [sectionTypeToAdd, setSectionTypeToAdd] = useState<string>('experience');
   const [isSavingVersion, setIsSavingVersion] = useState(false);
   const [versionSaved, setVersionSaved] = useState(false);
+  const [exporting, setExporting] = useState<'pdf' | 'docx' | null>(null);
+  const [exportError, setExportError] = useState<{ message: string; premiumRequired: boolean } | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -82,6 +84,40 @@ export function ResumeEditorPage() {
       setTimeout(() => setVersionSaved(false), 2000);
     } finally {
       setIsSavingVersion(false);
+    }
+  }
+
+  async function handleExport(format: 'pdf' | 'docx') {
+    if (!id) return;
+    setExporting(format);
+    setExportError(null);
+    try {
+      const { blob, filename } = await resumeApi.export(id, format);
+      // Deliberately not a plain <a href={...}> — that approach can't react
+      // to a non-2xx response at all, so a premium-gated template used to
+      // just open a blank tab containing raw JSON with no explanation.
+      // Fetching directly and building a blob URL lets us catch that case
+      // (see the ApiError branch below) while still triggering a normal
+      // browser download for the success case.
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename ?? `resume.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'PREMIUM_REQUIRED') {
+        setExportError({ message: err.message, premiumRequired: true });
+      } else {
+        setExportError({
+          message: err instanceof ApiError ? err.message : 'Could not export your resume. Please try again.',
+          premiumRequired: false,
+        });
+      }
+    } finally {
+      setExporting(null);
     }
   }
 
@@ -183,23 +219,38 @@ export function ResumeEditorPage() {
 
           {/* Right: live preview + export buttons */}
           <div className="hidden lg:flex flex-col items-center gap-4 p-6 bg-gradient-to-b from-indigo-500/[0.03] to-transparent border-l border-border overflow-y-auto">
-            <div className="flex gap-2 self-end">
-              <a
-                href={`/api/resumes/${id}/export/pdf`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-input bg-background text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
-              >
-                <Download size={14} /> PDF
-              </a>
-              <a
-                href={`/api/resumes/${id}/export/docx`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-input bg-background text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
-              >
-                <FileType2 size={14} /> DOCX
-              </a>
+            <div className="flex flex-col gap-2 self-end items-end">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleExport('pdf')}
+                  disabled={exporting !== null}
+                  className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-input bg-background text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-60"
+                >
+                  <Download size={14} /> {exporting === 'pdf' ? 'Exporting…' : 'PDF'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleExport('docx')}
+                  disabled={exporting !== null}
+                  className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-input bg-background text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-60"
+                >
+                  <FileType2 size={14} /> {exporting === 'docx' ? 'Exporting…' : 'DOCX'}
+                </button>
+              </div>
+              {exportError && (
+                <div className="text-xs text-right max-w-[220px]">
+                  <p className={exportError.premiumRequired ? 'text-amber-400' : 'text-destructive'}>
+                    {exportError.premiumRequired && <Lock size={11} className="inline mr-1 -mt-0.5" />}
+                    {exportError.message}
+                  </p>
+                  {exportError.premiumRequired && (
+                    <Link to="/settings/subscription" className="underline text-amber-300 hover:text-amber-200">
+                      Upgrade your plan
+                    </Link>
+                  )}
+                </div>
+              )}
             </div>
             {resume && <ResumePreview resume={{ ...resume, title, sections }} scale={0.48} className="ring-1 ring-white/10 shadow-2xl shadow-indigo-500/10" />}
           </div>

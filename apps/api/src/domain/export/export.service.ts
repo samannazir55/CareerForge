@@ -10,20 +10,19 @@ export type ExportFormat = 'pdf' | 'docx';
 /**
  * Premium-gating rules, isolated here so template code never contains them:
  * - Free templates: always exportable.
- * - Premium templates: exportable only if the user has PREMIUM subscription
- *   OR has purchased the template individually.
+ * - Premium templates: exportable only if the user has a paid subscription
+ *   (PROFESSIONAL or PREMIUM) OR has purchased the template individually.
  *
  * This check runs in the service layer before any rendering begins — a
  * premium-gated export is rejected here, not after burning CPU on rendering.
- *
- * Phase 5 Step 5 (subscriptions/payments) will populate the TemplatePurchase
- * table and set subscriptionTier properly. Until then, only free templates
- * are fully exportable, which is correct product behaviour for pre-launch.
  */
 async function assertCanExport(user: User, templateId: string): Promise<void> {
   if (!isPremiumTemplate(templateId)) return; // free templates: always allowed
 
-  if (user.subscriptionTier === 'PREMIUM') return; // premium subscribers: always allowed
+  // Any paid tier unlocks every premium template — PREMIUM was previously
+  // the only tier checked here, which meant a PROFESSIONAL subscriber (a
+  // paying customer) was denied downloads the same as a free user.
+  if (user.subscriptionTier === 'PREMIUM' || user.subscriptionTier === 'PROFESSIONAL') return;
 
   const purchase = await prisma.templatePurchase.findUnique({
     where: { userId_templateId: { userId: user.id, templateId } },
@@ -31,7 +30,7 @@ async function assertCanExport(user: User, templateId: string): Promise<void> {
   if (purchase) return;
 
   throw new ForbiddenError(
-    'This is a premium template. Upgrade to Premium or purchase this template to download.',
+    'This is a premium template. Upgrade your plan or purchase this template to download.',
     'PREMIUM_REQUIRED',
   );
 }

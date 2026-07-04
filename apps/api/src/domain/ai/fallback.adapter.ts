@@ -45,30 +45,59 @@ export class FallbackAIProvider implements AIProvider {
 
   async chat(messages: ChatMessage[], systemPrompt: string) {
     // chat() is special-cased: parseChatResponse never throws, even when it
-    // fails to extract a usable RESUME_UPDATE (truncated/malformed JSON
-    // after a marker). That means a garbled response comes back as a normal
-    // 200-shaped result, and tryInOrder's catch-based fallback would never
-    // see it as a failure — the fallback chain would go entirely unused for
-    // exactly the failure mode it exists to catch. Try each provider in
-    // order and accept the first non-degraded result; if every provider
-    // degrades, return the last one rather than erroring the whole request,
-    // since a degraded-but-non-empty reply is still better than a hard 500.
+    // fails to extract a usable RESUME_UPDATE (truncated/malformed JSON,
+    // or narration that never reached a marker at all). That means a
+    // garbled response comes back as a normal 200-shaped result, and
+    // tryInOrder's catch-based fallback would never see it as a failure.
+    //
+    // Two layers here:
+    //  1. Per provider, retry the SAME provider up to SAME_PROVIDER_RETRIES
+    //     times on a degraded result before moving to the next provider (or
+    //     giving up, if there is no next provider). A single sample landing
+    //     on excessive reasoning/narration is often just bad luck for that
+    //     particular completion, not a persistent property of the provider —
+    //     this matters a lot when there's only one provider configured at
+    //     all (no OpenRouter key), where "fall back to the next provider"
+    //     isn't an option.
+    //  2. If every attempt across every provider still comes back degraded,
+    //     never surface the raw (likely narration-contaminated) reply text
+    //     to the user — replace it with a short, safe, generic message
+    //     instead. A visibly-broken response is worse than a slightly
+    //     repetitive one.
+    const SAME_PROVIDER_RETRIES = 2;
     let lastResult: Awaited<ReturnType<AIProvider['chat']>> | undefined;
+
     for (let i = 0; i < this.providers.length; i++) {
       const isLast = i === this.providers.length - 1;
       try {
-        const result = await this.providers[i].chat(messages, systemPrompt);
-        console.log(`[ai] chat served by ${this.labels[i]}${result.degraded ? ' (degraded)' : ''}`);
-        if (!result.degraded || isLast) return result;
-        lastResult = result;
-        console.warn(`[ai] ${this.labels[i]} returned a degraded chat result, falling back to ${this.labels[i + 1]}`);
+        for (let attempt = 1; attempt <= SAME_PROVIDER_RETRIES; attempt++) {
+          const result = await this.providers[i].chat(messages, systemPrompt);
+          const attemptTag = attempt > 1 ? ` (retry ${attempt - 1})` : '';
+          console.log(`[ai] chat served by ${this.labels[i]}${attemptTag}${result.degraded ? ' — degraded' : ''}`);
+          if (!result.degraded) return result;
+          lastResult = result;
+          if (attempt < SAME_PROVIDER_RETRIES) {
+            console.warn(`[ai] ${this.labels[i]} returned a degraded chat result, retrying same provider`);
+          }
+        }
+        if (!isLast) {
+          console.warn(`[ai] ${this.labels[i]} stayed degraded after retries, falling back to ${this.labels[i + 1]}`);
+        }
       } catch (err) {
         if (isLast) throw err;
         const message = err instanceof Error ? err.message : String(err);
         console.warn(`[ai] ${this.labels[i]} failed on chat, falling back to ${this.labels[i + 1]}: ${message}`);
       }
     }
-    return lastResult!;
+
+    // Every provider (and every retry) still came back degraded. Keep
+    // whatever resumeUpdate/suggestions happened to be extracted, if any,
+    // but never show the user text that's likely leftover narration.
+    console.warn('[ai] all providers stayed degraded on chat — returning a safe generic reply');
+    return {
+      ...lastResult!,
+      reply: "Got it, thanks! Let's keep going — what would you like to add next?",
+    };
   }
 
   scoreATS(resume: Resume, jobDescription?: string): Promise<ATSResult> {

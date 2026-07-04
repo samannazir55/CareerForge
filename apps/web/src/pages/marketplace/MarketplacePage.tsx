@@ -60,7 +60,11 @@ export function MarketplacePage() {
       .catch((err) => setError(err instanceof ApiError ? err.message : 'Failed to load templates.'));
   }, []);
 
-  const isPremiumUser = user?.subscriptionTier === 'PREMIUM';
+  // Matches export.service.ts's assertCanExport: any paid tier unlocks every
+  // premium template. Previously only PREMIUM was checked here, which would
+  // have shown templates as locked to a paying PROFESSIONAL subscriber even
+  // though they're now actually entitled to download them.
+  const isPremiumUser = user?.subscriptionTier === 'PREMIUM' || user?.subscriptionTier === 'PROFESSIONAL';
 
   const categories: Array<'All' | 'free' | 'premium'> = ['All', 'free', 'premium'];
 

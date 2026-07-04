@@ -100,6 +100,36 @@ export async function requestText(path: string, options: RequestOptions = {}): P
   return res.text();
 }
 
+/**
+ * Same request/retry semantics as request<T>, but for binary downloads
+ * (PDF/DOCX export). Added so the export buttons can react to a 403
+ * (premium-gated template) with an in-app message instead of being a plain
+ * <a href> that dumps a raw JSON error into a blank new tab — which is what
+ * happened before, silently, with nothing telling the user why nothing
+ * downloaded.
+ */
+export async function requestBlob(path: string, options: RequestOptions = {}): Promise<{ blob: Blob; filename: string | null }> {
+  let res = await rawRequest(path, options);
+
+  if (res.status === 401 && !options.skipAuthRetry && path !== '/auth/refresh') {
+    const refreshed = await tryRefresh();
+    if (refreshed) res = await rawRequest(path, options);
+  }
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new ApiError(
+      res.status,
+      body?.error?.code ?? 'UNKNOWN_ERROR',
+      body?.error?.message ?? `Request failed with status ${res.status}`,
+    );
+  }
+
+  const disposition = res.headers.get('Content-Disposition');
+  const filename = disposition?.match(/filename="?([^"]+)"?/)?.[1] ?? null;
+  return { blob: await res.blob(), filename };
+}
+
 let refreshInFlight: Promise<boolean> | null = null;
 
 async function tryRefresh(): Promise<boolean> {
@@ -146,6 +176,7 @@ export const resumeApi = {
   restoreVersion: (id: string, versionId: string) => request<{ resume: Resume }>(`/resumes/${id}/versions/${versionId}/restore`, { method: 'POST' }),
   diffVersions: (id: string, fromId: string, toId: string) => request<{ diff: ResumeVersionDiff }>(`/resumes/${id}/versions/diff?from=${fromId}&to=${toId}`),
   compareVersions: (id: string, fromId: string, toId: string) => request<{ diff: ResumeVersionDiff }>(`/resumes/${id}/versions/diff?from=${fromId}&to=${toId}`),
+  export: (id: string, format: 'pdf' | 'docx') => requestBlob(`/resumes/${id}/export/${format}`),
 };
 
 export const dashboardApi = {
