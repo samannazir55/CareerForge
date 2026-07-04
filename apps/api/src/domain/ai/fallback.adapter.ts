@@ -58,6 +58,7 @@ export class FallbackAIProvider implements AIProvider {
       const isLast = i === this.providers.length - 1;
       try {
         const result = await this.providers[i].chat(messages, systemPrompt);
+        console.log(`[ai] chat served by ${this.labels[i]}${result.degraded ? ' (degraded)' : ''}`);
         if (!result.degraded || isLast) return result;
         lastResult = result;
         console.warn(`[ai] ${this.labels[i]} returned a degraded chat result, falling back to ${this.labels[i + 1]}`);
