@@ -76,14 +76,32 @@ export class GroqProvider implements AIProvider {
         ...messages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
       ],
       max_tokens: 2048,
-    });
+      // openai/gpt-oss-* are reasoning models: they run an internal analysis
+      // pass before producing the final answer, and that pass counts against
+      // max_tokens same as the visible output. Two settings matter here:
+      //   - include_reasoning: false drops the reasoning content instead of
+      //     exposing it (gpt-oss doesn't support reasoning_format like other
+      //     Groq reasoning models do; include_reasoning is the only lever,
+      //     and Groq's own community forum has reports of reasoning bleeding
+      //     into `message.content` on this model family when left on).
+      //   - reasoning_effort: 'low' keeps the internal analysis pass short,
+      //     which both reduces the odds of a leak and leaves more of the
+      //     shared token budget for the actual RESUME_UPDATE JSON, so it's
+      //     less likely to get cut off mid-object on longer conversations.
+      include_reasoning: false,
+      reasoning_effort: 'low',
+      // include_reasoning / reasoning_effort are Groq-specific extensions to
+      // the OpenAI-compatible endpoint that the `openai` SDK's TS types
+      // don't model; they pass through fine on the wire.
+    } as unknown as Parameters<OpenAI['chat']['completions']['create']>[0]);
 
     const text = response.choices[0]?.message?.content ?? '';
 
     // Same tolerant parsing as the OpenRouter adapter — handles the
     // "RESUME_UPDATE:" colon format, the "<RESUME_UPDATE>...</RESUME_UPDATE>"
-    // tag format, and a bare-JSON-with-no-marker response, since model
-    // formatting compliance varies even across "good" free models.
+    // tag format, a bare "RESUME_UPDATE" marker, and a bare-JSON-with-no-
+    // marker response, since model formatting compliance varies even across
+    // "good" free models — see chatResponseParser for the extraction rules.
     return parseChatResponse(text);
   }
 

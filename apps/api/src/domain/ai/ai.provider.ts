@@ -35,6 +35,15 @@ export interface AIProvider {
     reply: string;
     resumeUpdate?: Partial<Pick<Resume, 'title' | 'sections'>>;
     suggestions?: string[];
+    /**
+     * True when a RESUME_UPDATE marker was present in the raw model output
+     * but its JSON payload didn't extract cleanly (truncated/malformed).
+     * A "degraded" chat result is still a 200-shaped success — it's the
+     * caller's signal that this particular completion is worth retrying
+     * against a different provider, since a thrown exception never occurs
+     * in this failure mode.
+     */
+    degraded?: boolean;
   }>;
 
   /**

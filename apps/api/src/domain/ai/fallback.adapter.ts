@@ -43,8 +43,31 @@ export class FallbackAIProvider implements AIProvider {
     throw new Error('FallbackAIProvider: no provider available');
   }
 
-  chat(messages: ChatMessage[], systemPrompt: string) {
-    return this.tryInOrder((p) => p.chat(messages, systemPrompt), 'chat');
+  async chat(messages: ChatMessage[], systemPrompt: string) {
+    // chat() is special-cased: parseChatResponse never throws, even when it
+    // fails to extract a usable RESUME_UPDATE (truncated/malformed JSON
+    // after a marker). That means a garbled response comes back as a normal
+    // 200-shaped result, and tryInOrder's catch-based fallback would never
+    // see it as a failure — the fallback chain would go entirely unused for
+    // exactly the failure mode it exists to catch. Try each provider in
+    // order and accept the first non-degraded result; if every provider
+    // degrades, return the last one rather than erroring the whole request,
+    // since a degraded-but-non-empty reply is still better than a hard 500.
+    let lastResult: Awaited<ReturnType<AIProvider['chat']>> | undefined;
+    for (let i = 0; i < this.providers.length; i++) {
+      const isLast = i === this.providers.length - 1;
+      try {
+        const result = await this.providers[i].chat(messages, systemPrompt);
+        if (!result.degraded || isLast) return result;
+        lastResult = result;
+        console.warn(`[ai] ${this.labels[i]} returned a degraded chat result, falling back to ${this.labels[i + 1]}`);
+      } catch (err) {
+        if (isLast) throw err;
+        const message = err instanceof Error ? err.message : String(err);
+        console.warn(`[ai] ${this.labels[i]} failed on chat, falling back to ${this.labels[i + 1]}: ${message}`);
+      }
+    }
+    return lastResult!;
   }
 
   scoreATS(resume: Resume, jobDescription?: string): Promise<ATSResult> {

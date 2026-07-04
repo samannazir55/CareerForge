@@ -4,39 +4,119 @@ export interface ParsedChatResponse {
   reply: string;
   resumeUpdate?: Partial<Pick<Resume, 'title' | 'sections'>>;
   suggestions: string[];
+  /**
+   * True when something clearly went wrong extracting structured data from
+   * the model's response — a RESUME_UPDATE marker was present but its JSON
+   * payload was missing/unparsable/truncated. Callers (the fallback
+   * provider chain in particular) can use this to treat a "successful"
+   * 200-ish completion as a soft failure worth retrying against another
+   * provider, rather than silently accepting a reply with no update.
+   */
+  degraded: boolean;
 }
 
-function safeJsonParse<T>(text: string, fallback: T): T {
-  try {
-    const match = text.match(/\{[\s\S]*\}/);
-    return match ? (JSON.parse(match[0]) as T) : fallback;
-  } catch {
-    return fallback;
+type ResumeUpdate = Partial<Pick<Resume, 'title' | 'sections'>>;
+
+/**
+ * Scans forward from `fromIdx` for the first `{` and returns the JSON value
+ * spanning to its *matching* `}` (brace-depth balanced), plus the index just
+ * past it — or null if there's no opening brace, the braces never balance
+ * (truncated response), or the matched span isn't valid JSON.
+ *
+ * This replaces a single greedy `/\{[\s\S]*\}/` match, which spans from the
+ * FIRST `{` to the LAST `}` anywhere in the remaining string. That's unsafe
+ * the moment there's more than one brace-delimited thing in the text — e.g.
+ * a reasoning model's internal analysis pass mentioning an example object
+ * ("...format it like {\"title\": \"...\"}...") before the real payload will
+ * cause the greedy match to span from that example all the way through the
+ * actual RESUME_UPDATE JSON, producing an invalid, unparsable blob. Balanced
+ * scanning from an anchored starting point only ever captures one complete,
+ * self-contained JSON value.
+ */
+function extractBalancedJson(text: string, fromIdx: number): { value: unknown; endIdx: number } | null {
+  const start = text.indexOf('{', fromIdx);
+  if (start === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (ch === '\\') {
+        escaped = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (ch === '"') {
+      inString = true;
+    } else if (ch === '{') {
+      depth++;
+    } else if (ch === '}') {
+      depth--;
+      if (depth === 0) {
+        const candidate = text.slice(start, i + 1);
+        try {
+          return { value: JSON.parse(candidate), endIdx: i + 1 };
+        } catch {
+          return null; // well-balanced but not valid JSON — don't widen the search
+        }
+      }
+    }
   }
+
+  return null; // braces never closed — truncated response (e.g. ran out of max_tokens)
+}
+
+function isPlausibleResumeUpdate(candidate: unknown): candidate is ResumeUpdate {
+  if (!candidate || typeof candidate !== 'object') return false;
+  const c = candidate as Record<string, unknown>;
+  // Require a non-trivial title or a sections array with at least one real
+  // section — guards against matching a small illustrative fragment (e.g.
+  // `{"title": "..."}`) that a model's reasoning pass might mention while
+  // it plans out the real answer.
+  if (typeof c.title === 'string' && c.title.trim().length > 1 && c.title.trim() !== '...') return true;
+  if (Array.isArray(c.sections) && c.sections.length > 0) return true;
+  return false;
 }
 
 /**
  * Extracts the RESUME_UPDATE payload and SUGGESTIONS list from a raw LLM
  * response, returning the remaining reply text with both fully stripped out.
  *
- * The system prompt asks for a plain "RESUME_UPDATE:" colon marker, but
- * weaker/free models don't reliably follow that exact shape — in practice
- * they sometimes wrap it in XML-ish tags instead
- * ("<RESUME_UPDATE> {...} </RESUME_UPDATE>"), or drop the marker entirely
- * and just return the bare resume JSON as the whole message. A strict
- * colon-only check silently misses those cases: the raw marker (or raw
- * JSON) leaks into the visible chat message, and no update ever reaches
- * the resume state (the preview stays on sample data). This parser accepts
- * all three shapes — including an unclosed tag — so a model formatting
- * quirk degrades gracefully instead of breaking both the chat text and the
- * live preview.
+ * Supported RESUME_UPDATE shapes (models vary in how faithfully they follow
+ * the system prompt's exact format):
+ *   - "RESUME_UPDATE:" followed by JSON (the instructed format)
+ *   - "<RESUME_UPDATE>...</RESUME_UPDATE>" / an unclosed "<RESUME_UPDATE>" tag
+ *   - a bare "RESUME_UPDATE" line with no colon or tag (seen from reasoning
+ *     models whose analysis pass drifts from the exact instructed marker)
+ *   - no marker at all, just the resume JSON as the whole message
+ *
+ * The critical rule that makes this safe: JSON extraction is always anchored
+ * to *after* a located RESUME_UPDATE marker (in whichever of the first three
+ * shapes it appears), using a balanced-brace scan — never an unanchored,
+ * greedy "find any braces in the text" scan. The bare-JSON-whole-message
+ * case (no marker anywhere) is the sole exception, and is checked last, only
+ * once no marker was found anywhere in the text, specifically so that a
+ * reasoning preamble mentioning example braces *before* a real, later marker
+ * can never be mistaken for the payload.
  */
 export function parseChatResponse(rawText: string): ParsedChatResponse {
   let text = rawText;
+  let degraded = false;
 
   // --- SUGGESTIONS ---------------------------------------------------------
   let suggestions: string[] = [];
-  const suggestionsMatch = text.match(/<SUGGESTIONS>([\s\S]*?)<\/SUGGESTIONS>|SUGGESTIONS:\s*(\[[\s\S]*?\])/i);
+  const suggestionsMatch = text.match(
+    /<SUGGESTIONS>([\s\S]*?)<\/SUGGESTIONS>|SUGGESTIONS\s*:?\s*(\[[\s\S]*?\]|(?:\r?\n\s*[-*•]\s*.+)+)/i,
+  );
   if (suggestionsMatch) {
     const raw = suggestionsMatch[1] ?? suggestionsMatch[2] ?? '';
     const arrMatch = raw.match(/\[[\s\S]*\]/);
@@ -46,53 +126,59 @@ export function parseChatResponse(rawText: string): ParsedChatResponse {
       } catch {
         suggestions = [];
       }
+    } else {
+      // Bare bullet/dash list instead of a JSON array.
+      suggestions = raw
+        .split(/\r?\n/)
+        .map((line) => line.replace(/^\s*[-*•]\s*/, '').trim())
+        .filter(Boolean);
     }
     text = (text.slice(0, suggestionsMatch.index) + text.slice(suggestionsMatch.index! + suggestionsMatch[0].length)).trim();
   }
 
   // --- RESUME_UPDATE ---------------------------------------------------------
-  let resumeUpdate: Partial<Pick<Resume, 'title' | 'sections'>> | undefined;
+  let resumeUpdate: ResumeUpdate | undefined;
 
-  const closedTagMatch = text.match(/<RESUME_UPDATE>([\s\S]*?)<\/RESUME_UPDATE>/i);
-  const openTagIdx = text.search(/<RESUME_UPDATE>/i);
-  const colonIdx = text.indexOf('RESUME_UPDATE:');
+  // Matches "<RESUME_UPDATE>", "RESUME_UPDATE:", or a bare "RESUME_UPDATE" —
+  // whichever comes first — and nothing else. Deliberately does NOT match on
+  // a stray "{" anywhere; that's only ever considered in the no-marker branch
+  // below, after confirming this regex found nothing at all.
+  const markerMatch = text.match(/<RESUME_UPDATE>|RESUME_UPDATE\s*:?/i);
 
-  if (closedTagMatch) {
-    const parsed = safeJsonParse<Partial<Pick<Resume, 'title' | 'sections'>> | null>(closedTagMatch[1], null);
-    if (parsed) resumeUpdate = parsed;
-    text = (text.slice(0, closedTagMatch.index) + text.slice(closedTagMatch.index! + closedTagMatch[0].length)).trim();
-  } else if (openTagIdx !== -1) {
-    // Model opened the tag but never closed it — treat everything after as JSON.
-    const reply = text.slice(0, openTagIdx);
-    const jsonPart = text.slice(openTagIdx).replace(/<RESUME_UPDATE>/i, '');
-    const parsed = safeJsonParse<Partial<Pick<Resume, 'title' | 'sections'>> | null>(jsonPart, null);
-    if (parsed) resumeUpdate = parsed;
-    text = reply.trim();
-  } else if (colonIdx !== -1) {
-    const reply = text.slice(0, colonIdx);
-    const jsonPart = text.slice(colonIdx + 'RESUME_UPDATE:'.length);
-    const parsed = safeJsonParse<Partial<Pick<Resume, 'title' | 'sections'>> | null>(jsonPart, null);
-    if (parsed) resumeUpdate = parsed;
-    text = reply.trim();
+  if (markerMatch) {
+    const markerStart = markerMatch.index!;
+    const afterMarker = markerStart + markerMatch[0].length;
+    const reply = text.slice(0, markerStart).trim();
+
+    const extracted = extractBalancedJson(text, afterMarker);
+    if (extracted && isPlausibleResumeUpdate(extracted.value)) {
+      resumeUpdate = extracted.value;
+      // Preserve any genuine trailing conversational text after the JSON
+      // (SUGGESTIONS has already been stripped above), and drop a matching
+      // "</RESUME_UPDATE>" close tag immediately following the payload if
+      // the model used the tag form.
+      const tail = text
+        .slice(extracted.endIdx)
+        .replace(/^\s*<\/RESUME_UPDATE>/i, '')
+        .trim();
+      text = [reply, tail].filter(Boolean).join('\n\n').trim();
+    } else {
+      // Marker found but the payload after it didn't extract cleanly —
+      // truncated response, malformed JSON, or just an example fragment.
+      // Never leave the marker or a partial JSON blob visible to the user;
+      // fall back to the clean text before the marker and flag this as a
+      // degraded response so callers can decide whether to retry.
+      text = reply;
+      degraded = true;
+    }
   } else {
-    // No marker at all — some small/weak models skip the instructed
-    // "RESUME_UPDATE:"/"<RESUME_UPDATE>" wrapper entirely and just return
-    // the raw resume JSON as the whole message (optionally with a short
-    // preamble before it). Without this fallback that raw JSON blob would
-    // otherwise be shown verbatim as the chat reply, and no update would
-    // ever reach the preview. Only trust it if it actually looks like a
-    // resume payload (has a "title" or "sections" key) to avoid mistaking
-    // an unrelated "{" in normal prose for structured data.
-    const braceIdx = text.indexOf('{');
-    if (braceIdx !== -1) {
-      const candidate = safeJsonParse<Partial<Pick<Resume, 'title' | 'sections'>> | null>(
-        text.slice(braceIdx),
-        null,
-      );
-      if (candidate && typeof candidate === 'object' && (candidate.title || candidate.sections)) {
-        resumeUpdate = candidate;
-        text = text.slice(0, braceIdx).trim();
-      }
+    // No marker anywhere — some small/weak models skip the instructed
+    // wrapper entirely and just return the raw resume JSON as the whole
+    // message (optionally with a short preamble before it).
+    const extracted = extractBalancedJson(text, 0);
+    if (extracted && isPlausibleResumeUpdate(extracted.value)) {
+      resumeUpdate = extracted.value;
+      text = text.slice(0, text.indexOf('{')).trim();
     }
   }
 
@@ -103,5 +189,14 @@ export function parseChatResponse(rawText: string): ParsedChatResponse {
     text = "Got it — I've updated your resume with that.";
   }
 
-  return { reply: text.trim(), resumeUpdate, suggestions };
+  // Last-resort safety net: if a response body somehow still contains a raw
+  // marker token at this point (e.g. a second, unmatched occurrence), never
+  // let it reach the user verbatim.
+  if (/RESUME_UPDATE|<\/?SUGGESTIONS>/i.test(text)) {
+    degraded = true;
+    text = text.replace(/RESUME_UPDATE\s*:?/gi, '').replace(/<\/?SUGGESTIONS>/gi, '').trim();
+    if (!text) text = "Got it — let's keep going.";
+  }
+
+  return { reply: text.trim(), resumeUpdate, suggestions, degraded };
 }

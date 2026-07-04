@@ -10,7 +10,7 @@ import { SuggestionCapsules } from '../../components/ai/SuggestionCapsules';
 import { aiApi, resumeApi } from '../../lib/api';
 import { ApiError } from '../../lib/api';
 import type { Resume, Section } from '@careerforge/schema';
-import { DEFAULT_THEME, CURRENT_SCHEMA_VERSION } from '@careerforge/schema';
+import { DEFAULT_THEME, CURRENT_SCHEMA_VERSION, mergeResumeSections } from '@careerforge/schema';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -211,22 +211,12 @@ export function AIChatBuilderPage() {
           // Merge sections: only replace a sample section once the AI has
           // actual entries for that section type. This keeps the sample
           // content visible for sections the user hasn't covered yet, so
-          // the preview always looks like a complete resume.
-          if (resumeUpdate.sections?.length) {
-            const aiByType = new Map(
-              resumeUpdate.sections
-                .filter((s) => s && (s.entries?.length ?? 0) > 0)
-                .map((s) => [s.type, s]),
-            );
-            if (aiByType.size > 0) {
-              next.sections = prev.sections.map((s) => aiByType.get(s.type) ?? s);
-              // Append any brand-new section types (e.g. projects, certifications)
-              const existingTypes = new Set(prev.sections.map((s) => s.type));
-              resumeUpdate.sections
-                .filter((s) => s && (s.entries?.length ?? 0) > 0 && !existingTypes.has(s.type))
-                .forEach((s) => next.sections.push(s));
-            }
-          }
+          // the preview always looks like a complete resume. Uses the same
+          // by-type merge policy the API applies when persisting to a saved
+          // resume (see mergeResumeSections) — one canonical definition of
+          // "how does a RESUME_UPDATE combine with what's already there"
+          // instead of two independently-maintained copies.
+          next.sections = mergeResumeSections(prev.sections, resumeUpdate.sections);
 
           return next;
         });

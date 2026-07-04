@@ -3,7 +3,7 @@ import { requireAuth, requireVerifiedEmail } from '../../middleware/authGuard.js
 import { asyncHandler } from '../../lib/asyncHandler.js';
 import { aiProvider } from './index.js';
 import { prisma } from '../../lib/prisma.js';
-import { runMigrations } from '@careerforge/schema';
+import { runMigrations, mergeResumeSections, type Section } from '@careerforge/schema';
 import { NotFoundError, BadRequestError } from '../../lib/errors.js';
 import rateLimit from 'express-rate-limit';
 
@@ -107,7 +107,17 @@ than generic filler.
 After every response, suggest 2-3 natural follow-up replies the user could send.
 Append them as: SUGGESTIONS:["suggestion one","suggestion two","suggestion three"]
 Keep suggestions short (under 8 words each) and relevant to what you just asked.
-If you also emit RESUME_UPDATE, put SUGGESTIONS after it.`;
+If you also emit RESUME_UPDATE, put SUGGESTIONS after it.
+
+SUGGESTIONS must be things the USER could literally tap and send as their next
+message — concrete answers to the question you just asked, grounded in what
+they've told you so far. They are never questions or instructions directed
+back at the user, and never generic category labels for what's missing.
+  Good (user asked about a Lecturer role, MS Mathematics): ["Mathematics Lecturer", "Assistant Professor", "Lecturer at NUST"]
+  Bad: ["Tell me your target job", "Share your background details", "Mention a key achievement"]
+If you don't have enough context yet to suggest concrete answers, it's fine to
+suggest 2-3 short, plausible answers to your own question rather than meta
+instructions about answering it.`;
 
 aiRouter.post(
   '/chat',
@@ -124,16 +134,31 @@ aiRouter.post(
 
     const result = await aiProvider.chat(messages, RESUME_CHAT_SYSTEM_PROMPT);
 
-    // If the AI returned a resume update and we have a resumeId, persist it
+    // If the AI returned a resume update and we have a resumeId, persist it.
+    //
+    // IMPORTANT: this used to overwrite the row's entire `sections` column
+    // with whatever `result.resumeUpdate.sections` contained for this single
+    // turn. The system prompt asks the model to re-include everything
+    // gathered "so far, merged" on every turn, but that makes data integrity
+    // depend entirely on the model's memory across a growing conversation —
+    // something weaker/free models are unreliable at. If a turn's update
+    // only mentioned e.g. the summary section, a blind overwrite silently
+    // deleted every other previously-saved section. mergeResumeSections is
+    // the same by-type merge policy the client uses for its live preview
+    // state, so a section the model doesn't re-state this turn is left
+    // alone instead of being wiped.
     if (result.resumeUpdate && resumeId) {
       const row = await prisma.resume.findUnique({ where: { id: resumeId } });
       if (row && row.ownerId === req.user!.id) {
         const toJson = (v: unknown) => v as any;
+        const mergedSections = result.resumeUpdate.sections
+          ? mergeResumeSections(row.sections as unknown as Section[], result.resumeUpdate.sections)
+          : undefined;
         await prisma.resume.update({
           where: { id: resumeId },
           data: {
             ...(result.resumeUpdate.title ? { title: result.resumeUpdate.title } : {}),
-            ...(result.resumeUpdate.sections ? { sections: toJson(result.resumeUpdate.sections) } : {}),
+            ...(mergedSections ? { sections: toJson(mergedSections) } : {}),
           },
         });
       }
