@@ -75,7 +75,7 @@ export class GroqProvider implements AIProvider {
         { role: 'system', content: systemPrompt },
         ...messages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
       ],
-      max_tokens: 2048,
+      max_tokens: 4096,
       // openai/gpt-oss-* are reasoning models: they run an internal analysis
       // pass before producing the final answer, and that pass counts against
       // max_tokens same as the visible output. Two settings matter here:

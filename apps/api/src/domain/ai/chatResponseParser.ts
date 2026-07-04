@@ -189,6 +189,20 @@ export function parseChatResponse(rawText: string): ParsedChatResponse {
     text = "Got it — I've updated your resume with that.";
   }
 
+  // Truncation without ever reaching a marker: no RESUME_UPDATE/SUGGESTIONS
+  // marker was found anywhere, no resumeUpdate was extracted, and the reply
+  // doesn't end in terminal punctuation. A genuine conversational reply
+  // (a question, an acknowledgement) almost always ends with . ! ? or an
+  // emoji; text that just stops mid-clause is a strong signal the model ran
+  // out of max_tokens mid-narration, before ever writing the marker it was
+  // building up to. This case previously fell through as a normal-looking,
+  // non-degraded reply — silently losing the update with nothing for the
+  // fallback chain to react to. A long-ish reply is required before this
+  // fires, so a legitimately terse-but-complete reply isn't misflagged.
+  if (!resumeUpdate && !markerMatch && text.trim().length > 40 && !/[.!?"'\u{1F300}-\u{1FAFF}\u2600-\u27BF]\s*$/u.test(text.trim())) {
+    degraded = true;
+  }
+
   // Last-resort safety net: if a response body somehow still contains a raw
   // marker token at this point (e.g. a second, unmatched occurrence), never
   // let it reach the user verbatim.

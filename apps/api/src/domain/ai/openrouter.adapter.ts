@@ -73,7 +73,7 @@ export class OpenRouterProvider implements AIProvider {
         { role: 'system', content: systemPrompt },
         ...messages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
       ],
-      max_tokens: 2048,
+      max_tokens: 4096,
     });
 
     const text = response.choices[0]?.message?.content ?? '';
