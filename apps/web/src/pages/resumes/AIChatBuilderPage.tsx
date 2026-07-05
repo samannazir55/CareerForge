@@ -48,6 +48,7 @@ const SAMPLE_RESUME: Resume = {
   migrationVersion: CURRENT_SCHEMA_VERSION,
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
+  chatMessages: [],
   sections: [
     {
       id: '00000000-0000-4000-8000-000000000001',
