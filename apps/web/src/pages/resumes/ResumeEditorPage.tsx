@@ -158,6 +158,9 @@ export function ResumeEditorPage() {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <AutosaveIndicator status={autosaveStatus} />
+            <Button variant="ghost" size="sm" onClick={() => navigate(`/resumes/${id}/chat`)}>
+              <Sparkles size={14} className="mr-1.5" /> Back to chat
+            </Button>
             <Button variant="ghost" size="sm" onClick={() => navigate(`/resumes/${id}/versions`)}>
               <History size={14} className="mr-1.5" /> History
             </Button>

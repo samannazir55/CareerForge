@@ -103,6 +103,12 @@ export const SchemaVersionFieldsSchema = z.object({
 });
 export type SchemaVersionFields = z.infer<typeof SchemaVersionFieldsSchema>;
 
+export const ChatMessageSchema = z.object({
+  role: z.enum(['user', 'assistant']),
+  content: z.string(),
+});
+export type ChatMessageEntry = z.infer<typeof ChatMessageSchema>;
+
 export const ResumeSchema = z
   .object({
     id: z.string().uuid(),
@@ -110,6 +116,12 @@ export const ResumeSchema = z
     title: z.string().min(1),
     theme: ResumeThemeSchema,
     sections: z.array(SectionSchema),
+    // The AI chat builder's full transcript for this resume, if it was
+    // created/is being refined through that flow. Empty for resumes
+    // started any other way. See sectionOperations.ts / the "resumes" table
+    // migration for why this needs to be persisted at all — previously it
+    // only ever lived in local component state.
+    chatMessages: z.array(ChatMessageSchema).default([]),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
   })
@@ -164,6 +176,7 @@ export const UpdateResumeRequestSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   theme: ResumeThemeSchema.optional(),
   sections: z.array(SectionSchema).optional(),
+  chatMessages: z.array(ChatMessageSchema).optional(),
 });
 export type UpdateResumeRequest = z.infer<typeof UpdateResumeRequestSchema>;
 

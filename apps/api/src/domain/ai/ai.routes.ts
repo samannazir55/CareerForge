@@ -148,31 +148,46 @@ aiRouter.post(
       result.reply = `${result.reply}\n\n💡 By the way — if you have an existing CV, you can click the Import button at the top of the chat to paste it in and I'll pull all your details automatically. Otherwise, let's keep going!`;
     }
 
-    // If the AI returned a resume update and we have a resumeId, persist it.
-    //
-    // IMPORTANT: this used to overwrite the row's entire `sections` column
-    // with whatever `result.resumeUpdate.sections` contained for this single
-    // turn. The system prompt asks the model to re-include everything
-    // gathered "so far, merged" on every turn, but that makes data integrity
-    // depend entirely on the model's memory across a growing conversation —
-    // something weaker/free models are unreliable at. If a turn's update
-    // only mentioned e.g. the summary section, a blind overwrite silently
-    // deleted every other previously-saved section. mergeResumeSections is
-    // the same by-type merge policy the client uses for its live preview
-    // state, so a section the model doesn't re-state this turn is left
-    // alone instead of being wiped.
-    if (result.resumeUpdate && resumeId) {
+    // If we have a resumeId, persist this turn — both any resume data update
+    // and the conversation transcript itself. Previously only resumeUpdate
+    // triggered a write here, and the transcript was never saved anywhere at
+    // all: it only ever lived in AIChatBuilderPage's local React state. That,
+    // combined with a route param name bug (now fixed) that meant the page
+    // never even knew which resume it was for when navigating back, meant
+    // there was no way to resume a prior conversation — every "back to chat"
+    // started over from the greeting.
+    if (resumeId) {
       const row = await prisma.resume.findUnique({ where: { id: resumeId } });
       if (row && row.ownerId === req.user!.id) {
         const toJson = (v: unknown) => v as any;
-        const mergedSections = result.resumeUpdate.sections
+
+        // IMPORTANT: this used to overwrite the row's entire `sections`
+        // column with whatever `result.resumeUpdate.sections` contained for
+        // this single turn. The system prompt asks the model to re-include
+        // everything gathered "so far, merged" on every turn, but that
+        // makes data integrity depend entirely on the model's memory across
+        // a growing conversation — something weaker/free models are
+        // unreliable at. If a turn's update only mentioned e.g. the summary
+        // section, a blind overwrite silently deleted every other
+        // previously-saved section. mergeResumeSections is the same
+        // by-type merge policy the client uses for its live preview state,
+        // so a section the model doesn't re-state this turn is left alone
+        // instead of being wiped.
+        const mergedSections = result.resumeUpdate?.sections
           ? mergeResumeSections(row.sections as unknown as Section[], result.resumeUpdate.sections)
           : undefined;
+
+        // `messages` is the client-sent history up to and including the
+        // user's latest message; the assistant's reply this turn isn't in
+        // it yet since it's only just been generated, so it's appended here.
+        const fullTranscript = [...messages, { role: 'assistant' as const, content: result.reply }];
+
         await prisma.resume.update({
           where: { id: resumeId },
           data: {
-            ...(result.resumeUpdate.title ? { title: result.resumeUpdate.title } : {}),
+            ...(result.resumeUpdate?.title ? { title: result.resumeUpdate.title } : {}),
             ...(mergedSections ? { sections: toJson(mergedSections) } : {}),
+            chatMessages: toJson(fullTranscript),
           },
         });
       }

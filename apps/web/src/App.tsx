@@ -58,7 +58,7 @@ export function App() {
             <Route path="/resumes" element={<ResumesListPage />} />
             <Route path="/resumes/new/chat" element={<AIChatBuilderPage />} />
             <Route path="/resumes/:id" element={<ResumeEditorPage />} />
-            <Route path="/resumes/:id/chat" element={<AIChatBuilderPage />} />
+            <Route path="/resumes/:resumeId/chat" element={<AIChatBuilderPage />} />
             <Route path="/resumes/:resumeId/versions" element={<VersionHistoryPage />} />
             <Route path="/marketplace" element={<MarketplacePage />} />
             <Route path="/profile" element={<CareerProfilePage />} />

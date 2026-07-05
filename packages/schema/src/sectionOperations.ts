@@ -147,6 +147,54 @@ const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
  * than trust that self-consistency, both pieces are replaced with our own
  * deterministic, known-good definitions wherever one exists.
  */
+const YYYY_MM = /^\d{4}-(0[1-9]|1[0-2])$/;
+const MONTH_NAMES = [
+  'jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec',
+];
+
+/**
+ * Coerces a date-ish string into the strict "YYYY-MM" format the month-type
+ * <input> requires. Both the chat prompt and the import-extraction prompt
+ * ask the model for this format directly, but a real CV's actual date text
+ * ("Sept 2023", "09/2023", "2023", "Present") passing through unconverted
+ * is a real, observed failure mode — particularly for the import flow,
+ * whose extraction prompt didn't even mention a required format at all.
+ * Rather than rely on prompting alone (the same lesson as id/fields
+ * normalization above), common real-world shapes are parsed here in code.
+ * Anything unrecognized returns an empty string — deliberately not the
+ * original text, since a value that doesn't match YYYY-MM would just look
+ * identical to "empty" in the UI anyway (the month input rejects it and
+ * shows blank), so there's nothing lost by not preserving it as-is here.
+ */
+function normalizeDateValue(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  const raw = value.trim();
+  if (!raw) return '';
+  if (YYYY_MM.test(raw)) return raw;
+  if (/^(present|current|ongoing|now)$/i.test(raw)) return '';
+
+  // YYYY-MM-DD or YYYY/MM/DD → truncate to YYYY-MM
+  let m = raw.match(/^(\d{4})[-/](0?[1-9]|1[0-2])(?:[-/]\d{1,2})?$/);
+  if (m) return `${m[1]}-${m[2].padStart(2, '0')}`;
+
+  // MM/YYYY or M/YYYY
+  m = raw.match(/^(0?[1-9]|1[0-2])\/(\d{4})$/);
+  if (m) return `${m[2]}-${m[1].padStart(2, '0')}`;
+
+  // "September 2023", "Sept 2023", "Sep 2023" (any case, with or without a trailing period)
+  m = raw.match(/^([A-Za-z]+)\.?\s+(\d{4})$/);
+  if (m) {
+    const idx = MONTH_NAMES.findIndex((mo) => m![1].toLowerCase().startsWith(mo));
+    if (idx !== -1) return `${m[2]}-${String(idx + 1).padStart(2, '0')}`;
+  }
+
+  // Year only — defaults to January rather than dropping the year entirely.
+  m = raw.match(/^(\d{4})$/);
+  if (m) return `${m[1]}-01`;
+
+  return '';
+}
+
 function normalizeAiSections(sections: Section[]): Section[] {
   return sections.map((s) => {
     // EntryCard/FieldInput render one input per declared field, keyed by
@@ -163,6 +211,7 @@ function normalizeAiSections(sections: Section[]): Section[] {
     // sections have no canonical definition, so the model/user-provided
     // fields are the only option there and are left as-is.
     const canonicalFields = s.type === 'custom' ? s.fields : DEFAULT_SECTION_FIELDS[s.type];
+    const dateKeys = new Set(canonicalFields.filter((f) => f.kind === 'date').map((f) => f.key));
     return {
       ...s,
       id: UUID_SHAPE.test(s.id) ? s.id : crypto.randomUUID(),
@@ -170,6 +219,11 @@ function normalizeAiSections(sections: Section[]): Section[] {
       entries: s.entries.map((e) => ({
         ...e,
         id: UUID_SHAPE.test(e.id) ? e.id : crypto.randomUUID(),
+        values: dateKeys.size
+          ? Object.fromEntries(
+              Object.entries(e.values).map(([k, v]) => [k, dateKeys.has(k) ? normalizeDateValue(v) : v]),
+            )
+          : e.values,
       })),
     };
   });

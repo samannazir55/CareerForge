@@ -154,6 +154,7 @@ Return this shape: {"title":"Full Name","sections":[{"id":"uuid","type":"experie
 Use proper section types: experience, education, skills, certifications, projects, languages, references, summary.
 For experience entries use keys: title, company, location, startDate, endDate, description.
 For education entries use keys: degree, school, startDate, endDate.
+Dates must be in YYYY-MM format (e.g. "2023-09"). If the source only gives a year, use YYYY-01. If a role is current/ongoing, use an empty string for endDate.
 For skills use key: name. Generate UUIDs as simple incrementing strings like "s1","s2","e1","e2".`,
       messages: [{ role: 'user', content: `Parse this resume:\n\n${rawText}` }],
     });

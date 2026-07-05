@@ -189,11 +189,18 @@ export function AIChatBuilderPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Load existing resume if resumeId provided
+  // Load existing resume if resumeId provided — this now actually runs
+  // (previously the route defined its param as :id while this component
+  // read useParams<{resumeId}>(), so resumeId was always undefined here and
+  // this effect never fired at all). Restores the chat transcript alongside
+  // the resume data, so navigating back to /resumes/:resumeId/chat picks up
+  // the actual conversation instead of always starting from the greeting.
   useEffect(() => {
     if (!resumeId) return;
     resumeApi.get(resumeId).then(({ resume }) => {
       setPreviewResume(resume as unknown as Resume);
+      const saved = (resume as unknown as { chatMessages?: ChatMessage[] }).chatMessages;
+      if (saved && saved.length > 0) setMessages(saved);
     }).catch(() => undefined);
   }, [resumeId]);
 
@@ -306,6 +313,7 @@ export function AIChatBuilderPage() {
         title: previewResume.title,
         theme: previewResume.theme,
         sections: previewResume.sections,
+        chatMessages: messages,
       });
       navigate(`/resumes/${targetId}`);
     } catch (err) {

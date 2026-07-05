@@ -179,6 +179,7 @@ Return this shape: {"title":"Full Name","sections":[{"id":"s1","type":"experienc
 Use section types: experience, education, skills, certifications, projects, languages, summary.
 For experience: keys title, company, location, startDate, endDate, description.
 For education: keys degree, school, startDate, endDate.
+Dates must be in YYYY-MM format (e.g. "2023-09"). If the source only gives a year, use YYYY-01. If a role is current/ongoing, use an empty string for endDate.
 For skills: key name. Use simple IDs like s1, s2, e1, e2.`,
         },
         { role: 'user', content: `Parse this resume:\n\n${rawText}` },

@@ -10,6 +10,7 @@ import {
   type ResumeVersion,
   type ResumeVersionSummary,
   type Section,
+  type ChatMessageEntry,
 } from '@careerforge/schema';
 import { prisma } from '../../lib/prisma.js';
 import { NotFoundError } from '../../lib/errors.js';
@@ -33,6 +34,7 @@ function toPublicResume(row: ResumeRow): Resume {
     title: row.title,
     theme: row.theme as ResumeTheme,
     sections: row.sections as Section[],
+    chatMessages: (row.chatMessages as ChatMessageEntry[] | null) ?? [],
     schemaVersion: row.schemaVersion,
     migrationVersion: row.migrationVersion,
     createdAt: row.createdAt.toISOString(),
@@ -150,7 +152,7 @@ export async function getResume(id: string, ownerId: string): Promise<Resume> {
 export async function updateResume(
   id: string,
   ownerId: string,
-  patch: { title?: string; theme?: ResumeTheme; sections?: Section[] },
+  patch: { title?: string; theme?: ResumeTheme; sections?: Section[]; chatMessages?: ChatMessageEntry[] },
 ): Promise<Resume> {
   await findOwnedResumeOrThrow(id, ownerId); // authorization check before writing
   const row = await prisma.resume.update({
@@ -159,6 +161,7 @@ export async function updateResume(
       ...(patch.title !== undefined ? { title: patch.title } : {}),
       ...(patch.theme !== undefined ? { theme: toJson(patch.theme) } : {}),
       ...(patch.sections !== undefined ? { sections: toJson(patch.sections) } : {}),
+      ...(patch.chatMessages !== undefined ? { chatMessages: toJson(patch.chatMessages) } : {}),
     },
   });
   return toPublicResume(row);

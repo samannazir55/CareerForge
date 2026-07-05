@@ -143,6 +143,14 @@ model Resume {
   title            String
   theme            Json
   sections         Json
+  // Full { role, content } chat transcript for the AI builder conversation
+  // that produced/is refining this resume. Previously this only ever lived
+  // in AIChatBuilderPage's local React state — combined with a route param
+  // name bug that meant navigating back to an existing resume's chat never
+  // even knew which resume it was for, there was no way to resume a prior
+  // conversation at all. Nullable/defaults to empty since resumes created
+  // any other way (e.g. "start from scratch" in the editor) have no chat.
+  chatMessages     Json            @default("[]")
   schemaVersion    Int             @default(1)
   migrationVersion Int             @default(1)
   createdAt        DateTime        @default(now())
