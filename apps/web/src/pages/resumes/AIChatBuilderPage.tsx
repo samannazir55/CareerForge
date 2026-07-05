@@ -28,6 +28,16 @@ const INITIAL_MESSAGE: ChatMessage = {
 // template.  As the AI collects real data it replaces sections one by one;
 // sample sections for types not yet covered stay visible so the preview is
 // never an empty white box.
+//
+// IMPORTANT: every id below is a real (hardcoded, static) UUID, not a
+// readable placeholder string like 'sample-summary'. SectionSchema and
+// EntrySchema both require `id: z.string().uuid()` — and because this
+// design deliberately lets un-replaced sample sections flow straight into
+// the real save payload (that's the whole point: the preview never looks
+// empty), a non-UUID placeholder id here would make PATCH /resumes/:id
+// reject the entire request the moment a user tries to save/continue while
+// even one section type hasn't been covered by the conversation yet. That
+// was happening silently for exactly that reason before these were UUIDs.
 // ---------------------------------------------------------------------------
 const SAMPLE_RESUME: Resume = {
   id: 'preview',
@@ -40,14 +50,14 @@ const SAMPLE_RESUME: Resume = {
   updatedAt: new Date().toISOString(),
   sections: [
     {
-      id: 'sample-summary',
+      id: '00000000-0000-4000-8000-000000000001',
       type: 'summary',
       title: 'Summary',
       order: 0,
       fields: [{ key: 'text', label: 'Summary', kind: 'richtext', required: true }],
       entries: [
         {
-          id: 'sample-summary-entry',
+          id: '00000000-0000-4000-8000-000000000002',
           values: {
             // contact / personal info — read by getPersonalInfo() in templates
             jobTitle: 'Senior Software Engineer',
@@ -63,7 +73,7 @@ const SAMPLE_RESUME: Resume = {
       ],
     },
     {
-      id: 'sample-experience',
+      id: '00000000-0000-4000-8000-000000000003',
       type: 'experience',
       title: 'Experience',
       order: 1,
@@ -77,7 +87,7 @@ const SAMPLE_RESUME: Resume = {
       ],
       entries: [
         {
-          id: 'sample-exp-1',
+          id: '00000000-0000-4000-8000-000000000004',
           values: {
             title: 'Senior Software Engineer',
             company: 'Stripe',
@@ -89,7 +99,7 @@ const SAMPLE_RESUME: Resume = {
           },
         },
         {
-          id: 'sample-exp-2',
+          id: '00000000-0000-4000-8000-000000000005',
           values: {
             title: 'Software Engineer',
             company: 'Accenture',
@@ -103,7 +113,7 @@ const SAMPLE_RESUME: Resume = {
       ],
     },
     {
-      id: 'sample-education',
+      id: '00000000-0000-4000-8000-000000000006',
       type: 'education',
       title: 'Education',
       order: 2,
@@ -115,7 +125,7 @@ const SAMPLE_RESUME: Resume = {
       ],
       entries: [
         {
-          id: 'sample-edu-1',
+          id: '00000000-0000-4000-8000-000000000007',
           values: {
             degree: 'B.S. Computer Science',
             school: 'Carnegie Mellon University',
@@ -126,18 +136,18 @@ const SAMPLE_RESUME: Resume = {
       ],
     },
     {
-      id: 'sample-skills',
+      id: '00000000-0000-4000-8000-000000000008',
       type: 'skills',
       title: 'Skills',
       order: 3,
       fields: [{ key: 'name', label: 'Skill', kind: 'text', required: true }],
       entries: [
-        { id: 'sample-skill-1', values: { name: 'TypeScript / JavaScript' } },
-        { id: 'sample-skill-2', values: { name: 'React & Next.js' } },
-        { id: 'sample-skill-3', values: { name: 'Node.js' } },
-        { id: 'sample-skill-4', values: { name: 'PostgreSQL' } },
-        { id: 'sample-skill-5', values: { name: 'AWS' } },
-        { id: 'sample-skill-6', values: { name: 'System Design' } },
+        { id: '00000000-0000-4000-8000-000000000009', values: { name: 'TypeScript / JavaScript' } },
+        { id: '00000000-0000-4000-8000-00000000000a', values: { name: 'React & Next.js' } },
+        { id: '00000000-0000-4000-8000-00000000000b', values: { name: 'Node.js' } },
+        { id: '00000000-0000-4000-8000-00000000000c', values: { name: 'PostgreSQL' } },
+        { id: '00000000-0000-4000-8000-00000000000d', values: { name: 'AWS' } },
+        { id: '00000000-0000-4000-8000-00000000000e', values: { name: 'System Design' } },
       ],
     },
   ],
@@ -156,6 +166,14 @@ export function AIChatBuilderPage() {
   const [error, setError] = useState<string | null>(null);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [isFinishing, setIsFinishing] = useState(false);
+  // Remembers a resume created by handleFinish when starting from a brand
+  // new chat (no resumeId in the URL). Without this, retrying "Continue to
+  // Editor" after the update() call fails would call resumeApi.create()
+  // again on every attempt — resumeId itself comes from the URL and never
+  // changes mid-session, so nothing else would signal "we already made one."
+  // Each failed retry was silently leaving behind another empty, orphaned
+  // "Untitled Resume" row in the database.
+  const [createdResumeId, setCreatedResumeId] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -276,12 +294,13 @@ export function AIChatBuilderPage() {
     setIsFinishing(true);
     setError(null);
     try {
-      let targetId = resumeId;
+      let targetId = resumeId ?? createdResumeId;
       if (!targetId) {
         const { resume } = await resumeApi.create({
           title: previewResume.title?.trim() || 'Untitled Resume',
         });
         targetId = resume.id;
+        setCreatedResumeId(targetId);
       }
       await resumeApi.update(targetId, {
         title: previewResume.title,
