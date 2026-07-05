@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ChangeEvent } from 'react';
+import { useState, useEffect, type FormEvent, type ChangeEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthLayout } from './AuthLayout';
 import { OAuthButtons } from './OAuthButtons';
@@ -8,12 +8,25 @@ import { useAuth } from '../../context/AuthContext';
 import { ApiError } from '../../lib/api';
 
 export function LoginPage() {
-  const { login } = useAuth();
+  const { login, sessionExpired, clearSessionExpired } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // A previously-valid session actually expiring mid-use (access token
+  // expired, and the refresh cookie was no longer valid either) used to
+  // surface as a raw ApiError — e.g. "Missing or malformed Authorization
+  // header" — leaking into whatever page's own error state happened to
+  // catch it, which reads like an internal bug rather than "please sign
+  // in again." AuthContext now redirects here and flags this case.
+  useEffect(() => {
+    if (sessionExpired) {
+      setError('Your session has ended. Please sign in again.');
+      clearSessionExpired();
+    }
+  }, [sessionExpired, clearSessionExpired]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();

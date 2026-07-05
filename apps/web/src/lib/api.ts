@@ -130,6 +130,22 @@ export async function requestBlob(path: string, options: RequestOptions = {}): P
   return { blob: await res.blob(), filename };
 }
 
+let onSessionExpired: (() => void) | null = null;
+
+/**
+ * Registered once by AuthContext. Called whenever tryRefresh() definitively
+ * fails — the refresh cookie itself is invalid/expired, not just the
+ * in-memory access token. Without this, a mid-session token expiry (the
+ * access token naturally expires; the automatic refresh-on-401 retry then
+ * also fails) surfaced as a raw ApiError with a code like MISSING_TOKEN
+ * bubbling up into whatever local component's error state happened to catch
+ * it — e.g. the resume editor's export-error banner — reading like a
+ * cryptic internal bug rather than "please sign in again."
+ */
+export function setOnSessionExpired(callback: (() => void) | null): void {
+  onSessionExpired = callback;
+}
+
 let refreshInFlight: Promise<boolean> | null = null;
 
 async function tryRefresh(): Promise<boolean> {
@@ -141,6 +157,7 @@ async function tryRefresh(): Promise<boolean> {
         return true;
       } catch {
         setAccessToken(null);
+        onSessionExpired?.();
         return false;
       } finally {
         refreshInFlight = null;

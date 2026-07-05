@@ -1,12 +1,19 @@
-import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef, type ReactNode } from 'react';
 import type { LoginRequest, RegisterRequest, UserPublic } from '@careerforge/schema';
-import { authApi, setAccessToken, ApiError } from '../lib/api';
+import { authApi, setAccessToken, setOnSessionExpired, ApiError } from '../lib/api';
 
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
 interface AuthContextValue {
   user: UserPublic | null;
   status: AuthStatus;
+  // True only when a previously-valid session actually expired mid-use
+  // (the access token expired and the refresh cookie was no longer valid
+  // either) — as opposed to a plain "never logged in" visit. LoginPage uses
+  // this to show "your session ended, please sign in again" instead of a
+  // plain login form, and ProtectedRoute clears it once shown.
+  sessionExpired: boolean;
+  clearSessionExpired: () => void;
   register: (input: RegisterRequest) => Promise<void>;
   login: (input: LoginRequest) => Promise<void>;
   logout: () => Promise<void>;
@@ -22,6 +29,14 @@ const AuthContext = createContext<AuthContextValue | null>(null as unknown as Au
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserPublic | null>(null);
   const [status, setStatus] = useState<AuthStatus>('loading');
+  const [sessionExpired, setSessionExpired] = useState(false);
+  // Tracks whether this tab has ever reached 'authenticated', purely so the
+  // session-expired callback (registered once, below) can tell a genuine
+  // mid-session expiry apart from the ordinary "never logged in" path the
+  // very first mount-time refresh attempt takes for a new visitor.
+  const wasAuthenticated = useRef(false);
+
+  const clearSessionExpired = useCallback(() => setSessionExpired(false), []);
 
   // On first load there's no access token in memory (page was just (re)loaded),
   // so the only way to know if there's a valid session is to ask the API to
@@ -39,6 +54,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setStatus('unauthenticated');
       }
     })();
+  }, []);
+
+  useEffect(() => {
+    if (status === 'authenticated') wasAuthenticated.current = true;
+  }, [status]);
+
+  // Registered exactly once for the lifetime of the app. Any authenticated
+  // request anywhere — a chat message, an export, a resume save — can
+  // trigger this the moment its 401-triggered refresh attempt definitively
+  // fails, not just requests made directly through this context.
+  useEffect(() => {
+    setOnSessionExpired(() => {
+      if (wasAuthenticated.current) setSessionExpired(true);
+      setUser(null);
+      setStatus('unauthenticated');
+    });
+    return () => setOnSessionExpired(null);
   }, []);
 
   const register = useCallback(async (input: RegisterRequest) => {
@@ -60,6 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAccessToken(null);
     setUser(null);
     setStatus('unauthenticated');
+    setSessionExpired(false);
   }, []);
 
   const verifyOtp = useCallback(async (code: string) => {
@@ -93,7 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, status, register, login, logout, verifyOtp, resendOtp, forgotPassword, resetPassword, refreshUser }}
+      value={{ user, status, sessionExpired, clearSessionExpired, register, login, logout, verifyOtp, resendOtp, forgotPassword, resetPassword, refreshUser }}
     >
       {children}
     </AuthContext.Provider>

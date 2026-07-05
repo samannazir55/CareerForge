@@ -75,14 +75,71 @@ export function extractBalancedJson(text: string, fromIdx: number): { value: unk
   return null; // braces never closed — truncated response (e.g. ran out of max_tokens)
 }
 
+// Exact (case-insensitive, trimmed) strings pulled from this file's own
+// prompt vocabulary and from the field labels defined in SAMPLE_RESUME /
+// the RESUME_UPDATE schema description on the frontend. A real user's data
+// being *literally* one of these strings is vanishingly unlikely — "Job
+// Title" is not a job title anyone actually has — so an exact match here is
+// a strong, low-false-positive signal that the model echoed a placeholder
+// or field-label description as if it were the answer, rather than
+// substituting the user's real information as instructed.
+const PLACEHOLDER_STRINGS = new Set([
+  'full name', 'your full name', "the person's full name", 'your name', 'name',
+  'job title', 'their current job title', 'your job title', 'current job title',
+  'company', 'their company', 'your company',
+  'location', 'their location', 'your location', 'city, state', "their city, state",
+  'summary', 'professional summary', '2-3 sentence professional summary',
+  'degree', 'school', 'skill', 'skill name', 'their email', 'their phone', 'your email', 'your phone',
+  '...', 'n/a', 'tbd', 'unknown', 'example', 'placeholder',
+]);
+
+function looksLikePlaceholder(value: unknown): boolean {
+  if (typeof value !== 'string') return false;
+  const normalized = value.trim().toLowerCase();
+  return normalized.length > 0 && PLACEHOLDER_STRINGS.has(normalized);
+}
+
+/**
+ * True if any entry value anywhere in `sections` is a literal echo of the
+ * prompt's own placeholder vocabulary. Scanning happens across every
+ * section/entry rather than stopping at the first match purely so the
+ * check is unambiguous either way — there's no partial-acceptance path
+ * here (see isPlausibleResumeUpdate below), so there's no need to
+ * short-circuit for performance on what's always a small array.
+ */
+function containsPlaceholderEntryValues(sections: unknown): boolean {
+  if (!Array.isArray(sections)) return false;
+  for (const section of sections) {
+    if (!section || typeof section !== 'object') continue;
+    const entries = (section as Record<string, unknown>).entries;
+    if (!Array.isArray(entries)) continue;
+    for (const entry of entries) {
+      const values = (entry as Record<string, unknown> | undefined)?.values;
+      if (!values || typeof values !== 'object') continue;
+      for (const v of Object.values(values as Record<string, unknown>)) {
+        if (looksLikePlaceholder(v)) return true;
+      }
+    }
+  }
+  return false;
+}
+
 export function isPlausibleResumeUpdate(candidate: unknown): candidate is ResumeUpdate {
   if (!candidate || typeof candidate !== 'object') return false;
   const c = candidate as Record<string, unknown>;
+
+  // A placeholder-echoing title is a strong enough signal on its own to
+  // reject the whole candidate, even if sections happen to look fine —
+  // both failure modes observed in practice (a bare illustrative fragment,
+  // and a complete-but-fake resume) had this in common.
+  if (looksLikePlaceholder(c.title)) return false;
+  if (containsPlaceholderEntryValues(c.sections)) return false;
+
   // Require a non-trivial title or a sections array with at least one real
   // section — guards against matching a small illustrative fragment (e.g.
   // `{"title": "..."}`) that a model's reasoning pass might mention while
   // it plans out the real answer.
-  if (typeof c.title === 'string' && c.title.trim().length > 1 && c.title.trim() !== '...') return true;
+  if (typeof c.title === 'string' && c.title.trim().length > 1) return true;
   if (Array.isArray(c.sections) && c.sections.length > 0) return true;
   return false;
 }
