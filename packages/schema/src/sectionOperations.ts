@@ -109,18 +109,56 @@ export function addCustomField(
  * - Anything already in `existing` that the update doesn't mention is left
  *   untouched — this is the piece the old server-side code got wrong.
  */
+// Loose enough to accept any RFC-4122-shaped id (any version/variant nibble)
+// rather than only exactly what crypto.randomUUID() produces — the goal
+// here is "would this pass SectionSchema/EntrySchema's z.string().uuid()
+// check," not "is this exactly how we'd generate one ourselves." Being
+// lenient about what already counts as valid is safe: the only consequence
+// of being too strict would be needlessly regenerating an id that was
+// already fine, which has no effect on correctness since sections are
+// merged by `type`, not by matching entry ids across turns (see below).
+const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Replaces any section/entry id that doesn't look like a real UUID with a
+ * freshly generated one — deterministically, in code, rather than trusting
+ * the model to have generated a valid one itself. The prompt instructs the
+ * model to invent a `"<uuid>"` for every id it introduces, but there's no
+ * way to make a text-completion model reliably produce a correctly-shaped
+ * UUID through instructions alone; this makes id correctness a property of
+ * the merge step instead of a property of the model's output.
+ *
+ * Regenerating an id here is always safe: entries are never matched across
+ * turns by id (mergeResumeSections replaces whole sections by `type`), so
+ * there's no stability requirement on entry ids beyond "valid within this
+ * merge," and section ids only need to be valid, not stable, for the same
+ * reason.
+ */
+function normalizeSectionIds(sections: Section[]): Section[] {
+  return sections.map((s) => ({
+    ...s,
+    id: UUID_SHAPE.test(s.id) ? s.id : crypto.randomUUID(),
+    entries: s.entries.map((e) => ({
+      ...e,
+      id: UUID_SHAPE.test(e.id) ? e.id : crypto.randomUUID(),
+    })),
+  }));
+}
+
 export function mergeResumeSections(existing: Section[], updates: Section[] | undefined | null): Section[] {
   if (!updates?.length) return existing;
 
+  const normalizedUpdates = normalizeSectionIds(updates);
+
   const incomingByType = new Map(
-    updates.filter((s): s is Section => Boolean(s) && (s.entries?.length ?? 0) > 0).map((s) => [s.type, s]),
+    normalizedUpdates.filter((s): s is Section => Boolean(s) && (s.entries?.length ?? 0) > 0).map((s) => [s.type, s]),
   );
   if (incomingByType.size === 0) return existing;
 
   const merged = existing.map((s) => incomingByType.get(s.type) ?? s);
 
   const existingTypes = new Set(existing.map((s) => s.type));
-  for (const s of updates) {
+  for (const s of normalizedUpdates) {
     if (s && (s.entries?.length ?? 0) > 0 && !existingTypes.has(s.type)) {
       merged.push(s);
     }
