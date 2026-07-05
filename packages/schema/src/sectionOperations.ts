@@ -134,21 +134,51 @@ const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
  * merge," and section ids only need to be valid, not stable, for the same
  * reason.
  */
-function normalizeSectionIds(sections: Section[]): Section[] {
-  return sections.map((s) => ({
-    ...s,
-    id: UUID_SHAPE.test(s.id) ? s.id : crypto.randomUUID(),
-    entries: s.entries.map((e) => ({
-      ...e,
-      id: UUID_SHAPE.test(e.id) ? e.id : crypto.randomUUID(),
-    })),
-  }));
+/**
+ * Every mutation here goes through the pure helpers in this file rather
+ * than hand-rolled array surgery in the AI-merge and editor UI call sites,
+ * so "what does adding an entry mean" has exactly one definition.
+ *
+ * Both id and fields normalization happen here, for the same underlying
+ * reason: the model authors an entire section (fields + matching entries)
+ * from scratch for every new section it introduces, and there's no way to
+ * make a text-completion model reliably keep two separate parts of a
+ * nested JSON structure self-consistent through instructions alone. Rather
+ * than trust that self-consistency, both pieces are replaced with our own
+ * deterministic, known-good definitions wherever one exists.
+ */
+function normalizeAiSections(sections: Section[]): Section[] {
+  return sections.map((s) => {
+    // EntryCard/FieldInput render one input per declared field, keyed by
+    // `entry.values[field.key]` — they don't inspect what's actually in
+    // `values` at all. If the model's self-authored `fields` array uses
+    // different key names than it happened to use in `values` (e.g.
+    // declaring `company` but storing under `employer`), that data is
+    // silently invisible: present in the saved resume, but with no input
+    // rendered for it anywhere in the editor. DEFAULT_SECTION_FIELDS is the
+    // same canonical field set createSection() uses, and the same key
+    // names described in the AI prompt's schema — using it here instead of
+    // whatever the model produced guarantees the rendered fields always
+    // line up with real data for every standard section type. 'custom'
+    // sections have no canonical definition, so the model/user-provided
+    // fields are the only option there and are left as-is.
+    const canonicalFields = s.type === 'custom' ? s.fields : DEFAULT_SECTION_FIELDS[s.type];
+    return {
+      ...s,
+      id: UUID_SHAPE.test(s.id) ? s.id : crypto.randomUUID(),
+      fields: canonicalFields,
+      entries: s.entries.map((e) => ({
+        ...e,
+        id: UUID_SHAPE.test(e.id) ? e.id : crypto.randomUUID(),
+      })),
+    };
+  });
 }
 
 export function mergeResumeSections(existing: Section[], updates: Section[] | undefined | null): Section[] {
   if (!updates?.length) return existing;
 
-  const normalizedUpdates = normalizeSectionIds(updates);
+  const normalizedUpdates = normalizeAiSections(updates);
 
   const incomingByType = new Map(
     normalizedUpdates.filter((s): s is Section => Boolean(s) && (s.entries?.length ?? 0) > 0).map((s) => [s.type, s]),

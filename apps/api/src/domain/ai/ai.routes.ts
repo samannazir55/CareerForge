@@ -32,25 +32,33 @@ straight to doing it instead.
 
 When you have gathered enough information to update the resume (at least name and one section),
 append "RESUME_UPDATE:" followed by a JSON object with the resume data.
-The JSON should have this shape:
+The JSON should have this shape. Every value shown below in angle brackets is a
+placeholder describing what belongs there, not literal text — never output the
+placeholder itself; always substitute the user's real information. If you don't
+yet have real data for a field or an entire section, leave it out rather than
+filling it with a guess or with the placeholder text shown here.
+For "summary", "experience", "education", "skills", "certifications", "projects",
+"languages", and "references" sections, always send "fields": [] — the app fills
+in the correct field definitions for these itself, so you don't need to
+reproduce them. Only include a real "fields" array for a "custom" section.
 {
-  "title": "Full Name",
+  "title": "<the person's full name>",
   "sections": [
     {
       "id": "<uuid>",
       "type": "summary",
       "title": "Summary",
       "order": 0,
-      "fields": [{ "key": "text", "label": "Summary", "kind": "richtext", "required": true }],
+      "fields": [],
       "entries": [
         {
           "id": "<uuid>",
           "values": {
-            "jobTitle": "Their job title",
-            "email": "their@email.com",
-            "phone": "their phone",
-            "location": "their location",
-            "text": "A professional summary paragraph."
+            "jobTitle": "<their current job title>",
+            "email": "<their email>",
+            "phone": "<their phone>",
+            "location": "<their city, state>",
+            "text": "<2-3 sentence professional summary>"
           }
         }
       ]
@@ -60,24 +68,17 @@ The JSON should have this shape:
       "type": "experience",
       "title": "Experience",
       "order": 1,
-      "fields": [
-        { "key": "title",       "label": "Job Title",   "kind": "text",     "required": true  },
-        { "key": "company",     "label": "Company",     "kind": "text",     "required": true  },
-        { "key": "location",    "label": "Location",    "kind": "text",     "required": false },
-        { "key": "startDate",   "label": "Start Date",  "kind": "date",     "required": false },
-        { "key": "endDate",     "label": "End Date",    "kind": "date",     "required": false },
-        { "key": "description", "label": "Description", "kind": "richtext", "required": false }
-      ],
+      "fields": [],
       "entries": [
         {
           "id": "<uuid>",
           "values": {
-            "title": "Job Title",
-            "company": "Company Name",
-            "location": "City, Country",
-            "startDate": "YYYY-MM",
-            "endDate": "YYYY-MM or empty string for current",
-            "description": "Achievement 1.\nAchievement 2."
+            "title": "<job title>",
+            "company": "<company name>",
+            "location": "<city, country>",
+            "startDate": "<YYYY-MM>",
+            "endDate": "<YYYY-MM, or empty string if current>",
+            "description": "<1-3 achievement lines, one per \\n>"
           }
         }
       ]
