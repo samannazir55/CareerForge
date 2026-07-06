@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, type FormEvent, type ChangeEvent } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, ArrowLeft, Upload, CheckCircle2 } from 'lucide-react';
+import { Send, ArrowLeft, Upload, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
 import { ResumePreview } from '../../components/preview/ResumePreview';
@@ -176,6 +176,11 @@ export function AIChatBuilderPage() {
   // "Untitled Resume" row in the database.
   const [createdResumeId, setCreatedResumeId] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  // The live preview panel further down is `hidden` below the `lg`
+  // breakpoint (it's designed as a side-by-side desktop layout), which
+  // previously left mobile with no way to see the preview at all. This
+  // drives a togglable mobile-only version of that same panel.
+  const [showMobilePreview, setShowMobilePreview] = useState(false);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -355,6 +360,15 @@ export function AIChatBuilderPage() {
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                className="lg:hidden"
+                onClick={() => setShowMobilePreview((v) => !v)}
+              >
+                {showMobilePreview ? <EyeOff size={14} className="mr-1.5" /> : <Eye size={14} className="mr-1.5" />}
+                {showMobilePreview ? 'Hide preview' : 'Preview'}
+              </Button>
               <Button variant="outline" size="sm" onClick={() => setImportModalOpen(true)}>
                 <Upload size={14} className="mr-1.5" />
                 Import
@@ -365,6 +379,47 @@ export function AIChatBuilderPage() {
               </Button>
             </div>
           </div>
+
+          {/* Mobile-only live preview — a collapsible version of the desktop
+              panel further down, which is `hidden` below the `lg` breakpoint. */}
+          {showMobilePreview && (
+            <div
+              className="lg:hidden relative overflow-hidden border-b border-border"
+              style={{
+                background: '#0b0b10',
+                backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(139,92,246,0.07) 1px, transparent 0)',
+                backgroundSize: '28px 28px',
+              }}
+            >
+              <div className="relative z-10 flex items-center justify-between px-4 py-2 border-b border-white/5">
+                <span className="text-[10px] font-semibold text-white/25 uppercase tracking-[0.18em]">
+                  Live Preview
+                </span>
+                <div className="flex items-center rounded overflow-hidden border border-white/8 bg-white/5">
+                  {(['modern', 'classic'] as const).map((id) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setTemplate(id)}
+                      aria-pressed={templateLabel.toLowerCase() === id}
+                      className={`text-[10px] px-2 py-0.5 capitalize transition-colors ${
+                        templateLabel.toLowerCase() === id
+                          ? 'bg-primary/80 text-white'
+                          : 'text-white/25 hover:text-white/50'
+                      }`}
+                    >
+                      {id}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="relative z-10 flex items-center justify-center overflow-auto p-4 max-h-[50vh]">
+                <div className="overflow-x-auto max-w-full">
+                  <ResumePreview resume={previewResume} scale={0.4} />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
