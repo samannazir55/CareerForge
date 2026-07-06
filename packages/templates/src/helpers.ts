@@ -83,6 +83,24 @@ export function getPersonalInfo(resume: Resume): {
   };
 }
 
+/**
+ * Extracts the free-text professional-summary paragraph from the summary
+ * section's first entry, if present. This is deliberately separate from
+ * getPersonalInfo (which only pulls contact fields — jobTitle/email/phone/
+ * etc. — from the same entry) and from getBodySections (which excludes
+ * 'summary' sections from the generic per-section render loop entirely,
+ * since the section's *other* fields are personal info, not something that
+ * gets its own "Summary" heading). Without this, the `text` value the AI
+ * (or a user) sets on the summary entry had no rendering path at all in
+ * either template — present in the saved resume, entirely invisible in
+ * every export and preview.
+ */
+export function getSummaryText(resume: Resume): string {
+  const summarySection = resume.sections.find((s) => s.type === 'summary');
+  const entry = summarySection?.entries[0];
+  return entry ? getString({ id: '', values: entry.values }, 'text') : '';
+}
+
 /** Renders every field of an entry generically. Used for custom sections and
  * as a fallback for any field kind a template doesn't have a special case for.
  * This is what makes "templates automatically render custom sections" true —

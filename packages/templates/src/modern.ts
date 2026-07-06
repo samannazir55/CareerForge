@@ -11,6 +11,7 @@ import {
   renderEntryFieldsGeneric,
   getPersonalInfo,
   getBodySections,
+  getSummaryText,
 } from './helpers';
 
 // ---------------------------------------------------------------------------
@@ -162,6 +163,7 @@ function renderHtml(resume: Resume): string {
   const info = getPersonalInfo(resume);
   const accent = resume.theme.accentColor || '#4f46e5';
   const bodySections = getBodySections(resume);
+  const summaryText = getSummaryText(resume);
 
   const contactParts = [info.email, info.phone, info.location, info.linkedin, info.website].filter(Boolean);
 
@@ -183,6 +185,7 @@ function renderHtml(resume: Resume): string {
       ${contactParts.length ? `<div class="cf-contact">${contactParts.map((p) => `<span>${escapeHtml(p)}</span>`).join('')}</div>` : ''}
     </div>
     <div class="cf-body">
+      ${summaryText ? `<div class="cf-section"><div class="cf-section-title">Summary</div><div class="cf-field--richtext">${richTextToHtml(summaryText)}</div></div>` : ''}
       ${bodySections.map((s) => renderSection(s, accent)).join('')}
     </div>
   </div>
@@ -197,6 +200,7 @@ function renderHtml(resume: Resume): string {
 async function buildDocx(resume: Resume): Promise<Buffer> {
   const info = getPersonalInfo(resume);
   const bodySections = getBodySections(resume);
+  const summaryText = getSummaryText(resume);
 
   const headerParagraphs = [
     new Paragraph({
@@ -225,6 +229,19 @@ async function buildDocx(resume: Resume): Promise<Buffer> {
   ];
 
   const sectionParagraphs: Paragraph[] = [];
+
+  if (summaryText) {
+    sectionParagraphs.push(
+      new Paragraph({
+        text: 'SUMMARY',
+        heading: HeadingLevel.HEADING_2,
+        border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: '4F46E5' } },
+      }),
+    );
+    summaryText.split('\n').filter(Boolean).forEach((line) => {
+      sectionParagraphs.push(new Paragraph({ text: line }));
+    });
+  }
 
   for (const section of bodySections) {
     if (!section.entries.length) continue;

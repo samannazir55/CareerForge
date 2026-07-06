@@ -10,6 +10,7 @@ import {
   renderEntryFieldsGeneric,
   getPersonalInfo,
   getBodySections,
+  getSummaryText,
 } from './helpers';
 
 // ---------------------------------------------------------------------------
@@ -129,6 +130,7 @@ function renderHtml(resume: Resume): string {
   const info = getPersonalInfo(resume);
   const accent = resume.theme.accentColor || '#818cf8';
   const allSections = getBodySections(resume);
+  const summaryText = getSummaryText(resume);
 
   // Sidebar: skills, languages, references  |  Main: everything else
   const sidebarTypes = new Set(['skills', 'languages', 'references']);
@@ -179,6 +181,7 @@ function renderHtml(resume: Resume): string {
       ${sidebarHtml}
     </div>
     <div class="cf-main">
+      ${summaryText ? `<div class="cf-section"><div class="cf-section-title">Summary</div>${richTextToHtml(summaryText)}</div>` : ''}
       ${mainSections.map(renderMainSection).join('')}
     </div>
   </div>
@@ -193,6 +196,7 @@ function renderHtml(resume: Resume): string {
 async function buildDocx(resume: Resume): Promise<Buffer> {
   const info = getPersonalInfo(resume);
   const bodySections = getBodySections(resume);
+  const summaryText = getSummaryText(resume);
 
   const children: Paragraph[] = [
     new Paragraph({ children: [new TextRun({ text: info.fullName, bold: true, size: 44 })] }),
@@ -202,6 +206,17 @@ async function buildDocx(resume: Resume): Promise<Buffer> {
     }),
     new Paragraph({ text: '' }),
   ];
+
+  if (summaryText) {
+    children.push(
+      new Paragraph({
+        text: 'SUMMARY',
+        heading: HeadingLevel.HEADING_2,
+        border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: '1E1E2E' } },
+      }),
+    );
+    summaryText.split('\n').filter(Boolean).forEach((line) => children.push(new Paragraph({ text: line })));
+  }
 
   for (const section of bodySections) {
     if (!section.entries.length) continue;
