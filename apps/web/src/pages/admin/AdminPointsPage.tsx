@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Coins, TrendingUp, TrendingDown } from 'lucide-react';
-import { AdminLayout } from './AdminLayout';
 import { PageHeader, StatCard, AdminTable, AdminBadge } from '../../components/admin/AdminUI';
 import { adminApi } from '../../lib/adminApi';
 import type { AdminDashboardStats } from '@careerforge/schema';
@@ -102,8 +101,7 @@ export function AdminPointsPage() {
   ];
 
   return (
-    <AdminLayout>
-      <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6 max-w-7xl mx-auto">
         <PageHeader
           title="Points Economy"
           description="Global view of points in circulation and all transactions. Grant or deduct points from individual users via the Users page."
@@ -151,6 +149,5 @@ export function AdminPointsPage() {
           emptyMessage="No transactions yet."
         />
       </div>
-    </AdminLayout>
   );
 }

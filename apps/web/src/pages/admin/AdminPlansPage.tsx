@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Plus, Pencil, Trash2, CreditCard, Check } from 'lucide-react';
-import { AdminLayout } from './AdminLayout';
 import {
   PageHeader, AdminTable, AdminBadge,
   SlideOver, FormField, StatCard,
@@ -186,7 +185,7 @@ export function AdminPlansPage() {
   ];
 
   return (
-    <AdminLayout>
+    <>
       <div className="p-6 max-w-6xl mx-auto">
         <PageHeader
           title="Subscription Plans"
@@ -353,6 +352,6 @@ export function AdminPlansPage() {
 
         {saveError && <p className="text-sm text-destructive">{saveError}</p>}
       </SlideOver>
-    </AdminLayout>
+    </>
   );
 }

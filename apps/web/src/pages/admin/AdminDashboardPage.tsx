@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Users, FileText, Crown, Coins, ShoppingBag, TrendingUp } from 'lucide-react';
-import { AdminLayout } from './AdminLayout';
 import { StatCard, PageHeader } from '../../components/admin/AdminUI';
 import { adminApi } from '../../lib/adminApi';
 import type { AdminDashboardStats } from '@careerforge/schema';
@@ -18,8 +17,7 @@ export function AdminDashboardPage() {
   }, []);
 
   return (
-    <AdminLayout>
-      <div className="p-6 max-w-6xl mx-auto">
+    <div className="p-6 max-w-6xl mx-auto">
         <PageHeader
           title="Dashboard"
           description="Platform overview at a glance."
@@ -148,6 +146,5 @@ export function AdminDashboardPage() {
           </div>
         </div>
       </div>
-    </AdminLayout>
   );
 }

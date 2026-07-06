@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { ScrollText, RefreshCw } from 'lucide-react';
-import { AdminLayout } from './AdminLayout';
 import { PageHeader, AdminTable, AdminBadge } from '../../components/admin/AdminUI';
 import { Button } from '../../components/ui/Button';
 import { adminApi } from '../../lib/adminApi';
@@ -90,8 +89,7 @@ export function AdminAuditPage() {
   ];
 
   return (
-    <AdminLayout>
-      <div className="p-6 max-w-6xl mx-auto">
+    <div className="p-6 max-w-6xl mx-auto">
         <PageHeader
           title="Audit Log"
           description="All admin mutations — append-only. Every points grant, plan edit, template toggle, and role change is recorded here."
@@ -127,6 +125,5 @@ export function AdminAuditPage() {
           />
         )}
       </div>
-    </AdminLayout>
   );
 }

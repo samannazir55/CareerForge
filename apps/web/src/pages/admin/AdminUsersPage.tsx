@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Users, Coins, ShieldCheck, Shield } from 'lucide-react';
-import { AdminLayout } from './AdminLayout';
 import {
   PageHeader, AdminTable, AdminBadge,
   SlideOver, FormField, SearchBar,
@@ -199,7 +198,7 @@ export function AdminUsersPage() {
   ];
 
   return (
-    <AdminLayout>
+    <>
       <div className="p-6 max-w-7xl mx-auto">
         <PageHeader
           title="Users"
@@ -355,6 +354,6 @@ export function AdminUsersPage() {
         {actionError && <p className="text-sm text-destructive">{actionError}</p>}
         {actionSuccess && <p className="text-sm text-emerald-500">{actionSuccess}</p>}
       </SlideOver>
-    </AdminLayout>
+    </>
   );
 }

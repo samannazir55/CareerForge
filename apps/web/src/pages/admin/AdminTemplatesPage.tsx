@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { LayoutTemplate, Eye, EyeOff, Pencil } from 'lucide-react';
-import { AdminLayout } from './AdminLayout';
 import {
   PageHeader, AdminTable, AdminBadge,
   SlideOver, FormField,
@@ -145,7 +144,7 @@ export function AdminTemplatesPage() {
   ];
 
   return (
-    <AdminLayout>
+    <>
       <div className="p-6 max-w-6xl mx-auto">
         <PageHeader
           title="Templates"
@@ -238,6 +237,6 @@ export function AdminTemplatesPage() {
 
         {saveError && <p className="text-sm text-destructive">{saveError}</p>}
       </SlideOver>
-    </AdminLayout>
+    </>
   );
 }
