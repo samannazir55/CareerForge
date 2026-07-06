@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Plus, History, Download, FileType2, Sparkles, Lock } from 'lucide-react';
@@ -35,6 +35,27 @@ export function ResumeEditorPage() {
   const [versionSaved, setVersionSaved] = useState(false);
   const [exporting, setExporting] = useState<'pdf' | 'docx' | null>(null);
   const [exportError, setExportError] = useState<{ message: string; premiumRequired: boolean } | null>(null);
+  // The live preview + export buttons below are only reachable on mobile —
+  // the desktop side-by-side panel (further down) is `hidden` below the
+  // `lg` breakpoint, which previously left mobile with no preview and no
+  // download option at all.
+  const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
+  const mobilePreviewContainerRef = useRef<HTMLDivElement>(null);
+  const [mobilePreviewScale, setMobilePreviewScale] = useState(0.5);
+
+  useEffect(() => {
+    const el = mobilePreviewContainerRef.current;
+    if (!el || !mobilePreviewOpen) return;
+    const A4_WIDTH_PX = 794;
+    const update = () => {
+      const width = el.clientWidth;
+      if (width > 0) setMobilePreviewScale(Math.min(1, Math.max(0.25, (width - 16) / A4_WIDTH_PX)));
+    };
+    update();
+    const resizeObserver = new ResizeObserver(update);
+    resizeObserver.observe(el);
+    return () => resizeObserver.disconnect();
+  }, [mobilePreviewOpen]);
 
   useEffect(() => {
     if (!id) return;
@@ -216,6 +237,63 @@ export function ResumeEditorPage() {
                 <Button variant="secondary" onClick={handleAddSection}>
                   <Plus size={16} className="mr-1.5" /> Add section
                 </Button>
+              </div>
+
+              {/* Mobile-only preview & export — the side-by-side panel further
+                  down is `hidden` below the `lg` breakpoint, so this is the
+                  only way to preview or download the resume on mobile. */}
+              <div className="lg:hidden mt-2 rounded-xl border border-border bg-gradient-to-b from-indigo-500/[0.03] to-transparent">
+                <div className="flex items-center justify-between gap-2 px-4 py-3">
+                  <button
+                    type="button"
+                    onClick={() => setMobilePreviewOpen((open) => !open)}
+                    className="text-sm font-medium text-muted-foreground hover:text-foreground"
+                  >
+                    {mobilePreviewOpen ? 'Hide preview' : 'Show preview'}
+                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleExport('pdf')}
+                      disabled={exporting !== null}
+                      className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-input bg-background text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-60"
+                    >
+                      <Download size={14} /> {exporting === 'pdf' ? 'Exporting…' : 'PDF'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleExport('docx')}
+                      disabled={exporting !== null}
+                      className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-input bg-background text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-60"
+                    >
+                      <FileType2 size={14} /> {exporting === 'docx' ? 'Exporting…' : 'DOCX'}
+                    </button>
+                  </div>
+                </div>
+                {exportError && (
+                  <div className="px-4 pb-3 text-xs">
+                    <p className={exportError.premiumRequired ? 'text-amber-400' : 'text-destructive'}>
+                      {exportError.premiumRequired && <Lock size={11} className="inline mr-1 -mt-0.5" />}
+                      {exportError.message}
+                    </p>
+                    {exportError.premiumRequired && (
+                      <Link to="/settings/subscription" className="underline text-amber-300 hover:text-amber-200">
+                        Upgrade your plan
+                      </Link>
+                    )}
+                  </div>
+                )}
+                {mobilePreviewOpen && (
+                  <div ref={mobilePreviewContainerRef} className="flex justify-center px-4 pb-4">
+                    {resume && (
+                      <ResumePreview
+                        resume={{ ...resume, title, sections }}
+                        scale={mobilePreviewScale}
+                        className="ring-1 ring-white/10 shadow-2xl shadow-indigo-500/10"
+                      />
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
