@@ -12,6 +12,7 @@ import type {
   CreateResumeRequest,
   UpdateResumeRequest,
   Section,
+  PublicTemplateListItem,
 } from '@careerforge/schema';
 
 let accessToken: string | null = null;
@@ -245,6 +246,10 @@ export const aiApi = {
     request<{ coverLetter: string }>('/ai/cover-letter', { method: 'POST', body: { resumeId, jobDescription, tone } }),
   importResume: (rawText: string) =>
     request<{ extracted: ChatResumeUpdate }>('/ai/import', { method: 'POST', body: { rawText } }),
+};
+
+export const templatesApi = {
+  list: () => request<{ templates: PublicTemplateListItem[] }>('/templates'),
 };
 
 export const sharingApi = {

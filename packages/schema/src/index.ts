@@ -8,3 +8,4 @@ export * from './ai.js';
 export * from './profile.js';
 export * from './conversation.js';
 export * from './admin.js';
+export * from './templates.js';
