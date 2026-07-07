@@ -7,9 +7,9 @@ import { Button } from '../../components/ui/Button';
 import { ResumePreview } from '../../components/preview/ResumePreview';
 import { ImportResumeModal } from '../../components/import/ImportResumeModal';
 import { SuggestionCapsules } from '../../components/ai/SuggestionCapsules';
-import { aiApi, resumeApi } from '../../lib/api';
+import { aiApi, resumeApi, templatesApi } from '../../lib/api';
 import { ApiError } from '../../lib/api';
-import type { Resume, Section } from '@careerforge/schema';
+import type { Resume, Section, PublicTemplateListItem } from '@careerforge/schema';
 import { DEFAULT_THEME, CURRENT_SCHEMA_VERSION, mergeResumeSections } from '@careerforge/schema';
 
 interface ChatMessage {
@@ -182,6 +182,23 @@ export function AIChatBuilderPage() {
   // drives a togglable mobile-only version of that same panel.
   const [showMobilePreview, setShowMobilePreview] = useState(false);
 
+  // Selectable templates for the switcher below — code-registered (modern/
+  // classic) plus any active admin-created dynamic templates. Falls back to
+  // just modern/classic (matching the previous hardcoded behavior) if the
+  // fetch fails, so a flaky request never leaves the switcher empty.
+  const [availableTemplates, setAvailableTemplates] = useState<PublicTemplateListItem[]>([
+    { id: 'modern', slug: 'modern', name: 'Modern', category: 'free', pointsCost: 0, thumbnailUrl: null, displayOrder: 0, isDynamic: false },
+    { id: 'classic', slug: 'classic', name: 'Classic', category: 'free', pointsCost: 0, thumbnailUrl: null, displayOrder: 1, isDynamic: false },
+  ]);
+  useEffect(() => {
+    templatesApi
+      .list()
+      .then((data) => setAvailableTemplates(data.templates))
+      .catch(() => {
+        /* keep the modern/classic fallback above */
+      });
+  }, []);
+
   // Preserves the option this page's own "New Resume" dashboard button used
   // to provide directly (create a blank resume, go straight to the manual
   // editor) — that button now goes through this AI chat flow by default
@@ -347,18 +364,17 @@ export function AIChatBuilderPage() {
     }
   }
 
-  const templateLabel =
-    (previewResume.theme as { templateId?: string })?.templateId === 'classic'
-      ? 'Classic'
-      : 'Modern';
+  const currentTemplateId = (previewResume.theme as { templateId?: string })?.templateId ?? 'modern';
 
-  // Both templates are free-tier (see packages/templates/src/registry.ts) —
-  // no subscription/premium gating applies to switching between them here.
+  // Switching templates here is deliberately ungated — premium/points gating
+  // only applies at export time (see export.service.ts's assertCanExport),
+  // consistent with how modern/classic switching always worked: anyone can
+  // preview any template, but downloading a premium one requires owning it.
   // ResumePreview already re-renders on any resume.theme.templateId change
   // (it's in that component's effect dependency array), so updating this
   // state alone is enough to get a real-time preview switch — no new
   // plumbing needed beyond the state update itself.
-  function setTemplate(templateId: 'modern' | 'classic') {
+  function setTemplate(templateId: string) {
     setPreviewResume((prev) => ({ ...prev, theme: { ...prev.theme, templateId } }));
   }
 
@@ -429,20 +445,20 @@ export function AIChatBuilderPage() {
                 <span className="text-[10px] font-semibold text-white/25 uppercase tracking-[0.18em]">
                   Live Preview
                 </span>
-                <div className="flex items-center rounded overflow-hidden border border-white/8 bg-white/5">
-                  {(['modern', 'classic'] as const).map((id) => (
+                <div className="flex items-center gap-0.5 overflow-x-auto max-w-[55vw] hide-scrollbar rounded border border-white/8 bg-white/5 px-0.5">
+                  {availableTemplates.map((t) => (
                     <button
-                      key={id}
+                      key={t.id}
                       type="button"
-                      onClick={() => setTemplate(id)}
-                      aria-pressed={templateLabel.toLowerCase() === id}
-                      className={`text-[10px] px-2 py-0.5 capitalize transition-colors ${
-                        templateLabel.toLowerCase() === id
+                      onClick={() => setTemplate(t.id)}
+                      aria-pressed={currentTemplateId === t.id}
+                      className={`text-[10px] px-2 py-0.5 whitespace-nowrap transition-colors ${
+                        currentTemplateId === t.id
                           ? 'bg-primary/80 text-white'
                           : 'text-white/25 hover:text-white/50'
                       }`}
                     >
-                      {id}
+                      {t.name}
                     </button>
                   ))}
                 </div>
@@ -559,20 +575,20 @@ export function AIChatBuilderPage() {
               Live Preview
             </span>
             <div className="flex items-center gap-2">
-              <div className="flex items-center rounded overflow-hidden border border-white/8 bg-white/5">
-                {(['modern', 'classic'] as const).map((id) => (
+              <div className="flex items-center gap-0.5 overflow-x-auto max-w-[240px] hide-scrollbar rounded border border-white/8 bg-white/5 px-0.5">
+                {availableTemplates.map((t) => (
                   <button
-                    key={id}
+                    key={t.id}
                     type="button"
-                    onClick={() => setTemplate(id)}
-                    aria-pressed={templateLabel.toLowerCase() === id}
-                    className={`text-[10px] px-2 py-0.5 capitalize transition-colors ${
-                      templateLabel.toLowerCase() === id
+                    onClick={() => setTemplate(t.id)}
+                    aria-pressed={currentTemplateId === t.id}
+                    className={`text-[10px] px-2 py-0.5 whitespace-nowrap transition-colors ${
+                      currentTemplateId === t.id
                         ? 'bg-primary/80 text-white'
                         : 'text-white/25 hover:text-white/50'
                     }`}
                   >
-                    {id}
+                    {t.name}
                   </button>
                 ))}
               </div>

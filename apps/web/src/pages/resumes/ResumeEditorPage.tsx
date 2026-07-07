@@ -3,7 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Plus, History, Download, FileType2, Sparkles, Lock } from 'lucide-react';
 import type { Resume, Section, SectionType } from '@careerforge/schema';
-import { createSection, createCustomSection, addSection, reorderSections } from '@careerforge/schema';
+import { createSection, createCustomSection, addSection, reorderSections, isDynamicTemplateId } from '@careerforge/schema';
 import { resumeApi, ApiError } from '../../lib/api';
 import { useAutosave } from '../../hooks/useAutosave';
 import { Button } from '../../components/ui/Button';
@@ -107,6 +107,14 @@ export function ResumeEditorPage() {
       setIsSavingVersion(false);
     }
   }
+
+  // Dynamic (admin-created) templates are arbitrary AI-generated HTML/CSS
+  // with no reliable generic mapping to OOXML — export.service.ts rejects a
+  // DOCX request for one with a 400 (DOCX_NOT_SUPPORTED_DYNAMIC). Hiding the
+  // button here avoids sending a request that's guaranteed to fail.
+  const isDynamicTemplate = isDynamicTemplateId(
+    (resume?.theme as { templateId?: string } | undefined)?.templateId ?? 'modern',
+  );
 
   async function handleExport(format: 'pdf' | 'docx') {
     if (!id) return;
@@ -224,14 +232,16 @@ export function ResumeEditorPage() {
                     >
                       <Download size={14} /> {exporting === 'pdf' ? 'Exporting…' : 'PDF'}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => handleExport('docx')}
-                      disabled={exporting !== null}
-                      className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-input bg-background text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-60"
-                    >
-                      <FileType2 size={14} /> {exporting === 'docx' ? 'Exporting…' : 'DOCX'}
-                    </button>
+                    {!isDynamicTemplate && (
+                      <button
+                        type="button"
+                        onClick={() => handleExport('docx')}
+                        disabled={exporting !== null}
+                        className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-input bg-background text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-60"
+                      >
+                        <FileType2 size={14} /> {exporting === 'docx' ? 'Exporting…' : 'DOCX'}
+                      </button>
+                    )}
                   </div>
                 </div>
                 {exportError && (
@@ -312,14 +322,16 @@ export function ResumeEditorPage() {
                 >
                   <Download size={14} /> {exporting === 'pdf' ? 'Exporting…' : 'PDF'}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => handleExport('docx')}
-                  disabled={exporting !== null}
-                  className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-input bg-background text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-60"
-                >
-                  <FileType2 size={14} /> {exporting === 'docx' ? 'Exporting…' : 'DOCX'}
-                </button>
+                {!isDynamicTemplate && (
+                  <button
+                    type="button"
+                    onClick={() => handleExport('docx')}
+                    disabled={exporting !== null}
+                    className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-input bg-background text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-60"
+                  >
+                    <FileType2 size={14} /> {exporting === 'docx' ? 'Exporting…' : 'DOCX'}
+                  </button>
+                )}
               </div>
               {exportError && (
                 <div className="text-xs text-right max-w-[220px]">
