@@ -14,7 +14,7 @@ import {
 import { AppShell } from '../../components/layout/AppShell';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
-import { dashboardApi, resumeApi, pointsApi, paymentsApi, ApiError } from '../../lib/api';
+import { dashboardApi, pointsApi, paymentsApi, plansApi, type PublicPlan, ApiError } from '../../lib/api';
 import { ProfileCompletionRing } from '../../components/profile/ProfileCompletionRing';
 import { useProfileStore } from '../../store/profile.store';
 import { fetchProfile } from '../../lib/profileApi';
@@ -34,10 +34,20 @@ interface PointsTransaction {
   createdAt: string;
 }
 
+// Shows " ($X/mo)" once the real price has loaded, otherwise nothing —
+// omitting the price while loading (or if this tier isn't configured) is
+// deliberate: a hardcoded fallback here is exactly the bug this replaces
+// (this button previously read "Upgrade to Pro ($12/mo)" unconditionally,
+// independently of SettingsPage.tsx's own "$9", and the two drifted apart).
+function formatPlanPrice(plans: PublicPlan[] | null, tierKey: string): string {
+  const plan = plans?.find((p) => p.tierKey === tierKey);
+  return plan ? ` ($${plan.priceMonthlyUsd}/mo)` : '';
+}
+
 export function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [transactions, setTransactions] = useState<PointsTransaction[]>([]);
-  const [isCreating, setIsCreating] = useState(false);
+  const [plans, setPlans] = useState<PublicPlan[] | null>(null);
   const [isUpgrading, setIsUpgrading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,16 +65,18 @@ export function DashboardPage() {
       setError(err instanceof ApiError ? err.message : 'Failed to load dashboard.');
     });
     pointsApi.get().then((d) => setTransactions(d.transactions)).catch(() => undefined);
+    plansApi.list().then((d) => setPlans(d.plans)).catch(() => undefined);
   }, []);
 
-  async function handleCreateResume() {
-    setIsCreating(true);
-    try {
-      const { resume } = await resumeApi.create({ title: 'My Resume' });
-      window.location.href = `/resumes/${resume.id}`;
-    } finally {
-      setIsCreating(false);
-    }
+  function handleCreateResume() {
+    // Goes to the AI chat builder rather than creating a blank resume and
+    // dropping the user straight into the manual editor. This button is the
+    // dashboard's most prominent call to action — sending it anywhere other
+    // than the AI flow means the app's core value proposition (an AI doing
+    // most of the work) has no obvious entry point at all, which is exactly
+    // what made it feel hard to find. The manual editor is still one click
+    // away from there ("start from scratch") for anyone who prefers it.
+    navigate('/resumes/new/chat');
   }
 
   async function handleUpgrade(tier: 'PROFESSIONAL' | 'PREMIUM') {
@@ -91,9 +103,9 @@ export function DashboardPage() {
             </h1>
             <p className="text-muted-foreground mt-1">Here's your career overview.</p>
           </div>
-          <Button onClick={handleCreateResume} disabled={isCreating}>
+          <Button onClick={handleCreateResume}>
             <Plus size={16} className="mr-1.5" />
-            {isCreating ? 'Creating…' : 'New Resume'}
+            New Resume
           </Button>
         </div>
 
@@ -147,14 +159,18 @@ export function DashboardPage() {
                     onClick={() => handleUpgrade('PROFESSIONAL')}
                     disabled={isUpgrading !== null}
                   >
-                    {isUpgrading === 'PROFESSIONAL' ? 'Redirecting…' : 'Upgrade to Pro ($12/mo)'}
+                    {isUpgrading === 'PROFESSIONAL'
+                      ? 'Redirecting…'
+                      : `Upgrade to Pro${formatPlanPrice(plans, 'PROFESSIONAL')}`}
                   </Button>
                   <Button
                     className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 hover:opacity-90"
                     onClick={() => handleUpgrade('PREMIUM')}
                     disabled={isUpgrading !== null}
                   >
-                    {isUpgrading === 'PREMIUM' ? 'Redirecting…' : 'Upgrade to Premium ($29/mo)'}
+                    {isUpgrading === 'PREMIUM'
+                      ? 'Redirecting…'
+                      : `Upgrade to Premium${formatPlanPrice(plans, 'PREMIUM')}`}
                   </Button>
                 </div>
               )}
@@ -273,7 +289,7 @@ export function DashboardPage() {
               ) : data.recentResumes.length === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-muted-foreground mb-4">No resumes yet. Create your first one.</p>
-                  <Button variant="secondary" onClick={handleCreateResume} disabled={isCreating}>
+                  <Button variant="secondary" onClick={handleCreateResume}>
                     <Plus size={14} className="mr-1.5" /> Create resume
                   </Button>
                 </div>

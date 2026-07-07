@@ -455,3 +455,25 @@ model AdminAuditLog {
   @@index([targetType, targetId])
   @@map("admin_audit_logs")
 }
+
+// ---------------------------------------------------------------------------
+// Admin: Dynamic (DB-stored) resume templates
+// ---------------------------------------------------------------------------
+
+model DynamicTemplate {
+  id           String   @id @default(uuid())
+  name         String
+  slug         String   @unique
+  category     String   @default("free")
+  templateHtml String
+  thumbnailUrl String?
+  pointsCost   Int      @default(0)
+  displayOrder Int      @default(0)
+  isActive     Boolean  @default(true)
+  promptUsed   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([isActive, displayOrder])
+  @@map("dynamic_templates")
+}

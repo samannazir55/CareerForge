@@ -93,10 +93,18 @@ export class FallbackAIProvider implements AIProvider {
     // Every provider (and every retry) still came back degraded. Keep
     // whatever resumeUpdate/suggestions happened to be extracted, if any,
     // but never show the user text that's likely leftover narration.
-    console.warn('[ai] all providers stayed degraded on chat — returning a safe generic reply');
+    //
+    // IMPORTANT: this message must not sound like a success acknowledgment.
+    // It previously read "Got it, thanks! Let's keep going" — which is
+    // indistinguishable from a real "I saved that" reply, so a request that
+    // silently failed to extract (e.g. asking to add a certifications
+    // section) looked identical to one that worked. The user has no way to
+    // know their data wasn't saved, which is worse than an honest failure:
+    // it actively misleads them into believing something happened.
+    console.warn('[ai] all providers stayed degraded on chat — returning an honest failure message');
     return {
       ...lastResult!,
-      reply: "Got it, thanks! Let's keep going — what would you like to add next?",
+      reply: "Sorry, I had trouble processing that — could you try sending it again, maybe with a bit more detail?",
     };
   }
 

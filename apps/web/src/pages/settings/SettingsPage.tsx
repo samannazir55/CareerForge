@@ -4,7 +4,7 @@ import { User, CreditCard, Zap, CheckCircle2, Star } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
-import { paymentsApi, pointsApi } from '../../lib/api';
+import { paymentsApi, pointsApi, plansApi, type PublicPlan } from '../../lib/api';
 import { ApiError } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -16,47 +16,23 @@ interface PointsTransaction {
   createdAt: string;
 }
 
-const PLANS = [
-  {
-    id: 'FREE' as const,
-    name: 'Free',
-    price: '$0',
-    period: 'forever',
-    icon: '✦',
-    features: ['2 free templates', 'PDF & DOCX export', '3 resumes', 'Basic ATS scoring'],
-    accent: 'from-slate-500/20 to-slate-600/20',
-    border: 'border-white/10',
-    ring: '',
-  },
-  {
-    id: 'PROFESSIONAL' as const,
-    name: 'Professional',
-    price: '$9',
-    period: '/month',
-    icon: '⚡',
-    features: ['All free features', '5 premium templates', 'Unlimited resumes', 'Advanced ATS scoring', 'AI job matching'],
-    accent: 'from-indigo-500/20 to-purple-600/20',
-    border: 'border-indigo-400/40',
-    ring: 'ring-1 ring-indigo-400/20',
-    highlight: true,
-  },
-  {
-    id: 'PREMIUM' as const,
-    name: 'Premium',
-    price: '$19',
-    period: '/month',
-    icon: '💎',
-    features: ['Everything in Pro', 'All premium templates', 'AI cover letters', 'Priority AI features', 'Career coach (coming soon)'],
-    accent: 'from-purple-500/20 to-pink-600/20',
-    border: 'border-purple-400/30',
-    ring: '',
-  },
+// Presentational only — pricing, names, and feature lists now come from
+// plansApi (the same subscription_plans table admins edit), not from a
+// second hardcoded guess living independently in this file. This file
+// previously had its own $9/$19 while DashboardPage.tsx separately had its
+// own $12/$29 for the same two tiers — nothing kept them in sync because
+// there was no shared source at all until plansApi existed.
+const PLAN_STYLES = [
+  { id: 'FREE' as const, icon: '✦', accent: 'from-slate-500/20 to-slate-600/20', border: 'border-white/10', ring: '', highlight: false },
+  { id: 'PROFESSIONAL' as const, icon: '⚡', accent: 'from-indigo-500/20 to-purple-600/20', border: 'border-indigo-400/40', ring: 'ring-1 ring-indigo-400/20', highlight: true },
+  { id: 'PREMIUM' as const, icon: '💎', accent: 'from-purple-500/20 to-pink-600/20', border: 'border-purple-400/30', ring: '', highlight: false },
 ];
 
 export function SettingsPage() {
   const { user, refreshUser } = useAuth();
   const [transactions, setTransactions] = useState<PointsTransaction[]>([]);
   const [balance, setBalance] = useState(0);
+  const [plans, setPlans] = useState<PublicPlan[] | null>(null);
   const [loadingPortal, setLoadingPortal] = useState(false);
   const [loadingCheckout, setLoadingCheckout] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +43,8 @@ export function SettingsPage() {
       setBalance(d.balance);
       setTransactions(d.transactions);
     }).catch(() => undefined);
+
+    plansApi.list().then((d) => setPlans(d.plans)).catch(() => undefined);
 
     const params = new URLSearchParams(window.location.search);
     if (params.get('success') === 'true') {
@@ -181,17 +159,18 @@ export function SettingsPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          {PLANS.map((plan, i) => {
-            const isCurrent = currentTier === plan.id;
+          {PLAN_STYLES.map((style, i) => {
+            const isCurrent = currentTier === style.id;
+            const live = plans?.find((p) => p.tierKey === style.id);
             return (
               <motion.div
-                key={plan.id}
+                key={style.id}
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.06 }}
-                className={`relative rounded-2xl border p-5 flex flex-col bg-gradient-to-br ${plan.accent} ${plan.border} ${plan.ring} ${isCurrent ? 'opacity-100' : ''}`}
+                className={`relative rounded-2xl border p-5 flex flex-col bg-gradient-to-br ${style.accent} ${style.border} ${style.ring} ${isCurrent ? 'opacity-100' : ''}`}
               >
-                {plan.highlight && (
+                {style.highlight && (
                   <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 text-[10px] bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-3 py-0.5 rounded-full font-semibold tracking-wide uppercase">
                     Most Popular
                   </span>
@@ -201,14 +180,33 @@ export function SettingsPage() {
                     Current
                   </span>
                 )}
-                <div className="text-2xl mb-2">{plan.icon}</div>
-                <h3 className="font-semibold mb-0.5">{plan.name}</h3>
+                <div className="text-2xl mb-2">{style.icon}</div>
+                {plans === null ? (
+                  <div className="h-4 w-20 rounded bg-white/10 animate-pulse mb-0.5" />
+                ) : (
+                  <h3 className="font-semibold mb-0.5">{live?.name ?? style.id}</h3>
+                )}
                 <div className="flex items-baseline gap-0.5 mb-4">
-                  <span className="text-2xl font-bold">{plan.price}</span>
-                  <span className="text-sm text-muted-foreground">{plan.period}</span>
+                  {plans === null ? (
+                    <div className="h-7 w-14 rounded bg-white/10 animate-pulse" />
+                  ) : live ? (
+                    <>
+                      <span className="text-2xl font-bold">
+                        {live.priceMonthlyUsd === 0 ? '$0' : `$${live.priceMonthlyUsd}`}
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        {live.priceMonthlyUsd === 0 ? 'forever' : '/month'}
+                      </span>
+                    </>
+                  ) : (
+                    // Fetch failed or this tier isn't configured — honest
+                    // rather than falling back to a stale guess, which is
+                    // exactly the bug this replaces.
+                    <span className="text-sm text-muted-foreground">Contact us for pricing</span>
+                  )}
                 </div>
                 <ul className="space-y-1.5 flex-1 mb-5">
-                  {plan.features.map((f) => (
+                  {(live?.features ?? []).map((f) => (
                     <li key={f} className="text-xs text-muted-foreground flex items-start gap-2">
                       <span className="text-emerald-400 mt-0.5 shrink-0">✓</span> {f}
                     </li>
@@ -216,18 +214,18 @@ export function SettingsPage() {
                 </ul>
                 {isCurrent ? (
                   <Button variant="secondary" size="sm" disabled>Current plan</Button>
-                ) : plan.id === 'FREE' ? (
+                ) : style.id === 'FREE' ? (
                   <Button variant="outline" size="sm" disabled>Downgrade</Button>
                 ) : (
                   <Button
                     size="sm"
-                    className={plan.id === 'PROFESSIONAL'
+                    className={style.id === 'PROFESSIONAL'
                       ? 'bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-500/90 hover:to-purple-600/90 shadow-lg shadow-indigo-500/20'
                       : 'bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-500/90 hover:to-pink-600/90 shadow-lg shadow-purple-500/20'}
-                    onClick={() => handleUpgrade(plan.id as 'PROFESSIONAL' | 'PREMIUM')}
+                    onClick={() => handleUpgrade(style.id as 'PROFESSIONAL' | 'PREMIUM')}
                     disabled={loadingCheckout !== null}
                   >
-                    {loadingCheckout === plan.id ? 'Redirecting…' : `Upgrade to ${plan.name}`}
+                    {loadingCheckout === style.id ? 'Redirecting…' : `Upgrade to ${live?.name ?? style.id}`}
                   </Button>
                 )}
               </motion.div>

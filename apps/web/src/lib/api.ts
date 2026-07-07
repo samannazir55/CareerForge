@@ -205,6 +205,18 @@ export const dashboardApi = {
   }>('/dashboard'),
 };
 
+export interface PublicPlan {
+  tierKey: string;
+  name: string;
+  priceMonthlyUsd: number;
+  description: string | null;
+  features: string[];
+}
+
+export const plansApi = {
+  list: () => request<{ plans: PublicPlan[] }>('/plans'),
+};
+
 export const pointsApi = {
   get: () => request<{ balance: number; transactions: Array<{ id: string; type: string; amount: number; description: string | null; createdAt: string }> }>('/points'),
   getTemplates: () => request<{ templates: Array<{ id: string; name: string; category: string; cost: number }> }>('/points/templates'),

@@ -14,7 +14,7 @@ export function OAuthCallbackPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (status === 'authenticated') navigate('/', { replace: true });
+    if (status === 'authenticated') navigate('/dashboard', { replace: true });
     if (status === 'unauthenticated') navigate('/login?error=oauth_failed', { replace: true });
   }, [status, navigate]);
 

@@ -15,6 +15,7 @@ import { sharingRouter } from './domain/sharing/sharing.routes.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { profileRouter } from './domain/profile/profile.routes.js';
 import { adminRouter } from './domain/admin/admin.routes.js';
+import { plansRouter } from './domain/plans/plans.routes.js';
 
 export function createApp() {
   const app = express();
@@ -76,6 +77,7 @@ export function createApp() {
   app.use('/api/public', sharingRouter);
   app.use('/api/profile', profileRouter);
   app.use('/api/admin', adminRouter);
+  app.use('/api/plans', plansRouter);
 
   // Serve the React SPA in production.
   // The Dockerfile builds apps/web and copies its dist here so the API and

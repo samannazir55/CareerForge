@@ -12,7 +12,16 @@ const EnvSchema = z.object({
 
   API_PORT: z.coerce.number().default(4000),
   API_BASE_URL: z.string().default('http://localhost:4000'),
-  FRONTEND_URL: z.string().default('http://localhost:5173'),
+  // Falls back to Render's own automatically-provided RENDER_EXTERNAL_URL
+  // (the real public HTTPS URL of this service, injected into every Render
+  // web service with no configuration needed) before falling back further
+  // to a localhost default. Previously FRONTEND_URL defaulted straight to
+  // localhost, which silently became the OAuth callback redirect target
+  // AND the Stripe checkout success/cancel/return URLs whenever the
+  // FRONTEND_URL env var wasn't explicitly set on a deployment — an easy
+  // step to forget, since a single-origin deployment like this one doesn't
+  // obviously need it set at all if you're not aware of this default.
+  FRONTEND_URL: z.string().default(process.env.RENDER_EXTERNAL_URL || 'http://localhost:5173'),
 
   OTP_LENGTH: z.coerce.number().default(6),
   OTP_EXPIRY_MINUTES: z.coerce.number().default(10),

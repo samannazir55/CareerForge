@@ -201,48 +201,12 @@ export function ResumeEditorPage() {
           {/* Left: editor */}
           <div className="flex-1 overflow-y-auto p-4 sm:p-6">
             <div className="max-w-xl mx-auto flex flex-col gap-4">
-              {sections
-                .slice()
-                .sort((a, b) => a.order - b.order)
-                .map((section, i) => (
-                  <motion.div
-                    key={section.id}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <SectionCard
-                      sections={sections}
-                      sectionId={section.id}
-                      onSectionsChange={setSections}
-                      onMove={handleMoveSection}
-                      isFirst={i === 0}
-                      isLast={i === sections.length - 1}
-                    />
-                  </motion.div>
-                ))}
-
-              <div className="flex items-end gap-2 mt-2">
-                <select
-                  value={sectionTypeToAdd}
-                  onChange={(e: ChangeEvent<HTMLSelectElement>) => setSectionTypeToAdd(e.target.value)}
-                  className="h-11 rounded-xl border border-input bg-background px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  {ADDABLE_SECTION_TYPES.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-                <Button variant="secondary" onClick={handleAddSection}>
-                  <Plus size={16} className="mr-1.5" /> Add section
-                </Button>
-              </div>
-
               {/* Mobile-only preview & export — the side-by-side panel further
                   down is `hidden` below the `lg` breakpoint, so this is the
-                  only way to preview or download the resume on mobile. */}
-              <div className="lg:hidden mt-2 rounded-xl border border-border bg-gradient-to-b from-indigo-500/[0.03] to-transparent">
+                  only way to preview or download the resume on mobile.
+                  Placed first so it's the first thing a mobile user sees,
+                  before they scroll down to the editing sections. */}
+              <div className="lg:hidden rounded-xl border border-border bg-gradient-to-b from-indigo-500/[0.03] to-transparent">
                 <div className="flex items-center justify-between gap-2 px-4 py-3">
                   <button
                     type="button"
@@ -294,6 +258,44 @@ export function ResumeEditorPage() {
                     )}
                   </div>
                 )}
+              </div>
+
+              {sections
+                .slice()
+                .sort((a, b) => a.order - b.order)
+                .map((section, i) => (
+                  <motion.div
+                    key={section.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <SectionCard
+                      sections={sections}
+                      sectionId={section.id}
+                      onSectionsChange={setSections}
+                      onMove={handleMoveSection}
+                      isFirst={i === 0}
+                      isLast={i === sections.length - 1}
+                    />
+                  </motion.div>
+                ))}
+
+              <div className="flex items-end gap-2 mt-2">
+                <select
+                  value={sectionTypeToAdd}
+                  onChange={(e: ChangeEvent<HTMLSelectElement>) => setSectionTypeToAdd(e.target.value)}
+                  className="h-11 rounded-xl border border-input bg-background px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {ADDABLE_SECTION_TYPES.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                <Button variant="secondary" onClick={handleAddSection}>
+                  <Plus size={16} className="mr-1.5" /> Add section
+                </Button>
               </div>
             </div>
           </div>

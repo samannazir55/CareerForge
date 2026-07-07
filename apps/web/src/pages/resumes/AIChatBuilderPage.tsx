@@ -182,6 +182,25 @@ export function AIChatBuilderPage() {
   // drives a togglable mobile-only version of that same panel.
   const [showMobilePreview, setShowMobilePreview] = useState(false);
 
+  // Preserves the option this page's own "New Resume" dashboard button used
+  // to provide directly (create a blank resume, go straight to the manual
+  // editor) — that button now goes through this AI chat flow by default
+  // instead, since it was the app's main entry point and having it skip the
+  // AI builder entirely made the AI builder hard to find at all. This isn't
+  // about removing manual entry as an option, only about making the AI flow
+  // the default path rather than the hidden one.
+  const [isStartingFromScratch, setIsStartingFromScratch] = useState(false);
+  async function handleStartFromScratch() {
+    setIsStartingFromScratch(true);
+    try {
+      const { resume } = await resumeApi.create({ title: 'My Resume' });
+      navigate(`/resumes/${resume.id}`);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not create a new resume. Please try again.');
+      setIsStartingFromScratch(false);
+    }
+  }
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -356,7 +375,22 @@ export function AIChatBuilderPage() {
               </Button>
               <div className="min-w-0">
                 <h2 className="font-semibold text-sm">AI Resume Builder</h2>
-                <p className="text-xs text-muted-foreground">Chat to build your resume</p>
+                <p className="text-xs text-muted-foreground">
+                  Chat to build your resume
+                  {!resumeId && (
+                    <>
+                      {' · '}
+                      <button
+                        type="button"
+                        onClick={handleStartFromScratch}
+                        disabled={isStartingFromScratch}
+                        className="underline hover:text-foreground disabled:opacity-60"
+                      >
+                        {isStartingFromScratch ? 'Creating…' : 'start from scratch instead'}
+                      </button>
+                    </>
+                  )}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
