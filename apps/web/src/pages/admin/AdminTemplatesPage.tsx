@@ -238,7 +238,7 @@ function DynamicTemplateSlideOver({ open, onClose, onSaved, editTarget }: Dynami
           onClick={handleGenerate}
           disabled={isGenerating || !prompt.trim()}
           className="w-full gap-2"
-          variant={hasHtml ? 'outline' : 'default'}
+          variant={hasHtml ? 'outline' : 'primary'}
         >
           <Sparkles size={14} />
           {isGenerating
