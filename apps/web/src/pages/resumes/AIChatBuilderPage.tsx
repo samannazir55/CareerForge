@@ -187,8 +187,8 @@ export function AIChatBuilderPage() {
   // just modern/classic (matching the previous hardcoded behavior) if the
   // fetch fails, so a flaky request never leaves the switcher empty.
   const [availableTemplates, setAvailableTemplates] = useState<PublicTemplateListItem[]>([
-    { id: 'modern', slug: 'modern', name: 'Modern', category: 'free', pointsCost: 0, thumbnailUrl: null, displayOrder: 0, isDynamic: false },
-    { id: 'classic', slug: 'classic', name: 'Classic', category: 'free', pointsCost: 0, thumbnailUrl: null, displayOrder: 1, isDynamic: false },
+    { id: 'modern', slug: 'modern', name: 'Modern', category: 'free', family: 'modern', pointsCost: 0, thumbnailUrl: null, displayOrder: 0, isDynamic: false },
+    { id: 'classic', slug: 'classic', name: 'Classic', category: 'free', family: 'classic', pointsCost: 0, thumbnailUrl: null, displayOrder: 1, isDynamic: false },
   ]);
   useEffect(() => {
     templatesApi

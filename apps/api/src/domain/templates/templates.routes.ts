@@ -36,7 +36,7 @@ templatesRouter.get(
           slug: t.id,
           name: t.name,
           category: (listing?.category as 'free' | 'premium' | undefined) ?? t.category,
-          family: (listing?.family as string | undefined) ?? t.family,
+          family: (listing?.family as PublicTemplateListItem['family'] | undefined) ?? (t.family as PublicTemplateListItem['family']),
           pointsCost: listing?.pointsCost ?? 0,
           thumbnailUrl: listing?.thumbnailUrl ?? null,
           displayOrder: listing?.displayOrder ?? index,
