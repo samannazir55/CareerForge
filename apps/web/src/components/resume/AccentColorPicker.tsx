@@ -22,9 +22,13 @@ const PRESET_COLORS = [
 interface AccentColorPickerProps {
   value: string;
   onChange: (hex: string) => void;
-  /** Dynamic (admin-created) templates don't read theme.accentColor at all —
-   * pass true to grey the control out with an explanatory title rather than
-   * offering a control that silently has no visual effect. */
+  /** Every template — code-registered (Modern/Classic) and admin-created
+   * dynamic templates alike — now derives its accent from theme.accentColor
+   * (dynamic templates via {{accentColor}}/{{accentColorSoft}}/
+   * {{accentColorDark}} in dynamicTemplateRenderer.ts), so this control is
+   * live regardless of which template is selected. `disabled` is kept for
+   * callers that want to grey it out for other reasons (e.g. while a
+   * template is loading), not for a template-type distinction anymore. */
   disabled?: boolean;
   className?: string;
 }
@@ -39,7 +43,6 @@ export function AccentColorPicker({ value, onChange, disabled, className = '' }:
   return (
     <div
       className={`flex items-center gap-1.5 ${disabled ? 'opacity-40 pointer-events-none' : ''} ${className}`}
-      title={disabled ? "This template has its own fixed palette — accent color only applies to Modern/Classic." : undefined}
     >
       <div className="flex items-center gap-1 rounded-lg border border-input bg-background px-1 py-1">
         {PRESET_COLORS.map((hex) => (

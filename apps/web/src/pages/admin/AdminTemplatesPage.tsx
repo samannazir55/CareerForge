@@ -152,11 +152,15 @@ function DynamicTemplateSlideOver({ open, onClose, onSaved, editTarget }: Dynami
     setIsGenerating(true);
     setGenerateError(null);
     try {
-      const result = await adminApi.generateTemplate(prompt.trim(), family);
+      // Family is no longer part of generation — the AI now designs freely
+      // from the prompt alone (using {{accentColor}} for the user's own
+      // color choice instead of a fixed family palette). Whatever family
+      // is selected in the form above is kept as-is and only used for
+      // marketplace categorization when the template is saved.
+      const result = await adminApi.generateTemplate(prompt.trim());
       setName(result.name);
       setSlug(result.slug);
       setCategory(result.category as 'free' | 'premium');
-      setFamily(result.family);
       setTemplateHtml(result.html);
       setPromptUsed(prompt.trim());
       setShowPreview(true);

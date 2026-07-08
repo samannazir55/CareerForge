@@ -2,13 +2,15 @@ import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Plus, History, Download, FileType2, Sparkles, Lock } from 'lucide-react';
-import type { Resume, Section, SectionType } from '@careerforge/schema';
+import type { Resume, ResumeTheme, Section, SectionType } from '@careerforge/schema';
 import { createSection, createCustomSection, addSection, reorderSections, isDynamicTemplateId } from '@careerforge/schema';
 import { resumeApi, ApiError } from '../../lib/api';
 import { useAutosave } from '../../hooks/useAutosave';
 import { Button } from '../../components/ui/Button';
 import { SectionCard } from '../../components/resume/SectionCard';
 import { ResumePreview } from '../../components/preview/ResumePreview';
+import { TemplateSwitcher } from '../../components/resume/TemplateSwitcher';
+import { AccentColorPicker } from '../../components/resume/AccentColorPicker';
 import { AppShell } from '../../components/layout/AppShell';
 
 const ADDABLE_SECTION_TYPES: Array<{ value: Exclude<SectionType, 'custom'> | 'custom'; label: string }> = [
@@ -29,6 +31,7 @@ export function ResumeEditorPage() {
   const [resume, setResume] = useState<Resume | null>(null);
   const [title, setTitle] = useState('');
   const [sections, setSections] = useState<Section[]>([]);
+  const [theme, setTheme] = useState<ResumeTheme>({ templateId: 'modern', accentColor: '#4f46e5' });
   const [loadError, setLoadError] = useState<string | null>(null);
   const [sectionTypeToAdd, setSectionTypeToAdd] = useState<string>('experience');
   const [isSavingVersion, setIsSavingVersion] = useState(false);
@@ -65,15 +68,16 @@ export function ResumeEditorPage() {
         setResume(data.resume);
         setTitle(data.resume.title);
         setSections(data.resume.sections);
+        setTheme(data.resume.theme);
       })
       .catch(() => setLoadError('Could not load this resume — it may not exist, or may not belong to you.'));
   }, [id]);
 
   const autosaveStatus = useAutosave(
-    { title, sections },
+    { title, sections, theme },
     async (value) => {
       if (!id) return;
-      await resumeApi.update(id, { title: value.title, sections: value.sections });
+      await resumeApi.update(id, { title: value.title, sections: value.sections, theme: value.theme });
     },
   );
 
@@ -95,6 +99,14 @@ export function ResumeEditorPage() {
     setSections(reorderSections(sections, ids));
   }
 
+  function handleTemplateSelect(templateId: string) {
+    setTheme((t) => ({ ...t, templateId }));
+  }
+
+  function handleAccentColorChange(accentColor: string) {
+    setTheme((t) => ({ ...t, accentColor }));
+  }
+
   async function handleSaveVersion() {
     if (!id) return;
     setIsSavingVersion(true);
@@ -111,10 +123,10 @@ export function ResumeEditorPage() {
   // Dynamic (admin-created) templates are arbitrary AI-generated HTML/CSS
   // with no reliable generic mapping to OOXML — export.service.ts rejects a
   // DOCX request for one with a 400 (DOCX_NOT_SUPPORTED_DYNAMIC). Hiding the
-  // button here avoids sending a request that's guaranteed to fail.
-  const isDynamicTemplate = isDynamicTemplateId(
-    (resume?.theme as { templateId?: string } | undefined)?.templateId ?? 'modern',
-  );
+  // button here avoids sending a request that's guaranteed to fail. Reads
+  // from the live `theme` state (not the last-loaded `resume.theme`) so it
+  // updates immediately when the template switcher below is used.
+  const isDynamicTemplate = isDynamicTemplateId(theme.templateId ?? 'modern');
 
   async function handleExport(format: 'pdf' | 'docx') {
     if (!id) return;
@@ -258,15 +270,24 @@ export function ResumeEditorPage() {
                   </div>
                 )}
                 {mobilePreviewOpen && (
-                  <div ref={mobilePreviewContainerRef} className="flex justify-center px-4 pb-4">
-                    {resume && (
-                      <ResumePreview
-                        resume={{ ...resume, title, sections }}
-                        scale={mobilePreviewScale}
-                        className="ring-1 ring-white/10 shadow-2xl shadow-indigo-500/10"
-                      />
-                    )}
-                  </div>
+                  <>
+                    <div className="px-4 pb-3 space-y-3">
+                      <TemplateSwitcher currentTemplateId={theme.templateId} onSelect={handleTemplateSelect} />
+                      <div className="space-y-1.5">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Accent Color</p>
+                        <AccentColorPicker value={theme.accentColor} onChange={handleAccentColorChange} />
+                      </div>
+                    </div>
+                    <div ref={mobilePreviewContainerRef} className="flex justify-center px-4 pb-4">
+                      {resume && (
+                        <ResumePreview
+                          resume={{ ...resume, title, sections, theme }}
+                          scale={mobilePreviewScale}
+                          className="ring-1 ring-white/10 shadow-2xl shadow-indigo-500/10"
+                        />
+                      )}
+                    </div>
+                  </>
                 )}
               </div>
 
@@ -312,6 +333,14 @@ export function ResumeEditorPage() {
 
           {/* Right: live preview + export buttons */}
           <div className="hidden lg:flex flex-col items-center gap-4 p-6 bg-gradient-to-b from-indigo-500/[0.03] to-transparent border-l border-border overflow-y-auto">
+            <div className="w-full max-w-sm space-y-4 rounded-xl border border-border bg-background/50 p-4">
+              <TemplateSwitcher currentTemplateId={theme.templateId} onSelect={handleTemplateSelect} />
+              <div className="border-t border-border" />
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Accent Color</p>
+                <AccentColorPicker value={theme.accentColor} onChange={handleAccentColorChange} />
+              </div>
+            </div>
             <div className="flex flex-col gap-2 self-end items-end">
               <div className="flex gap-2">
                 <button
@@ -347,7 +376,7 @@ export function ResumeEditorPage() {
                 </div>
               )}
             </div>
-            {resume && <ResumePreview resume={{ ...resume, title, sections }} scale={0.48} className="ring-1 ring-white/10 shadow-2xl shadow-indigo-500/10" />}
+            {resume && <ResumePreview resume={{ ...resume, title, sections, theme }} scale={0.48} className="ring-1 ring-white/10 shadow-2xl shadow-indigo-500/10" />}
           </div>
         </div>
       </div>

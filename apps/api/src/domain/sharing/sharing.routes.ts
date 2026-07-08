@@ -5,7 +5,7 @@ import { asyncHandler } from '../../lib/asyncHandler.js';
 import { prisma } from '../../lib/prisma.js';
 import { NotFoundError } from '../../lib/errors.js';
 import { runMigrations } from '@careerforge/schema';
-import { getTemplate } from '@careerforge/templates';
+import { resolveTemplate } from '../templates/templateResolver.js';
 
 export const sharingRouter = Router();
 
@@ -73,7 +73,7 @@ sharingRouter.get(
       },
     });
 
-    const template = getTemplate((resume.theme as any)?.templateId ?? 'modern');
+    const template = await resolveTemplate((resume.theme as any)?.templateId ?? 'modern');
     const html = template.renderHtml(resume as any);
 
     res.setHeader('Content-Type', 'text/html');

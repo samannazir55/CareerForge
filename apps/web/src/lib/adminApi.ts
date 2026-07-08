@@ -32,7 +32,6 @@ export interface GeneratedTemplate {
   name:     string;
   slug:     string;
   category: string;
-  family:   string;
   html:     string;
 }
 
@@ -48,8 +47,8 @@ export const adminApi = {
     request<{ listing: TemplateListing }>(`/admin/templates/${id}`, { method: 'PUT', body }),
 
   // Dynamic templates
-  generateTemplate: (prompt: string, family: string) =>
-    request<GeneratedTemplate>('/admin/templates/generate', { method: 'POST', body: { prompt, family } }),
+  generateTemplate: (prompt: string) =>
+    request<GeneratedTemplate>('/admin/templates/generate', { method: 'POST', body: { prompt } }),
   createDynamicTemplate: (body: Omit<DynamicTemplate, 'id' | 'createdAt' | 'updatedAt'> & { promptUsed?: string }) =>
     request<{ template: DynamicTemplate }>('/admin/templates/dynamic', { method: 'POST', body }),
   updateDynamicTemplate: (id: string, body: Partial<DynamicTemplate>) =>

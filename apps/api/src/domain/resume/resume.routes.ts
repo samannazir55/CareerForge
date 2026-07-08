@@ -146,7 +146,7 @@ resumeRouter.post(
   '/preview-render',
   asyncHandler(async (req, res) => {
     const input = PreviewRenderRequestSchema.parse(req.body);
-    const { getTemplate } = await import('@careerforge/templates');
+    const { resolveTemplate } = await import('../templates/templateResolver.js');
     const { DEFAULT_SECTION_FIELDS } = await import('@careerforge/schema');
 
     // A defensive backstop, not the primary source of correct fields —
@@ -166,7 +166,7 @@ resumeRouter.post(
           : (DEFAULT_SECTION_FIELDS as Record<string, typeof s.fields>)[s.type] ?? [],
     }));
 
-    const template = getTemplate(input.theme.templateId ?? 'modern');
+    const template = await resolveTemplate(input.theme.templateId ?? 'modern');
     const html = template.renderHtml({ ...input, sections: enrichedSections } as any);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store');
@@ -190,8 +190,8 @@ resumeRouter.get(
       migrationVersion: row.migrationVersion,
       payload: { id: row.id, ownerId: row.ownerId, title: row.title, theme: row.theme, sections: row.sections, schemaVersion: row.schemaVersion, migrationVersion: row.migrationVersion, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() },
     });
-    const { getTemplate } = await import('@careerforge/templates');
-    const template = getTemplate((resume.theme as any)?.templateId ?? 'modern');
+    const { resolveTemplate } = await import('../templates/templateResolver.js');
+    const template = await resolveTemplate((resume.theme as any)?.templateId ?? 'modern');
     const html = template.renderHtml(resume as any);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store');

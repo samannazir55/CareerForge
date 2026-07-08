@@ -1,9 +1,9 @@
 import type { User } from '@prisma/client';
 import { prisma } from '../../lib/prisma.js';
 import { getBrowser } from './browser.js';
-import { getTemplate, isPremiumTemplate } from '@careerforge/templates';
+import { resolveTemplate, type ResolvedTemplate } from '../templates/templateResolver.js';
 import { runMigrations } from '@careerforge/schema';
-import { ForbiddenError, NotFoundError } from '../../lib/errors.js';
+import { BadRequestError, ForbiddenError, NotFoundError } from '../../lib/errors.js';
 
 export type ExportFormat = 'pdf' | 'docx';
 
@@ -15,9 +15,17 @@ export type ExportFormat = 'pdf' | 'docx';
  *
  * This check runs in the service layer before any rendering begins — a
  * premium-gated export is rejected here, not after burning CPU on rendering.
+ *
+ * Uses the resolved template's `isPremium` flag (which understands BOTH
+ * code-registered templates AND admin-created DynamicTemplate rows) rather
+ * than the code-registry-only `isPremiumTemplate()` — previously, a premium
+ * dynamic template's cost was silently bypassed here because that helper
+ * always returned false for any id outside the code registry, meaning a
+ * "premium" AI-generated template was actually downloadable by anyone for
+ * free.
  */
-async function assertCanExport(user: User, templateId: string): Promise<void> {
-  if (!isPremiumTemplate(templateId)) return; // free templates: always allowed
+async function assertCanExport(user: User, template: ResolvedTemplate): Promise<void> {
+  if (!template.isPremium) return; // free templates: always allowed
 
   // Any paid tier unlocks every premium template — PREMIUM was previously
   // the only tier checked here, which meant a PROFESSIONAL subscriber (a
@@ -25,7 +33,7 @@ async function assertCanExport(user: User, templateId: string): Promise<void> {
   if (user.subscriptionTier === 'PREMIUM' || user.subscriptionTier === 'PROFESSIONAL') return;
 
   const purchase = await prisma.templatePurchase.findUnique({
-    where: { userId_templateId: { userId: user.id, templateId } },
+    where: { userId_templateId: { userId: user.id, templateId: template.id } },
   });
   if (purchase) return;
 
@@ -54,13 +62,13 @@ export async function exportResume(
   });
 
   const templateId = (resume.theme as { templateId: string }).templateId;
-  await assertCanExport(user, templateId);
-
-  const template = getTemplate(templateId);
+  const template = await resolveTemplate(templateId);
   if (template.id !== templateId) {
     // Fallback was used — log so it's visible in monitoring
     console.warn(`Template "${templateId}" not found; fell back to "${template.id}" for resume ${resumeId}`);
   }
+
+  await assertCanExport(user, template);
 
   if (format === 'pdf') {
     const html = template.renderHtml(resume as any);
@@ -69,7 +77,17 @@ export async function exportResume(
     return { buffer, mimeType: 'application/pdf', filename };
   }
 
-  // DOCX
+  // DOCX — dynamic (AI/admin-generated) templates are arbitrary HTML/CSS
+  // with no reliable generic mapping to OOXML, so this format isn't
+  // supported for them. Previously this silently fell through to
+  // getTemplate()'s Modern fallback and exported a DOCX in the WRONG
+  // template rather than telling the user DOCX isn't available here.
+  if (!template.buildDocx) {
+    throw new BadRequestError(
+      'DOCX export is not available for this template yet — try PDF instead.',
+      'DOCX_NOT_SUPPORTED_DYNAMIC',
+    );
+  }
   const buffer = await template.buildDocx(resume as any);
   const filename = `${slugify(resume.title)}.docx`;
   return {

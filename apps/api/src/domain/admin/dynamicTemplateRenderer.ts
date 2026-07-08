@@ -11,6 +11,11 @@ import type { Resume } from '@careerforge/schema';
 // Scalars (replaced with escaped text):
 //   {{name}}      {{jobTitle}}   {{email}}     {{phone}}
 //   {{location}}  {{linkedin}}   {{website}}   {{summary}}
+//   {{accentColor}}      user-chosen hex from the resume's color picker
+//   {{accentColorSoft}}  a light tint of accentColor (mixed toward white,
+//                        88%) — for background fills, tag backgrounds, etc.
+//   {{accentColorDark}}  a darkened shade of accentColor (mixed toward
+//                        black, 25%) — for hover states / higher-contrast text
 //
 // Loop blocks (inner template repeated per entry):
 //   {{#experiences}} ... {{/experiences}}
@@ -23,6 +28,27 @@ import type { Resume } from '@careerforge/schema';
 //   {{#skills}} ... {{/skills}}
 //     inner var: {{skill.name}}
 //
+//   {{#certifications}} ... {{/certifications}}
+//     inner vars: {{cert.name}}  {{cert.issuer}}  {{cert.date}}
+//
+//   {{#projects}} ... {{/projects}}
+//     inner vars: {{project.name}}  {{project.description}}  {{project.url}}
+//
+//   {{#languages}} ... {{/languages}}
+//     inner vars: {{lang.name}}  {{lang.proficiency}}
+//
+//   {{#references}} ... {{/references}}
+//     inner vars: {{ref.name}}  {{ref.relationship}}  {{ref.contact}}
+//
+//   {{#customSections}} ... {{/customSections}}
+//     Any section the user added beyond the built-in types above (its
+//     fields are user-defined, so there's no fixed set of inner vars).
+//     inner vars: {{section.title}}
+//     nested loop, one row per entry in the section:
+//       {{#entries}} ... {{/entries}}
+//         inner var: {{entry.fields}} — every field of that entry,
+//         pre-rendered as "<div>Label: value</div>" HTML (already escaped).
+//
 // Conditional blocks (renders inner content only when value is non-empty):
 //   {{#if name}} ... {{/if name}}
 // ---------------------------------------------------------------------------
@@ -34,6 +60,39 @@ function escHtml(str: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+// ── Color helpers for {{accentColorSoft}} / {{accentColorDark}} ───────────
+// Templates have no CSS preprocessor available (no Sass lighten()/darken()),
+// so these shades are computed once here, server-side, from the plain hex
+// string the user picked in the theme's accent-color picker.
+const DEFAULT_ACCENT: [number, number, number] = [79, 70, 229]; // #4f46e5
+
+function hexToRgb(hex: string): [number, number, number] {
+  const clean = hex.replace('#', '').trim();
+  const full = clean.length === 3 ? clean.split('').map((c) => c + c).join('') : clean;
+  if (!/^[0-9a-fA-F]{6}$/.test(full)) return DEFAULT_ACCENT;
+  const n = parseInt(full, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function rgbToHex([r, g, b]: [number, number, number]): string {
+  return (
+    '#' +
+    [r, g, b]
+      .map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0'))
+      .join('')
+  );
+}
+
+/** Mixes `hex` toward `target` ([r,g,b]) by `amount` (0–1). */
+function mixToward(hex: string, target: [number, number, number], amount: number): string {
+  const [r, g, b] = hexToRgb(hex);
+  return rgbToHex([
+    r + (target[0] - r) * amount,
+    g + (target[1] - g) * amount,
+    b + (target[2] - b) * amount,
+  ]);
 }
 
 /** Replace {{key}} tokens in a snippet using a flat string map. */
@@ -58,6 +117,47 @@ function dateRange(start?: string, end?: string): string {
   return s ? `${s} – ${e}` : e;
 }
 
+/** Generic "loop block" replacer: finds {{#tag}} ... {{/tag}} in `source` and
+ * replaces it with `items.map(renderItem).join('')`, or '' if items is empty.
+ * Shared by every simple (non-nested) loop block below. */
+function renderLoop<T>(
+  source: string,
+  tag: string,
+  items: T[],
+  renderItem: (tmpl: string, item: T) => string,
+): string {
+  const re = new RegExp(`\\{\\{#${tag}\\}\\}([\\s\\S]*?)\\{\\{\\/${tag}\\}\\}`, 'g');
+  return source.replace(re, (_, tmpl: string) => {
+    if (!items.length) return '';
+    return items.map((item) => renderItem(tmpl, item)).join('');
+  });
+}
+
+/** Renders every field of a custom-section entry generically as escaped
+ * "Label: value" HTML rows — the same fallback approach code-registered
+ * templates use (renderEntryFieldsGeneric in packages/templates/src/helpers)
+ * for section shapes a template has no fixed layout for. */
+function renderEntryFieldsAsHtml(
+  entry: { values?: Record<string, unknown> },
+  fields: Array<{ key: string; label: string; kind: string }>,
+): string {
+  const values = entry.values ?? {};
+  return fields
+    .map((field) => {
+      const val = values[field.key];
+      if (val === undefined || val === null || val === '') return '';
+      if (field.kind === 'list' && Array.isArray(val)) {
+        return `<div class="cf-field"><span class="cf-field-label">${escHtml(field.label)}:</span> ${escHtml(val.map(String).join(', '))}</div>`;
+      }
+      if (field.kind === 'richtext') {
+        return `<div class="cf-field cf-field--richtext"><span class="cf-field-label">${escHtml(field.label)}</span>${String(val).replace(/\n/g, '<br>')}</div>`;
+      }
+      return `<div class="cf-field"><span class="cf-field-label">${escHtml(field.label)}:</span> ${escHtml(String(val))}</div>`;
+    })
+    .filter(Boolean)
+    .join('');
+}
+
 // ---------------------------------------------------------------------------
 // Public entry point
 // ---------------------------------------------------------------------------
@@ -66,6 +166,8 @@ export function renderDynamicTemplate(templateHtml: string, resume: Resume): str
   // ── Personal info ─────────────────────────────────────────────────────────
   const summarySection = resume.sections.find((s) => s.type === 'summary');
   const sv = (summarySection?.entries[0]?.values ?? {}) as Record<string, string>;
+
+  const accentColor = resume.theme?.accentColor || '#4f46e5';
 
   const scalars: Record<string, string> = {
     name:     escHtml(resume.title ?? ''),
@@ -77,6 +179,9 @@ export function renderDynamicTemplate(templateHtml: string, resume: Resume): str
     website:  escHtml(sv.website  ?? ''),
     // summary text may contain basic HTML; don't double-escape it
     summary:  sv.text ?? '',
+    accentColor:     accentColor,
+    accentColorSoft: mixToward(accentColor, [255, 255, 255], 0.88),
+    accentColorDark: mixToward(accentColor, [0, 0, 0], 0.25),
   };
 
   let out = templateHtml;
@@ -151,6 +256,66 @@ export function renderDynamicTemplate(templateHtml: string, resume: Resume): str
         .join('');
     },
   );
+
+  // ── {{#certifications}} ... {{/certifications}} ──────────────────────────
+  const certSection = resume.sections.find((s) => s.type === 'certifications');
+  out = renderLoop(out, 'certifications', certSection?.entries ?? [], (tmpl, e) => {
+    const v = (e.values ?? {}) as Record<string, string>;
+    return interpolate(tmpl, {
+      'cert.name':   escHtml(v.name   ?? ''),
+      'cert.issuer': escHtml(v.issuer ?? ''),
+      'cert.date':   fmtDate(v.date),
+    });
+  });
+
+  // ── {{#projects}} ... {{/projects}} ──────────────────────────────────────
+  const projectsSection = resume.sections.find((s) => s.type === 'projects');
+  out = renderLoop(out, 'projects', projectsSection?.entries ?? [], (tmpl, e) => {
+    const v = (e.values ?? {}) as Record<string, string>;
+    return interpolate(tmpl, {
+      'project.name':        escHtml(v.name ?? ''),
+      'project.description': (v.description ?? '').replace(/\n/g, '<br>'),
+      'project.url':         escHtml(v.url ?? ''),
+    });
+  });
+
+  // ── {{#languages}} ... {{/languages}} ────────────────────────────────────
+  const languagesSection = resume.sections.find((s) => s.type === 'languages');
+  out = renderLoop(out, 'languages', languagesSection?.entries ?? [], (tmpl, e) => {
+    const v = (e.values ?? {}) as Record<string, string>;
+    return interpolate(tmpl, {
+      'lang.name':        escHtml(v.name ?? ''),
+      'lang.proficiency': escHtml(v.proficiency ?? ''),
+    });
+  });
+
+  // ── {{#references}} ... {{/references}} ──────────────────────────────────
+  const referencesSection = resume.sections.find((s) => s.type === 'references');
+  out = renderLoop(out, 'references', referencesSection?.entries ?? [], (tmpl, e) => {
+    const v = (e.values ?? {}) as Record<string, string>;
+    return interpolate(tmpl, {
+      'ref.name':         escHtml(v.name ?? ''),
+      'ref.relationship': escHtml(v.relationship ?? ''),
+      'ref.contact':      escHtml(v.contact ?? ''),
+    });
+  });
+
+  // ── {{#customSections}} ... {{/customSections}} ─────────────────────────
+  // Every section the admin's placeholder vocabulary above doesn't cover by
+  // name — in practice `type: 'custom'` sections, whose fields are defined
+  // per-resume by the user. Mirrors packages/templates' generic fallback:
+  // a template never special-cases a custom section, it just iterates
+  // whatever fields exist. Nested {{#entries}} loop renders one row per
+  // entry, each already-flattened to HTML via {{entry.fields}}.
+  const customSections = resume.sections.filter((s) => s.type === 'custom');
+  out = renderLoop(out, 'customSections', customSections, (tmpl, section) => {
+    const withTitle = tmpl.replace(/\{\{section\.title\}\}/g, escHtml(section.title ?? ''));
+    return renderLoop(withTitle, 'entries', section.entries ?? [], (entryTmpl, entry) =>
+      interpolate(entryTmpl, {
+        'entry.fields': renderEntryFieldsAsHtml(entry, section.fields ?? []),
+      }),
+    );
+  });
 
   return out;
 }

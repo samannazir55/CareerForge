@@ -10,7 +10,11 @@ export interface CreateDynamicTemplateInput {
   name: string;
   slug: string;
   category: string;
-  family: string;
+  /** Optional — defaults to 'modern' (matches the DB column default) when
+   * omitted, so callers that don't have a strong opinion (e.g. the bulk
+   * generation script, which varies layout/tone/persona directly instead
+   * of the family taxonomy) don't need to supply one. */
+  family?: string;
   templateHtml: string;
   thumbnailUrl?: string;
   pointsCost?: number;
@@ -77,7 +81,7 @@ export const dynamicTemplatesService = {
         name:         input.name,
         slug:         input.slug,
         category:     input.category,
-        family:       input.family,
+        family:       input.family ?? 'modern',
         templateHtml: input.templateHtml,
         thumbnailUrl: input.thumbnailUrl ?? null,
         pointsCost:   input.pointsCost  ?? 0,
