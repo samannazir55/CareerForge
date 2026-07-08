@@ -3,7 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Plus, History, Download, FileType2, Sparkles, Lock } from 'lucide-react';
 import type { Resume, ResumeTheme, Section, SectionType } from '@careerforge/schema';
-import { createSection, createCustomSection, addSection, reorderSections, isDynamicTemplateId } from '@careerforge/schema';
+import { createSection, createCustomSection, addSection, reorderSections, isDynamicTemplateId, DEFAULT_THEME } from '@careerforge/schema';
 import { resumeApi, ApiError } from '../../lib/api';
 import { useAutosave } from '../../hooks/useAutosave';
 import { Button } from '../../components/ui/Button';
@@ -31,7 +31,7 @@ export function ResumeEditorPage() {
   const [resume, setResume] = useState<Resume | null>(null);
   const [title, setTitle] = useState('');
   const [sections, setSections] = useState<Section[]>([]);
-  const [theme, setTheme] = useState<ResumeTheme>({ templateId: 'modern', accentColor: '#4f46e5' });
+  const [theme, setTheme] = useState<ResumeTheme>(DEFAULT_THEME);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [sectionTypeToAdd, setSectionTypeToAdd] = useState<string>('experience');
   const [isSavingVersion, setIsSavingVersion] = useState(false);
