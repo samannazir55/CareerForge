@@ -107,9 +107,24 @@ async function renderPdf(html: string): Promise<Buffer> {
   const browser = await getBrowser();
   const page = await browser.newPage();
   try {
-    // setContent is faster and more deterministic than navigating to a URL —
-    // no network dependency, no race between navigation and CSS load.
-    await page.setContent(html, { waitUntil: 'networkidle0' });
+    // `waitUntil: 'networkidle0'` (the previous setting) waits for there to
+    // be NO in-flight network requests for 500ms — including the template's
+    // `@import url('https://fonts.googleapis.com/...')`. If that request is
+    // slow, blocked, or the container's outbound network is restricted,
+    // networkidle0 never resolves and Puppeteer hits its 30s navigation
+    // timeout, which throws and (uncaught) surfaces as a 500 on the export
+    // endpoint. 'domcontentloaded' only waits for the HTML/CSS itself to be
+    // parsed — it doesn't depend on any external request succeeding.
+    await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 15000 });
+
+    // Give web fonts a real chance to finish loading (so text isn't rendered
+    // in a fallback font), but cap it — a hung/unreachable font request
+    // should degrade to "wrong font" rather than fail the whole export.
+    await Promise.race([
+      page.evaluate(() => (document as any).fonts?.ready).catch(() => undefined),
+      new Promise((resolve) => setTimeout(resolve, 2500)),
+    ]);
+
     const pdfBuffer = await page.pdf({
       format: 'A4',
       // printBackground: true is CRITICAL — Chrome strips background colors/

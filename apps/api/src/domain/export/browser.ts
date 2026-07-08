@@ -45,8 +45,28 @@ export async function getBrowser(): Promise<import('puppeteer-core').Browser> {
         ],
       });
     })();
+
+    // If launching fails (missing binary, container OOM, crashed on first
+    // use, etc.), don't leave the rejected promise cached forever — every
+    // export request after the first failure would otherwise 500 with the
+    // SAME stale error until the process restarts, even after whatever
+    // caused it is no longer true. Clearing it here lets the next export
+    // attempt a fresh launch instead.
+    _browserPromise.catch(() => {
+      _browserPromise = null;
+    });
   }
-  return _browserPromise;
+
+  const browser = await _browserPromise;
+  if (!browser.isConnected()) {
+    // The Chromium process died after a successful launch (OOM kill, crash,
+    // etc.) — same failure mode as above, just discovered later. Clear the
+    // cache and relaunch on next call rather than handing back a dead
+    // browser that every subsequent page.newPage() would fail against.
+    _browserPromise = null;
+    return getBrowser();
+  }
+  return browser;
 }
 
 export async function closeBrowser(): Promise<void> {
