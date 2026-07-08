@@ -228,4 +228,25 @@ For skills: key name. Use simple IDs like s1, s2, e1, e2.`,
     // back to `{}` with no signal to the caller that extraction failed.
     return extractResumeJson(text) ?? {};
   }
+
+  async completeRaw(systemPrompt: string, userMessage: string, maxTokens = 4096): Promise<string> {
+    const client = getClient();
+
+    const response = (await client.chat.completions.create({
+      model: this.model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userMessage },
+      ],
+      max_tokens: maxTokens,
+      // Same reasoning-suppression as the other calls on this adapter —
+      // a caller asking for a specific delimited output format (e.g. the
+      // admin template generator's ===NAME===/===HTML=== sections) doesn't
+      // want a reasoning preamble mixed into that output.
+      include_reasoning: false,
+      reasoning_effort: 'low',
+    } as any)) as OpenAI.Chat.Completions.ChatCompletion;
+
+    return response.choices[0]?.message?.content ?? '';
+  }
 }

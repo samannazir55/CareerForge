@@ -15,7 +15,7 @@ import { adminUsersService } from './users.service.js';
 import { adminDashboardService } from './dashboard.service.js';
 import { adminAuditService } from './audit.service.js';
 import { dynamicTemplatesService } from './dynamicTemplates.service.js';
-import Anthropic from '@anthropic-ai/sdk';
+import { aiProvider } from '../ai/index.js';
 
 export const adminRouter = Router();
 
@@ -73,8 +73,6 @@ adminRouter.post(
   asyncHandler(async (req, res) => {
     const { prompt } = req.body as { prompt?: string };
     if (!prompt?.trim()) throw new BadRequestError('prompt is required.');
-
-    const client = new Anthropic();
 
     const SYSTEM = `You are the senior template designer for CareerForge, a resume builder. You are designing a template that a real job-seeker's actual data will be poured into — not a mockup, not a proof of concept. It ships to production the moment the admin clicks Save, from a single short instruction, with no back-and-forth. Treat every generation as if it were the only chance you get: it has to be excellent on the first try.
 
@@ -321,17 +319,10 @@ typography; a plain single-column layout should be "free")
 and ending with </html>. Nothing after it.
 ===END===`;
 
-    const message = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 16000,
-      system: SYSTEM,
-      messages: [{ role: 'user', content: prompt.trim() }],
-    });
-
-    const raw = message.content
-      .filter((b) => b.type === 'text')
-      .map((b) => (b as { type: 'text'; text: string }).text)
-      .join('');
+    // Goes through the same GROQ → OpenRouter (→ Anthropic, if configured)
+    // provider chain as every other AI feature in the app, instead of
+    // requiring its own dedicated ANTHROPIC_API_KEY.
+    const raw = await aiProvider.completeRaw(SYSTEM, prompt.trim(), 16000);
 
     // Delimiter-based parsing rather than JSON: the HTML payload is several
     // KB of markup containing quotes, backticks, and newlines — asking the

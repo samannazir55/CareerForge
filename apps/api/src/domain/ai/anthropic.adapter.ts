@@ -166,4 +166,20 @@ For skills use key: name. Generate UUIDs as simple incrementing strings like "s1
 
     return extractResumeJson(text) ?? {};
   }
+
+  async completeRaw(systemPrompt: string, userMessage: string, maxTokens = 2048): Promise<string> {
+    const client = getClient();
+
+    const response = await client.messages.create({
+      model: MODEL,
+      max_tokens: maxTokens,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userMessage }],
+    });
+
+    return response.content
+      .filter((b) => b.type === 'text')
+      .map((b) => (b as { type: 'text'; text: string }).text)
+      .join('');
+  }
 }

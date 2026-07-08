@@ -123,4 +123,8 @@ export class FallbackAIProvider implements AIProvider {
   extractResumeFromText(rawText: string): Promise<Partial<Pick<Resume, 'title' | 'sections'>>> {
     return this.tryInOrder((p) => p.extractResumeFromText(rawText), 'extractResumeFromText');
   }
+
+  completeRaw(systemPrompt: string, userMessage: string, maxTokens?: number): Promise<string> {
+    return this.tryInOrder((p) => p.completeRaw(systemPrompt, userMessage, maxTokens), 'completeRaw');
+  }
 }

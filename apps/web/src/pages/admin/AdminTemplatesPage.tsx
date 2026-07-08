@@ -5,6 +5,7 @@ import {
   SlideOver, FormField,
 } from '../../components/admin/AdminUI';
 import { Button } from '../../components/ui/Button';
+import { requestText } from '../../lib/api';
 import { adminApi, type DynamicTemplate } from '../../lib/adminApi';
 import type { AdminTemplateRow } from '@careerforge/schema';
 
@@ -37,18 +38,21 @@ function TemplatePreviewFrame({ html }: { html: string }) {
 
   useEffect(() => {
     if (iframeRef.current && html) {
-      // POST to preview endpoint and inject result into iframe srcdoc
-      fetch('/api/admin/templates/preview', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ html }),
-      })
-        .then((r) => r.text())
+      // Uses the shared requestText() helper (same as every other admin
+      // call) so this actually sends the Authorization header and
+      // transparently retries through a token refresh on a 401 — a plain
+      // fetch() here previously relied only on `credentials: 'include'`,
+      // but requireAuth checks the Authorization header, not the cookie,
+      // so it could never succeed regardless of login state.
+      let cancelled = false;
+      requestText('/admin/templates/preview', { method: 'POST', body: { html } })
         .then((rendered) => {
-          if (iframeRef.current) iframeRef.current.srcdoc = rendered;
+          if (!cancelled && iframeRef.current) iframeRef.current.srcdoc = rendered;
         })
         .catch(() => undefined);
+      return () => {
+        cancelled = true;
+      };
     }
   }, [html]);
 

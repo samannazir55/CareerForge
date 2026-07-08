@@ -10,7 +10,8 @@ import { SuggestionCapsules } from '../../components/ai/SuggestionCapsules';
 import { aiApi, resumeApi, templatesApi } from '../../lib/api';
 import { ApiError } from '../../lib/api';
 import type { Resume, Section, PublicTemplateListItem } from '@careerforge/schema';
-import { DEFAULT_THEME, CURRENT_SCHEMA_VERSION, mergeResumeSections } from '@careerforge/schema';
+import { DEFAULT_THEME, CURRENT_SCHEMA_VERSION, mergeResumeSections, isDynamicTemplateId } from '@careerforge/schema';
+import { AccentColorPicker } from '../../components/resume/AccentColorPicker';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -365,6 +366,7 @@ export function AIChatBuilderPage() {
   }
 
   const currentTemplateId = (previewResume.theme as { templateId?: string })?.templateId ?? 'modern';
+  const currentAccentColor = (previewResume.theme as { accentColor?: string })?.accentColor ?? '#4f46e5';
 
   // Switching templates here is deliberately ungated — premium/points gating
   // only applies at export time (see export.service.ts's assertCanExport),
@@ -376,6 +378,16 @@ export function AIChatBuilderPage() {
   // plumbing needed beyond the state update itself.
   function setTemplate(templateId: string) {
     setPreviewResume((prev) => ({ ...prev, theme: { ...prev.theme, templateId } }));
+  }
+
+  // Dynamic (admin-created) templates are raw HTML/CSS that don't read
+  // theme.accentColor at all (see dynamicTemplateRenderer.ts's placeholder
+  // contract) — greying the picker out here avoids offering a control that
+  // would silently do nothing rather than actually recolor the preview.
+  const isDynamicTemplate = isDynamicTemplateId(currentTemplateId);
+
+  function setAccentColor(hex: string) {
+    setPreviewResume((prev) => ({ ...prev, theme: { ...prev.theme, accentColor: hex } }));
   }
 
   return (
@@ -462,6 +474,9 @@ export function AIChatBuilderPage() {
                     </button>
                   ))}
                 </div>
+              </div>
+              <div className="relative z-10 flex items-center justify-end px-4 py-1.5 border-b border-white/5">
+                <AccentColorPicker value={currentAccentColor} onChange={setAccentColor} disabled={isDynamicTemplate} />
               </div>
               <div className="relative z-10 flex items-center justify-center overflow-auto p-4 max-h-[50vh]">
                 <div className="overflow-x-auto max-w-full">
@@ -592,6 +607,7 @@ export function AIChatBuilderPage() {
                   </button>
                 ))}
               </div>
+              <AccentColorPicker value={currentAccentColor} onChange={setAccentColor} disabled={isDynamicTemplate} />
               <span className="text-[10px] text-white/25 bg-white/5 border border-white/8 rounded px-2 py-0.5">
                 A4
               </span>

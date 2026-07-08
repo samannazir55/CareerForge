@@ -65,4 +65,13 @@ export interface AIProvider {
    * Extract structured resume data from raw text (PDF/DOCX import path).
    */
   extractResumeFromText(rawText: string): Promise<Partial<Pick<Resume, 'title' | 'sections'>>>;
+
+  /**
+   * Generic single-turn completion: a system prompt + one user message in,
+   * raw text out. No resume-domain parsing, no JSON extraction — the
+   * caller owns the output format entirely. For features that need an
+   * arbitrary, provider-agnostic completion (e.g. the admin AI template
+   * generator) rather than one of the resume-specific operations above.
+   */
+  completeRaw(systemPrompt: string, userMessage: string, maxTokens?: number): Promise<string>;
 }

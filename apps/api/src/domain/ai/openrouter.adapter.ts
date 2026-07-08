@@ -194,4 +194,19 @@ For skills: key name. Use simple IDs like s1, s2, e1, e2.`,
     // actually failed.
     return extractResumeJson(text) ?? {};
   }
+
+  async completeRaw(systemPrompt: string, userMessage: string, maxTokens = 4096): Promise<string> {
+    const client = getClient();
+
+    const response = await client.chat.completions.create({
+      model: this.model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userMessage },
+      ],
+      max_tokens: maxTokens,
+    });
+
+    return response.choices[0]?.message?.content ?? '';
+  }
 }
