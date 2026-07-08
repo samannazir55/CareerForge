@@ -133,7 +133,7 @@ const PreviewSectionSchema = z.object({
   type: SectionTypeSchema,
   title: z.string().min(1),
   order: z.number().int(),
-  fields: z.array(FieldDefSchema),
+  fields: z.array(FieldDefSchema).optional().default([]),
   entries: z.array(PreviewEntrySchema),
 });
 const PreviewRenderRequestSchema = z.object({
@@ -147,8 +147,27 @@ resumeRouter.post(
   asyncHandler(async (req, res) => {
     const input = PreviewRenderRequestSchema.parse(req.body);
     const { getTemplate } = await import('@careerforge/templates');
+    const { DEFAULT_SECTION_FIELDS } = await import('@careerforge/schema');
+
+    // A defensive backstop, not the primary source of correct fields —
+    // mergeResumeSections() (used by the AI chat builder and the import
+    // flow) already normalizes fields via its own normalizeAiSections()
+    // before a draft ever reaches this endpoint. This exists for any
+    // caller of this stateless endpoint that doesn't go through that path
+    // and posts a section with fields genuinely missing/empty. 'custom'
+    // sections have no canonical definition — same rule as
+    // normalizeAiSections — so their own (possibly AI/user-authored)
+    // fields are kept as-is rather than defaulted to [].
+    const enrichedSections = input.sections.map((s) => ({
+      ...s,
+      fields:
+        s.fields.length > 0 || s.type === 'custom'
+          ? s.fields
+          : (DEFAULT_SECTION_FIELDS as Record<string, typeof s.fields>)[s.type] ?? [],
+    }));
+
     const template = getTemplate(input.theme.templateId ?? 'modern');
-    const html = template.renderHtml(input as any);
+    const html = template.renderHtml({ ...input, sections: enrichedSections } as any);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store');
     res.send(html);
