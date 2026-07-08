@@ -10,6 +10,7 @@ export interface CreateDynamicTemplateInput {
   name: string;
   slug: string;
   category: string;
+  family: string;
   templateHtml: string;
   thumbnailUrl?: string;
   pointsCost?: number;
@@ -76,6 +77,7 @@ export const dynamicTemplatesService = {
         name:         input.name,
         slug:         input.slug,
         category:     input.category,
+        family:       input.family,
         templateHtml: input.templateHtml,
         thumbnailUrl: input.thumbnailUrl ?? null,
         pointsCost:   input.pointsCost  ?? 0,
@@ -104,6 +106,7 @@ export const dynamicTemplatesService = {
         ...(input.name         !== undefined && { name:         input.name }),
         ...(input.slug         !== undefined && { slug:         input.slug }),
         ...(input.category     !== undefined && { category:     input.category }),
+        ...(input.family       !== undefined && { family:       input.family }),
         ...(input.templateHtml !== undefined && { templateHtml: input.templateHtml }),
         ...(input.thumbnailUrl !== undefined && { thumbnailUrl: input.thumbnailUrl }),
         ...(input.pointsCost   !== undefined && { pointsCost:   input.pointsCost }),

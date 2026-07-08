@@ -8,6 +8,7 @@ export const TemplateListingSchema = z.object({
   id: z.string(),
   isActive: z.boolean(),
   category: z.enum(['free', 'premium']),
+  family: z.string(),
   pointsCost: z.number().int().min(0),
   thumbnailUrl: z.string().nullable(),
   displayOrder: z.number().int(),
@@ -23,6 +24,7 @@ export const AdminTemplateRowSchema = z.object({
   id: z.string(),
   name: z.string(),
   codeCategory: z.enum(['free', 'premium']), // the default baked into the TemplateRenderer
+  codeFamily: z.string(), // the default family baked into the TemplateRenderer
   listing: TemplateListingSchema.nullable(),
   hasListing: z.boolean(),
 });
@@ -31,6 +33,7 @@ export type AdminTemplateRow = z.infer<typeof AdminTemplateRowSchema>;
 export const UpdateTemplateListingRequestSchema = z.object({
   isActive: z.boolean().optional(),
   category: z.enum(['free', 'premium']).optional(),
+  family: z.string().optional(),
   pointsCost: z.number().int().min(0).optional(),
   thumbnailUrl: z.string().url().optional().or(z.literal('')).optional(),
   displayOrder: z.number().int().optional(),

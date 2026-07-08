@@ -264,6 +264,7 @@ export const classicTemplate: TemplateRenderer = {
   id: 'classic',
   name: 'Classic',
   category: 'free',
+  family: 'classic',
   previewClass: 'template-classic',
   renderHtml,
   buildDocx,

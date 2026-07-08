@@ -29,10 +29,11 @@ export function getTemplate(templateId: string): TemplateRenderer {
 }
 
 export function getAllTemplateMetadata(): TemplateMetadata[] {
-  return Array.from(REGISTRY.values()).map(({ id, name, category, previewClass }) => ({
+  return Array.from(REGISTRY.values()).map(({ id, name, category, family, previewClass }) => ({
     id,
     name,
     category,
+    family,
     previewClass,
   }));
 }

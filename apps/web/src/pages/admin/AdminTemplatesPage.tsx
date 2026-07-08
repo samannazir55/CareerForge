@@ -8,6 +8,7 @@ import { Button } from '../../components/ui/Button';
 import { requestText } from '../../lib/api';
 import { adminApi, type DynamicTemplate } from '../../lib/adminApi';
 import type { AdminTemplateRow } from '@careerforge/schema';
+import { TEMPLATE_FAMILIES } from '@careerforge/schema';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -98,6 +99,7 @@ function DynamicTemplateSlideOver({ open, onClose, onSaved, editTarget }: Dynami
   const [name, setName]             = useState('');
   const [slug, setSlug]             = useState('');
   const [category, setCategory]     = useState<'free' | 'premium'>('free');
+  const [family, setFamily]         = useState<string>('modern');
   const [pointsCost, setPointsCost] = useState('0');
   const [displayOrder, setDisplayOrder] = useState('0');
   const [thumbnailUrl, setThumbnailUrl] = useState('');
@@ -117,6 +119,7 @@ function DynamicTemplateSlideOver({ open, onClose, onSaved, editTarget }: Dynami
       setName(editTarget.name);
       setSlug(editTarget.slug);
       setCategory(editTarget.category as 'free' | 'premium');
+      setFamily(editTarget.family ?? 'modern');
       setPointsCost(String(editTarget.pointsCost));
       setDisplayOrder(String(editTarget.displayOrder));
       setThumbnailUrl(editTarget.thumbnailUrl ?? '');
@@ -131,6 +134,7 @@ function DynamicTemplateSlideOver({ open, onClose, onSaved, editTarget }: Dynami
       setName('');
       setSlug('');
       setCategory('free');
+      setFamily('modern');
       setPointsCost('0');
       setDisplayOrder('0');
       setThumbnailUrl('');
@@ -148,10 +152,11 @@ function DynamicTemplateSlideOver({ open, onClose, onSaved, editTarget }: Dynami
     setIsGenerating(true);
     setGenerateError(null);
     try {
-      const result = await adminApi.generateTemplate(prompt.trim());
+      const result = await adminApi.generateTemplate(prompt.trim(), family);
       setName(result.name);
       setSlug(result.slug);
       setCategory(result.category as 'free' | 'premium');
+      setFamily(result.family);
       setTemplateHtml(result.html);
       setPromptUsed(prompt.trim());
       setShowPreview(true);
@@ -173,7 +178,7 @@ function DynamicTemplateSlideOver({ open, onClose, onSaved, editTarget }: Dynami
     try {
       if (isEdit && editTarget) {
         await adminApi.updateDynamicTemplate(editTarget.id, {
-          name, slug, category,
+          name, slug, category, family,
           pointsCost:   parseInt(pointsCost,   10) || 0,
           displayOrder: parseInt(displayOrder, 10) || 0,
           thumbnailUrl: thumbnailUrl || undefined,
@@ -182,7 +187,7 @@ function DynamicTemplateSlideOver({ open, onClose, onSaved, editTarget }: Dynami
         });
       } else {
         await adminApi.createDynamicTemplate({
-          name, slug, category,
+          name, slug, category, family,
           templateHtml,
           thumbnailUrl:  thumbnailUrl  || undefined,
           pointsCost:    parseInt(pointsCost,   10) || 0,
@@ -226,6 +231,20 @@ function DynamicTemplateSlideOver({ open, onClose, onSaved, editTarget }: Dynami
     >
       {/* ── AI Prompt ────────────────────────────────────────────────────── */}
       <div className="space-y-3">
+        <FormField
+          label="Design Family"
+          hint="Sets the design direction (layout, type, color) the AI builds from. Your prompt below can still override specifics."
+        >
+          <select
+            value={family}
+            onChange={(e) => setFamily(e.target.value)}
+            className="w-full h-10 rounded-xl border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            {TEMPLATE_FAMILIES.map((f) => (
+              <option key={f.id} value={f.id}>{f.label} — {f.description}</option>
+            ))}
+          </select>
+        </FormField>
         <FormField
           label="AI Prompt"
           hint='Describe the visual style — colours, layout, tone. E.g. "A dark navy executive template with gold accents and a two-column layout, serif headings."'
@@ -392,6 +411,7 @@ export function AdminTemplatesPage() {
   const [isSaving, setIsSaving]           = useState(false);
   const [saveError, setSaveError]         = useState<string | null>(null);
   const [formCategory, setFormCategory]   = useState<'free' | 'premium'>('free');
+  const [formFamily, setFormFamily]       = useState<string>('modern');
   const [formCost, setFormCost]           = useState('0');
   const [formActive, setFormActive]       = useState(true);
   const [formOrder, setFormOrder]         = useState('0');
@@ -423,6 +443,7 @@ export function AdminTemplatesPage() {
   function openEdit(template: AdminTemplateRow) {
     const l = template.listing;
     setFormCategory(l?.category ?? template.codeCategory);
+    setFormFamily(l?.family ?? template.codeFamily);
     setFormCost(String(l?.pointsCost ?? 0));
     setFormActive(l?.isActive ?? true);
     setFormOrder(String(l?.displayOrder ?? 0));
@@ -438,6 +459,7 @@ export function AdminTemplatesPage() {
     try {
       await adminApi.updateTemplate(editTarget.id, {
         category:     formCategory,
+        family:       formFamily,
         pointsCost:   parseInt(formCost, 10) || 0,
         isActive:     formActive,
         displayOrder: parseInt(formOrder, 10) || 0,
@@ -503,6 +525,12 @@ export function AdminTemplatesPage() {
       },
     },
     {
+      key: 'family', label: 'Family',
+      render: (t: AdminTemplateRow) => (
+        <span className="text-xs capitalize text-muted-foreground">{t.listing?.family ?? t.codeFamily}</span>
+      ),
+    },
+    {
       key: 'cost', label: 'Point Cost',
       render: (t: AdminTemplateRow) => (
         <span className="font-mono text-sm">{t.listing?.pointsCost ?? 0} pts</span>
@@ -561,6 +589,12 @@ export function AdminTemplatesPage() {
       key: 'category', label: 'Category',
       render: (t: DynamicTemplate) => (
         <AdminBadge variant={t.category === 'premium' ? 'amber' : 'green'}>{t.category}</AdminBadge>
+      ),
+    },
+    {
+      key: 'family', label: 'Family',
+      render: (t: DynamicTemplate) => (
+        <span className="text-xs capitalize text-muted-foreground">{t.family ?? 'modern'}</span>
       ),
     },
     {
@@ -712,6 +746,17 @@ export function AdminTemplatesPage() {
           >
             <option value="free">Free</option>
             <option value="premium">Premium</option>
+          </select>
+        </FormField>
+        <FormField label="Design Family" hint="Overrides the family set in the template's code definition. Used for marketplace filtering.">
+          <select
+            value={formFamily}
+            onChange={(e) => setFormFamily(e.target.value)}
+            className="w-full h-10 rounded-xl border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            {TEMPLATE_FAMILIES.map((f) => (
+              <option key={f.id} value={f.id}>{f.label}</option>
+            ))}
           </select>
         </FormField>
         <FormField label="Point Cost" hint="Set to 0 for free templates.">

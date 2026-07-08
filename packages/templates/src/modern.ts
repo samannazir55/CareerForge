@@ -380,6 +380,7 @@ export const modernTemplate: TemplateRenderer = {
   id: 'modern',
   name: 'Modern',
   category: 'free',
+  family: 'modern',
   previewClass: 'template-modern',
   renderHtml,
   buildDocx,

@@ -220,7 +220,7 @@ export const plansApi = {
 
 export const pointsApi = {
   get: () => request<{ balance: number; transactions: Array<{ id: string; type: string; amount: number; description: string | null; createdAt: string }> }>('/points'),
-  getTemplates: () => request<{ templates: Array<{ id: string; name: string; category: string; cost: number }> }>('/points/templates'),
+  getTemplates: () => request<{ templates: Array<{ id: string; name: string; category: string; family: string; cost: number }> }>('/points/templates'),
   purchaseTemplate: (templateId: string) => request<{ message: string }>('/points/purchase-template', { method: 'POST', body: { templateId } }),
 };
 

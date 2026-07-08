@@ -407,6 +407,7 @@ model TemplateListing {
   id           String   @id
   isActive     Boolean  @default(true)
   category     String   @default("free")
+  family       String   @default("modern")
   pointsCost   Int      @default(0)
   thumbnailUrl String?
   displayOrder Int      @default(0)
@@ -465,6 +466,7 @@ model DynamicTemplate {
   name         String
   slug         String   @unique
   category     String   @default("free")
+  family       String   @default("modern")
   templateHtml String
   thumbnailUrl String?
   pointsCost   Int      @default(0)

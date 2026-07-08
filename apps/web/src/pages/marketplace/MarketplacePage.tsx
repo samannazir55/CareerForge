@@ -4,6 +4,7 @@ import { Search, ShieldCheck, Lock, Unlock, Coins, X } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
 import { pointsApi, ApiError } from '../../lib/api';
+import { TEMPLATE_FAMILIES } from '@careerforge/schema';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../lib/utils';
 
@@ -11,6 +12,7 @@ interface TemplateItem {
   id: string;
   name: string;
   category: 'free' | 'premium';
+  family: string;
   cost: number;
 }
 
@@ -49,6 +51,7 @@ export function MarketplacePage() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<'All' | 'free' | 'premium'>('All');
+  const [selectedFamily, setSelectedFamily] = useState<'All' | string>('All');
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateItem | null>(null);
 
   useEffect(() => {
@@ -72,9 +75,10 @@ export function MarketplacePage() {
     return templates.filter((t) => {
       const matchesSearch = t.name.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesCategory = selectedCategory === 'All' || t.category === selectedCategory;
-      return matchesSearch && matchesCategory;
+      const matchesFamily = selectedFamily === 'All' || t.family === selectedFamily;
+      return matchesSearch && matchesCategory && matchesFamily;
     });
-  }, [templates, searchQuery, selectedCategory]);
+  }, [templates, searchQuery, selectedCategory, selectedFamily]);
 
   async function handlePurchase(template: TemplateItem) {
     if (balance < template.cost) {
@@ -133,6 +137,36 @@ export function MarketplacePage() {
               )}
             >
               {cat}
+            </button>
+          ))}
+        </div>
+
+        {/* Design family pills */}
+        <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
+          <button
+            onClick={() => setSelectedFamily('All')}
+            className={cn(
+              'px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors border',
+              selectedFamily === 'All'
+                ? 'bg-indigo-500 text-white border-indigo-500'
+                : 'bg-transparent border-border text-muted-foreground hover:text-foreground',
+            )}
+          >
+            All styles
+          </button>
+          {TEMPLATE_FAMILIES.map((f) => (
+            <button
+              key={f.id}
+              onClick={() => setSelectedFamily(f.id)}
+              title={f.description}
+              className={cn(
+                'px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors border',
+                selectedFamily === f.id
+                  ? 'bg-indigo-500 text-white border-indigo-500'
+                  : 'bg-transparent border-border text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {f.label}
             </button>
           ))}
         </div>
@@ -202,8 +236,11 @@ export function MarketplacePage() {
 
                     <div className="p-5 flex flex-col flex-1">
                       <h3 className="font-bold text-lg leading-tight mb-2">{template.name}</h3>
-                      <p className="text-sm text-muted-foreground line-clamp-2 mb-4 flex-1 capitalize">
+                      <p className="text-sm text-muted-foreground line-clamp-2 mb-1 capitalize">
                         {template.category} template
+                      </p>
+                      <p className="text-xs text-muted-foreground mb-4 flex-1">
+                        {TEMPLATE_FAMILIES.find((f) => f.id === template.family)?.label ?? template.family}
                       </p>
                       <div className="flex items-center justify-between text-xs text-muted-foreground font-medium">
                         <span className="capitalize">{template.category}</span>

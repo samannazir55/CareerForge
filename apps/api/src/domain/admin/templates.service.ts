@@ -27,11 +27,13 @@ export const adminTemplatesService = {
         id: t.id,
         name: t.name,
         codeCategory: t.category,
+        codeFamily: t.family,
         listing: listing
           ? {
               id: listing.id,
               isActive: listing.isActive,
               category: listing.category as 'free' | 'premium',
+              family: listing.family,
               pointsCost: listing.pointsCost,
               thumbnailUrl: listing.thumbnailUrl,
               displayOrder: listing.displayOrder,
@@ -64,6 +66,7 @@ export const adminTemplatesService = {
         id: templateId,
         isActive: input.isActive ?? true,
         category: input.category ?? codeTemplate.category,
+        family: input.family ?? codeTemplate.family,
         pointsCost: input.pointsCost ?? 0,
         thumbnailUrl: input.thumbnailUrl || null,
         displayOrder: input.displayOrder ?? 0,
@@ -71,6 +74,7 @@ export const adminTemplatesService = {
       update: {
         ...(input.isActive !== undefined && { isActive: input.isActive }),
         ...(input.category !== undefined && { category: input.category }),
+        ...(input.family !== undefined && { family: input.family }),
         ...(input.pointsCost !== undefined && { pointsCost: input.pointsCost }),
         ...(input.thumbnailUrl !== undefined && { thumbnailUrl: input.thumbnailUrl || null }),
         ...(input.displayOrder !== undefined && { displayOrder: input.displayOrder }),

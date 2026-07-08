@@ -8,6 +8,8 @@ import {
   UpsertSubscriptionPlanRequestSchema,
   GrantPointsRequestSchema,
   UpdateUserRoleRequestSchema,
+  TEMPLATE_FAMILIES,
+  TemplateFamilySchema,
 } from '@careerforge/schema';
 import { adminTemplatesService } from './templates.service.js';
 import { adminPlansService } from './plans.service.js';
@@ -71,8 +73,15 @@ adminRouter.put(
 adminRouter.post(
   '/templates/generate',
   asyncHandler(async (req, res) => {
-    const { prompt } = req.body as { prompt?: string };
+    const { prompt, family: familyRaw } = req.body as { prompt?: string; family?: string };
     if (!prompt?.trim()) throw new BadRequestError('prompt is required.');
+
+    const familyParsed = TemplateFamilySchema.safeParse(familyRaw ?? 'modern');
+    if (!familyParsed.success) {
+      throw new BadRequestError(`family must be one of: ${TEMPLATE_FAMILIES.map((f) => f.id).join(', ')}.`);
+    }
+    const family = familyParsed.data;
+    const familyDef = TEMPLATE_FAMILIES.find((f) => f.id === family)!;
 
     const SYSTEM = `You are the senior template designer for CareerForge, a resume builder. You are designing a template that a real job-seeker's actual data will be poured into — not a mockup, not a proof of concept. It ships to production the moment the admin clicks Save, from a single short instruction, with no back-and-forth. Treat every generation as if it were the only chance you get: it has to be excellent on the first try.
 
@@ -273,7 +282,20 @@ reverts to plain black bullet text in "Projects" reads as unfinished — see
 §1's requirement to style .cf-field for the same reason.
 
 ════════════════════════════════════════════════════════════════
-4. SELF-CHECK BEFORE YOU OUTPUT
+4. REQUESTED DESIGN FAMILY — "${familyDef.label}" (${familyDef.description})
+════════════════════════════════════════════════════════════════
+${familyDef.brief}
+
+This family brief sets the default direction for every decision in §3
+(layout archetype, type system, color system, density). If the admin's own
+prompt below gives a specific, conflicting instruction (an explicit color,
+a named layout, a different tone), the admin's prompt wins on those
+specifics — but stay within the ${familyDef.label} family's overall spirit
+wherever the prompt is silent. Do not produce a generic template and ignore
+this brief just because the prompt itself is short.
+
+════════════════════════════════════════════════════════════════
+5. SELF-CHECK BEFORE YOU OUTPUT
 ════════════════════════════════════════════════════════════════
 Before responding, verify silently:
   [ ] All 9 loop blocks are present (experiences, education, skills,
@@ -297,7 +319,7 @@ Before responding, verify silently:
   [ ] Body text contrast is at least 4.5:1.
 
 ════════════════════════════════════════════════════════════════
-5. OUTPUT FORMAT — follow exactly, nothing else in your response
+6. OUTPUT FORMAT — follow exactly, nothing else in your response
 ════════════════════════════════════════════════════════════════
 Do not use JSON. Respond with EXACTLY these five sections, in this order,
 each starting on its own line with the marker shown (all-caps, three equals
@@ -351,6 +373,7 @@ and ending with </html>. Nothing after it.
       name,
       slug:     slugRaw.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
       category: categoryRaw?.trim().toLowerCase() === 'premium' ? 'premium' : 'free',
+      family,
       html,
     });
   }),
@@ -451,17 +474,23 @@ adminRouter.post(
 adminRouter.post(
   '/templates/dynamic',
   asyncHandler(async (req, res) => {
-    const { name, slug, category, templateHtml, thumbnailUrl, pointsCost, displayOrder, promptUsed } =
+    const { name, slug, category, family: familyRaw, templateHtml, thumbnailUrl, pointsCost, displayOrder, promptUsed } =
       req.body as Record<string, string | number | undefined>;
 
     if (!name || !slug || !templateHtml) {
       throw new BadRequestError('name, slug, and templateHtml are required.');
     }
 
+    const familyParsed = TemplateFamilySchema.safeParse(familyRaw ?? 'modern');
+    if (!familyParsed.success) {
+      throw new BadRequestError(`family must be one of: ${TEMPLATE_FAMILIES.map((f) => f.id).join(', ')}.`);
+    }
+
     const template = await dynamicTemplatesService.create(req.user!.id, {
       name:         String(name),
       slug:         String(slug),
       category:     String(category ?? 'free'),
+      family:       familyParsed.data,
       templateHtml: String(templateHtml),
       thumbnailUrl: thumbnailUrl ? String(thumbnailUrl) : undefined,
       pointsCost:   pointsCost   ? Number(pointsCost)  : 0,

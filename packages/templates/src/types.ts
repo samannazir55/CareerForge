@@ -26,6 +26,11 @@ export interface TemplateRenderer {
   id: string;
   name: string;
   category: 'free' | 'premium';
+  /** Which design family this template belongs to (see TEMPLATE_FAMILIES
+   * in @careerforge/schema) — used for marketplace filtering. Code
+   * templates declare this statically since it's inherent to the design,
+   * unlike admin-generated DynamicTemplate rows where an admin picks it. */
+  family: string;
   /** CSS class suffix shown in the marketplace for preview thumbnails. */
   previewClass: string;
   renderHtml(resume: Resume): string;
@@ -36,5 +41,6 @@ export interface TemplateMetadata {
   id: string;
   name: string;
   category: 'free' | 'premium';
+  family: string;
   previewClass: string;
 }
