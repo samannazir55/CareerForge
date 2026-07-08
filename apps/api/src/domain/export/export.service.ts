@@ -27,6 +27,12 @@ export type ExportFormat = 'pdf' | 'docx';
 async function assertCanExport(user: User, template: ResolvedTemplate): Promise<void> {
   if (!template.isPremium) return; // free templates: always allowed
 
+  // Admins can download any template, free or premium, without a
+  // subscription or points — needed to actually test what gets shipped
+  // (including AI-generated templates created in the admin panel) without
+  // burning real points or needing a paid plan on the admin's own account.
+  if (user.role === 'ADMIN') return;
+
   // Any paid tier unlocks every premium template — PREMIUM was previously
   // the only tier checked here, which meant a PROFESSIONAL subscriber (a
   // paying customer) was denied downloads the same as a free user.

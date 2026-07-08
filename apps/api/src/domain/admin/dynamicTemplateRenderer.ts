@@ -117,20 +117,110 @@ function dateRange(start?: string, end?: string): string {
   return s ? `${s} – ${e}` : e;
 }
 
-/** Generic "loop block" replacer: finds {{#tag}} ... {{/tag}} in `source` and
- * replaces it with `items.map(renderItem).join('')`, or '' if items is empty.
- * Shared by every simple (non-nested) loop block below. */
+/**
+ * Finds a balanced {{#tag}} ... {{/tag}} region in `source`, trying each
+ * name in `tagNames` in order (supports aliases like 'experience' vs
+ * 'experiences') and returning whichever starts earliest.
+ *
+ * This is depth-aware rather than a single non-greedy regex, because the
+ * AI generator commonly nests the SAME tag name inside itself:
+ *   {{#experiences}}
+ *     <h3>Experience</h3>
+ *     {{#experiences}}<div>...{{exp.title}}...</div>{{/experiences}}
+ *   {{/experiences}}
+ * — an outer "show this section" wrapper around an inner per-entry
+ * repeater. A naive `/\{\{#tag\}\}([\s\S]*?)\{\{\/tag\}\}/` regex pairs the
+ * outer open tag with the FIRST close tag it meets — the inner one — which
+ * leaves the true outer close tag as unmatched literal text in the output,
+ * and (because the header got captured as part of the "repeated" template)
+ * duplicates the heading once per entry. That produced exactly the garbled
+ * output with literal `{{#experiences}}` / `{{/experiences}}` text and
+ * repeated headings.
+ */
+function extractBlock(
+  source: string,
+  tagNames: string[],
+): { match: string; inner: string; index: number } | null {
+  let best: { match: string; inner: string; index: number } | null = null;
+
+  for (const tag of tagNames) {
+    const openStr = `{{#${tag}}}`;
+    const closeStr = `{{/${tag}}}`;
+    const start = source.indexOf(openStr);
+    if (start === -1) continue;
+    if (best && start >= best.index) continue; // an earlier-starting alias already won
+
+    let depth = 1;
+    let i = start + openStr.length;
+    let found: { match: string; inner: string; index: number } | null = null;
+    while (i < source.length) {
+      if (source.startsWith(openStr, i)) {
+        depth++;
+        i += openStr.length;
+        continue;
+      }
+      if (source.startsWith(closeStr, i)) {
+        depth--;
+        i += closeStr.length;
+        if (depth === 0) {
+          found = {
+            match: source.slice(start, i),
+            inner: source.slice(start + openStr.length, i - closeStr.length),
+            index: start,
+          };
+          break;
+        }
+        continue;
+      }
+      i++;
+    }
+    if (found) best = found;
+    // if unbalanced (no `found`), fall through and try the next alias
+  }
+
+  return best;
+}
+
+/** Generic "loop block" replacer: finds every top-level {{#tag}} ... {{/tag}}
+ * region in `source` (trying each alias in `tagNames`) and replaces it with
+ * `items.map(renderItem).join('')`, or '' if items is empty.
+ *
+ * Handles BOTH conventions the AI generator produces:
+ *  - Flat:   {{#tag}}<div>{{item.x}}</div>{{/tag}}
+ *            → the whole inner content is repeated once per item.
+ *  - Nested: {{#tag}}<h3>Heading</h3>{{#tag}}<div>{{item.x}}</div>{{/tag}}{{/tag}}
+ *            → the heading is kept exactly once (it's outside the inner
+ *              repeater), and only the inner block repeats per item.
+ */
 function renderLoop<T>(
   source: string,
-  tag: string,
+  tagNames: string | string[],
   items: T[],
   renderItem: (tmpl: string, item: T) => string,
 ): string {
-  const re = new RegExp(`\\{\\{#${tag}\\}\\}([\\s\\S]*?)\\{\\{\\/${tag}\\}\\}`, 'g');
-  return source.replace(re, (_, tmpl: string) => {
-    if (!items.length) return '';
-    return items.map((item) => renderItem(tmpl, item)).join('');
-  });
+  const tags = Array.isArray(tagNames) ? tagNames : [tagNames];
+  let out = source;
+
+  while (true) {
+    const outer = extractBlock(out, tags);
+    if (!outer) break;
+
+    const nested = extractBlock(outer.inner, tags);
+    let rendered: string;
+    if (!items.length) {
+      rendered = '';
+    } else if (nested) {
+      const before = outer.inner.slice(0, nested.index);
+      const after = outer.inner.slice(nested.index + nested.match.length);
+      rendered = before + items.map((item) => renderItem(nested.inner, item)).join('') + after;
+    } else {
+      rendered = items.map((item) => renderItem(outer.inner, item)).join('');
+    }
+
+    out = out.slice(0, outer.index) + rendered + out.slice(outer.index + outer.match.length);
+  }
+
+  return out;
 }
 
 /** Renders every field of a custom-section entry generically as escaped
@@ -199,63 +289,39 @@ export function renderDynamicTemplate(templateHtml: string, resume: Resume): str
 
   // ── {{#experiences}} ... {{/experiences}} ────────────────────────────────
   const expSection = resume.sections.find((s) => s.type === 'experience');
-  out = out.replace(
-    /\{\{#experiences?\}\}([\s\S]*?)\{\{\/experiences?\}\}/g,
-    (_, tmpl) => {
-      if (!expSection?.entries.length) return '';
-      return expSection.entries
-        .map((e) => {
-          const v = (e.values ?? {}) as Record<string, string>;
-          return interpolate(tmpl, {
-            'exp.title':       escHtml(v.title    ?? ''),
-            'exp.company':     escHtml(v.company  ?? ''),
-            'exp.location':    escHtml(v.location ?? ''),
-            'exp.startDate':   fmtDate(v.startDate),
-            'exp.endDate':     v.endDate ? fmtDate(v.endDate) : 'Present',
-            'exp.dateRange':   dateRange(v.startDate, v.endDate),
-            // description may contain \n — convert to <br> for HTML output
-            'exp.description': (v.description ?? '').replace(/\n/g, '<br>'),
-          });
-        })
-        .join('');
-    },
-  );
+  out = renderLoop(out, ['experiences', 'experience'], expSection?.entries ?? [], (tmpl, e) => {
+    const v = (e.values ?? {}) as Record<string, string>;
+    return interpolate(tmpl, {
+      'exp.title':       escHtml(v.title    ?? ''),
+      'exp.company':     escHtml(v.company  ?? ''),
+      'exp.location':    escHtml(v.location ?? ''),
+      'exp.startDate':   fmtDate(v.startDate),
+      'exp.endDate':     v.endDate ? fmtDate(v.endDate) : 'Present',
+      'exp.dateRange':   dateRange(v.startDate, v.endDate),
+      // description may contain \n — convert to <br> for HTML output
+      'exp.description': (v.description ?? '').replace(/\n/g, '<br>'),
+    });
+  });
 
   // ── {{#education}} ... {{/education}} ────────────────────────────────────
   const eduSection = resume.sections.find((s) => s.type === 'education');
-  out = out.replace(
-    /\{\{#education\}\}([\s\S]*?)\{\{\/education\}\}/g,
-    (_, tmpl) => {
-      if (!eduSection?.entries.length) return '';
-      return eduSection.entries
-        .map((e) => {
-          const v = (e.values ?? {}) as Record<string, string>;
-          return interpolate(tmpl, {
-            'edu.degree':    escHtml(v.degree ?? ''),
-            'edu.school':    escHtml(v.school ?? ''),
-            'edu.startDate': fmtDate(v.startDate),
-            'edu.endDate':   v.endDate ? fmtDate(v.endDate) : '',
-            'edu.dateRange': dateRange(v.startDate, v.endDate === '' ? undefined : v.endDate),
-          });
-        })
-        .join('');
-    },
-  );
+  out = renderLoop(out, 'education', eduSection?.entries ?? [], (tmpl, e) => {
+    const v = (e.values ?? {}) as Record<string, string>;
+    return interpolate(tmpl, {
+      'edu.degree':    escHtml(v.degree ?? ''),
+      'edu.school':    escHtml(v.school ?? ''),
+      'edu.startDate': fmtDate(v.startDate),
+      'edu.endDate':   v.endDate ? fmtDate(v.endDate) : '',
+      'edu.dateRange': dateRange(v.startDate, v.endDate === '' ? undefined : v.endDate),
+    });
+  });
 
   // ── {{#skills}} ... {{/skills}} ──────────────────────────────────────────
   const skillsSection = resume.sections.find((s) => s.type === 'skills');
-  out = out.replace(
-    /\{\{#skills\}\}([\s\S]*?)\{\{\/skills\}\}/g,
-    (_, tmpl) => {
-      if (!skillsSection?.entries.length) return '';
-      return skillsSection.entries
-        .map((e) => {
-          const v = (e.values ?? {}) as Record<string, string>;
-          return interpolate(tmpl, { 'skill.name': escHtml(v.name ?? '') });
-        })
-        .join('');
-    },
-  );
+  out = renderLoop(out, 'skills', skillsSection?.entries ?? [], (tmpl, e) => {
+    const v = (e.values ?? {}) as Record<string, string>;
+    return interpolate(tmpl, { 'skill.name': escHtml(v.name ?? '') });
+  });
 
   // ── {{#certifications}} ... {{/certifications}} ──────────────────────────
   const certSection = resume.sections.find((s) => s.type === 'certifications');

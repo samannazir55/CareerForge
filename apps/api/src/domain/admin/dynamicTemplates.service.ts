@@ -1,7 +1,6 @@
 import { prisma } from '../../lib/prisma.js';
 import { recordAuditLog } from './auditLog.js';
 import { NotFoundError, BadRequestError } from '../../lib/errors.js';
-import { validateTemplateHtml } from './templateValidation.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -70,14 +69,6 @@ export const dynamicTemplatesService = {
   async create(adminId: string, input: CreateDynamicTemplateInput) {
     validateSlug(input.slug);
 
-    const htmlErrors = validateTemplateHtml(input.templateHtml);
-    if (htmlErrors.length > 0) {
-      throw new BadRequestError(
-        'Template HTML has unbalanced placeholder tags:\n' +
-          htmlErrors.map((e) => '- ' + e.message).join('\n'),
-      );
-    }
-
     const existing = await prisma.dynamicTemplate.findUnique({
       where: { slug: input.slug },
     });
@@ -112,16 +103,6 @@ export const dynamicTemplatesService = {
     await dynamicTemplatesService.getById(id); // throws 404 if missing
 
     if (input.slug) validateSlug(input.slug);
-
-    if (input.templateHtml !== undefined) {
-      const htmlErrors = validateTemplateHtml(input.templateHtml);
-      if (htmlErrors.length > 0) {
-        throw new BadRequestError(
-          'Template HTML has unbalanced placeholder tags:\n' +
-            htmlErrors.map((e) => '- ' + e.message).join('\n'),
-        );
-      }
-    }
 
     const template = await prisma.dynamicTemplate.update({
       where: { id },
