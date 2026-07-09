@@ -13,7 +13,8 @@
  * FLAGS
  *   --count=1500        how many templates to generate (default 1500)
  *   --concurrency=3      parallel AI calls in flight at once (default 3 —
- *                        raise cautiously, Anthropic rate limits apply)
+ *                        raise cautiously, your configured AI_PROVIDER's
+ *                        rate limits apply -- GROQ, OpenRouter, or Anthropic)
  *   --admin-email=...    which admin user to attribute these to in the
  *                        audit log (default: first ADMIN user found)
  *   --seed=42            shuffle seed for picking combinations — reuse the
@@ -31,13 +32,15 @@
  *   is usually transient (rate limit, a parse miss).
  */
 
-import Anthropic from '@anthropic-ai/sdk';
 import * as fs from 'node:fs';
 import * as readline from 'node:readline';
+import { fileURLToPath } from 'node:url';
+import { TEMPLATE_FAMILIES } from '@careerforge/schema';
 import '../src/config/env.js';
 import { prisma } from '../src/lib/prisma.js';
-import { generateTemplateWithAI } from '../src/domain/admin/templateGeneration.js';
+import { generateTemplateViaProvider } from '../src/domain/admin/templateGeneration.js';
 import { dynamicTemplatesService } from '../src/domain/admin/dynamicTemplates.service.js';
+import { aiProvider } from '../src/domain/ai/index.js';
 
 // ---------------------------------------------------------------------------
 // CLI args
@@ -56,7 +59,7 @@ const args = parseArgs(process.argv.slice(2));
 const COUNT = Number(args.count ?? 1500);
 const CONCURRENCY = Math.max(1, Number(args.concurrency ?? 3));
 const SEED = Number(args.seed ?? 42);
-const LOG_PATH = String(args.log ?? new URL('./bulk-generate-log.jsonl', import.meta.url).pathname);
+const LOG_PATH = String(args.log ?? fileURLToPath(new URL('./bulk-generate-log.jsonl', import.meta.url)));
 const DRY_RUN = Boolean(args['dry-run']);
 const SKIP_CONFIRM = Boolean(args.yes);
 const ADMIN_EMAIL = typeof args['admin-email'] === 'string' ? args['admin-email'] : undefined;
@@ -135,18 +138,50 @@ const MOODS = [
   'handcrafted and artisanal',
 ];
 
-const TOTAL_COMBOS = LAYOUTS.length * NEUTRAL_TONES.length * TYPE_PAIRINGS.length * PERSONAS.length * MOODS.length;
+// The real design-family taxonomy (executive/minimal/creative/academic/
+// technical/luxury/portfolio/modern/classic) used to filter/tag templates
+// in the marketplace. Previously this script never set `family` on the
+// rows it created, so every single one silently defaulted to 'modern'
+// (dynamicTemplatesService.create's fallback) regardless of what persona/
+// mood it was actually generated for -- the other 8 families never got
+// used by the bulk generator at all. Looping over TEMPLATE_FAMILIES here,
+// and folding each family's own `brief` into the generation prompt (the
+// same brief text the admin panel's family dropdown uses to steer a
+// manual generation), keeps the *label* and the *actual design* in sync
+// instead of tagging an arbitrary layout as a family it doesn't resemble.
+const FAMILIES = TEMPLATE_FAMILIES;
 
-function comboAt(index: number): { brief: string; key: string } {
+const TOTAL_COMBOS =
+  LAYOUTS.length * NEUTRAL_TONES.length * TYPE_PAIRINGS.length * PERSONAS.length * MOODS.length * FAMILIES.length;
+
+// Three point tiers premium templates rotate through. Previously every row
+// got pointsCost=0 because this script never passed pointsCost to create()
+// at all -- dynamicTemplatesService.create's `input.pointsCost ?? 0`
+// fallback silently applied to all 1500 rows. Free-category templates
+// still cost 0 regardless (handled in the worker below); this only applies
+// to rows the AI marks as 'premium'.
+const PREMIUM_POINT_TIERS = [40, 45, 50];
+
+/** Deterministic per-index pick so re-running with the same --seed
+ * reproduces the same point assignment too, not just the same combos. */
+function pointsForIndex(index: number): number {
+  const rand = mulberry32(index + 1);
+  return PREMIUM_POINT_TIERS[Math.floor(rand() * PREMIUM_POINT_TIERS.length)];
+}
+
+function comboAt(index: number): { brief: string; key: string; familyId: string } {
   let n = index;
+  const family = FAMILIES[n % FAMILIES.length]; n = Math.floor(n / FAMILIES.length);
   const mood = MOODS[n % MOODS.length]; n = Math.floor(n / MOODS.length);
   const persona = PERSONAS[n % PERSONAS.length]; n = Math.floor(n / PERSONAS.length);
   const type = TYPE_PAIRINGS[n % TYPE_PAIRINGS.length]; n = Math.floor(n / TYPE_PAIRINGS.length);
   const tone = NEUTRAL_TONES[n % NEUTRAL_TONES.length]; n = Math.floor(n / NEUTRAL_TONES.length);
   const layout = LAYOUTS[n % LAYOUTS.length];
 
-  const brief = `${layout}, ${tone}, ${type} typography, for ${persona}, ${mood} mood.`;
-  return { brief, key: `${index}` };
+  const brief =
+    `${family.label} family (${family.brief}) — ${layout}, ${tone}, ${type} typography, ` +
+    `for ${persona}, ${mood} mood.`;
+  return { brief, key: `${index}`, familyId: family.id };
 }
 
 // Deterministic seeded shuffle (mulberry32) — same --seed always produces
@@ -255,9 +290,10 @@ async function main() {
   console.log(`Attributing to admin: ${admin.email} (${admin.id})`);
   console.log(`Concurrency: ${CONCURRENCY}  ·  Log file: ${LOG_PATH}  ·  Dry run: ${DRY_RUN}`);
   console.log(
-    `\nHeads up: this makes ${pending.length} calls to Claude Sonnet with a ~16k output-token ceiling each. ` +
-    `That's a real, non-trivial API cost and will likely take multiple hours at this concurrency — check ` +
-    `Anthropic's current pricing before committing to a large --count, and consider a small test run first ` +
+    `\nHeads up: this makes ${pending.length} calls to your configured AI provider with a ~16k output-token ` +
+    `ceiling each. That's a real, non-trivial API cost/quota usage and will likely take multiple hours at this ` +
+    `concurrency — check your provider's current pricing/rate limits before committing to a large --count, ` +
+    `and consider a small test run first ` +
     `(--count=5 --yes) to sanity-check output before spending the full budget.\n`,
   );
 
@@ -272,7 +308,6 @@ async function main() {
     return;
   }
 
-  const client = new Anthropic();
   let cursor = 0;
   let successCount = 0;
   let failCount = 0;
@@ -283,14 +318,14 @@ async function main() {
       const myIndex = cursor++;
       if (myIndex >= pending.length) return;
       const comboIndex = pending[myIndex];
-      const { brief, key } = comboAt(comboIndex);
+      const { brief, key, familyId } = comboAt(comboIndex);
 
       const label = `[${myIndex + 1}/${pending.length}]`;
       let lastError: unknown;
 
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          const generated = await generateTemplateWithAI(client, brief);
+          const generated = await generateTemplateViaProvider(aiProvider, brief);
 
           if (DRY_RUN) {
             console.log(`${label} ✓ (dry-run) "${generated.name}" — ${brief}`);
@@ -314,6 +349,8 @@ async function main() {
                 name: generated.name,
                 slug: slugAttempt,
                 category: generated.category,
+                family: familyId,
+                pointsCost: generated.category === 'premium' ? pointsForIndex(comboIndex) : 0,
                 templateHtml: generated.html,
                 promptUsed: brief,
                 displayOrder: nextDisplayOrder++,

@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { validateTemplateHtml } from './templateValidation.js';
 
 export interface GeneratedTemplate {
   name: string;
@@ -332,6 +333,13 @@ export async function generateTemplateWithAI(client: Anthropic, brief: string): 
   if (!parsed) {
     throw new Error('AI response was missing required sections. Try again, or use a more specific prompt.');
   }
+  const validationErrors = validateTemplateHtml(parsed.html);
+  if (validationErrors.length > 0) {
+    throw new Error(
+      'Generated template has unsupported/broken placeholder tags -- try again:\n' +
+        validationErrors.map((e) => '- ' + e.message).join('\n'),
+    );
+  }
   return parsed;
 }
 
@@ -354,6 +362,13 @@ export async function generateTemplateViaProvider(
   const parsed = parseGeneratedTemplateResponse(raw);
   if (!parsed) {
     throw new Error('AI response was missing required sections. Try again, or use a more specific prompt.');
+  }
+  const validationErrors = validateTemplateHtml(parsed.html);
+  if (validationErrors.length > 0) {
+    throw new Error(
+      'Generated template has unsupported/broken placeholder tags -- try again:\n' +
+        validationErrors.map((e) => '- ' + e.message).join('\n'),
+    );
   }
   return parsed;
 }
