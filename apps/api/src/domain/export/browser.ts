@@ -48,6 +48,19 @@ export async function getBrowser(): Promise<import('puppeteer-core').Browser> {
           // renderer ... Permission denied (13)" before ever reaching a
           // working page. --no-zygote skips that fork model entirely.
           '--no-zygote',
+          // On a memory-constrained container (e.g. Render's free 512MB
+          // tier), Chrome's normal multi-process model (separate zygote,
+          // GPU, and renderer processes) can get OOM-killed by the
+          // container before it ever finishes launching, with no specific
+          // Chrome-side error message — just a bare "Failed to launch the
+          // browser process!" after the usual harmless dbus/crashpad
+          // noise. --single-process runs everything in one OS process,
+          // cutting the memory footprint substantially. Trade-off: PDF
+          // renders are serialized rather than parallel across concurrent
+          // export requests — an acceptable cost for this feature's
+          // traffic level, and worth it if it's what makes launch succeed
+          // at all on a constrained plan.
+          '--single-process',
           // Crash reporting isn't useful in this environment (no crashpad
           // service to report to) and its startup errors add noise to the
           // logs; this is a standard, well-supported Chromium flag.
