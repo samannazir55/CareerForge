@@ -61,6 +61,27 @@ export async function getBrowser(): Promise<import('puppeteer-core').Browser> {
           // traffic level, and worth it if it's what makes launch succeed
           // at all on a constrained plan.
           '--single-process',
+          // The rest of this list is the well-known "minimal footprint" flag
+          // set used by chrome-aws-lambda and similar Puppeteer-on-a-
+          // constrained-container setups — each one turns off a subsystem
+          // Chrome would otherwise initialize (background networking,
+          // extensions, sync, translate, default-apps, software rasterizer
+          // fallback, audio) that isn't needed for headless PDF rendering
+          // but still costs memory to set up.
+          '--disable-background-networking',
+          '--disable-background-timer-throttling',
+          '--disable-backgrounding-occluded-windows',
+          '--disable-breakpad',
+          '--disable-component-extensions-with-background-pages',
+          '--disable-default-apps',
+          '--disable-extensions',
+          '--disable-renderer-backgrounding',
+          '--disable-software-rasterizer',
+          '--disable-sync',
+          '--disable-translate',
+          '--metrics-recording-only',
+          '--mute-audio',
+          '--no-first-run',
           // Crash reporting isn't useful in this environment (no crashpad
           // service to report to) and its startup errors add noise to the
           // logs; this is a standard, well-supported Chromium flag.
