@@ -30,15 +30,26 @@ export function FieldInput({ field, value, onChange }: FieldInputProps) {
         </div>
       );
 
-    case 'date':
+    case 'date': {
+      // The native <input type="month"> only accepts a real yyyy-MM value
+      // (4-digit year that isn't "0000", month 01–12) — anything else
+      // (e.g. a stray "0000-01" that ended up in stored data) makes Chrome
+      // log a console warning on every render without actually displaying
+      // it. Falling back to '' here means bad existing data shows as an
+      // empty field instead of spamming the console; the user can just
+      // re-enter the date if the field looks unexpectedly blank.
+      const monthValue = /^\d{4}-(0[1-9]|1[0-2])$/.test(stringValue) && !stringValue.startsWith('0000')
+        ? stringValue
+        : '';
       return (
         <Input
           label={field.label}
           type="month"
-          value={stringValue}
+          value={monthValue}
           onChange={(e: ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
         />
       );
+    }
 
     case 'url':
       return (

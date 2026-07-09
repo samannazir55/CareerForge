@@ -104,10 +104,15 @@ function interpolate(snippet: string, vars: Record<string, string>): string {
 
 function fmtDate(ym?: string): string {
   if (!ym) return '';
-  const [year, month] = ym.split('-');
-  if (!year) return '';
-  if (!month) return year;
-  const d = new Date(Number(year), Number(month) - 1);
+  // Strict yyyy-MM: a real 4-digit year (not "0000") and a valid month
+  // 01–12 — matches what the native month input actually accepts. Anything
+  // else (a malformed/placeholder value like "0000-01" that somehow ended
+  // up stored, possibly AI-invented for an "unknown" date) is treated as
+  // no date at all rather than rendered as a wrong one (new Date(0, 0)
+  // silently resolves to Jan 1900, which is worse than showing nothing).
+  const match = ym.match(/^(\d{4})-(0[1-9]|1[0-2])$/);
+  if (!match || match[1] === '0000') return '';
+  const d = new Date(Number(match[1]), Number(match[2]) - 1);
   return d.toLocaleString('en-US', { month: 'short', year: 'numeric' });
 }
 

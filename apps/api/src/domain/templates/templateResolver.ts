@@ -42,7 +42,23 @@ export interface ResolvedTemplate {
   buildDocx: ((resume: Resume) => Promise<Buffer>) | null;
 }
 
-export async function resolveTemplate(templateId: string): Promise<ResolvedTemplate> {
+export async function resolveTemplate(templateId: string | null | undefined): Promise<ResolvedTemplate> {
+  // Defense in depth: every call site should already pass a real string
+  // (falling back to 'modern' themselves), but if one doesn't, resolve
+  // straight to Modern here rather than passing an empty/undefined value
+  // into a Prisma query — Prisma throws a validation error for that, which
+  // would otherwise surface as an unexplained 500 on export.
+  if (!templateId) {
+    const fallback = getCodeTemplate('modern');
+    return {
+      id: fallback.id,
+      isDynamic: false,
+      isPremium: false,
+      renderHtml: (resume) => fallback.renderHtml(resume),
+      buildDocx: (resume) => fallback.buildDocx(resume),
+    };
+  }
+
   // 1. Code-registered template (modern, classic, …) — exact match only.
   if (CODE_TEMPLATE_IDS.has(templateId)) {
     const template = getCodeTemplate(templateId);

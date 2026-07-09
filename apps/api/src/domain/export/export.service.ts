@@ -67,7 +67,7 @@ export async function exportResume(
     payload: { id: row.id, ownerId: row.ownerId, title: row.title, theme: row.theme, sections: row.sections, schemaVersion: row.schemaVersion, migrationVersion: row.migrationVersion, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() },
   });
 
-  const templateId = (resume.theme as { templateId: string }).templateId;
+  const templateId = (resume.theme as { templateId?: string } | null | undefined)?.templateId ?? 'modern';
   const template = await resolveTemplate(templateId);
   if (template.id !== templateId) {
     // Fallback was used — log so it's visible in monitoring

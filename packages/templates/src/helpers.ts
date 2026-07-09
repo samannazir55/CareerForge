@@ -26,11 +26,14 @@ export function richTextToHtml(text: string): string {
 }
 
 /** Formats a month-input value (YYYY-MM) to a human-readable string.
- * Returns the raw value unchanged if it doesn't match the expected format. */
+ * Returns '' for anything that isn't a real yyyy-MM value — a genuine
+ * 4-digit year (not "0000") and a valid month (01–12) — rather than
+ * silently rendering a malformed/placeholder value as a wrong date
+ * (new Date(0, 0) resolves to Jan 1900, which is worse than blank). */
 export function formatDate(value: string | undefined): string {
   if (!value) return '';
-  const match = value.match(/^(\d{4})-(\d{2})$/);
-  if (!match) return value;
+  const match = value.match(/^(\d{4})-(0[1-9]|1[0-2])$/);
+  if (!match || match[1] === '0000') return '';
   const date = new Date(parseInt(match[1]), parseInt(match[2]) - 1);
   return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 }
