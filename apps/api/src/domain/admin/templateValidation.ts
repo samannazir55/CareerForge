@@ -5,27 +5,27 @@
 // implements — not just "are the tags balanced". Balance alone misses real
 // bugs we've actually seen in AI-generated templates:
 //
-//   {{#jobTitle}}...{{/jobTitle}}       — balanced, but "jobTitle" isn't a
-//                                          registered loop tag, so it never
-//                                          renders and sits as dead text.
-//   {{#if location}}...{{/if}}          — balanced-looking, but the renderer's
-//                                          conditional regex requires the
-//                                          closing tag to repeat the exact
-//                                          key ({{/if location}}); a bare
-//                                          {{/if}} never matches.
-//   {{#if exp.location}}...{{/if ...}}  — conditionals only evaluate against
-//                                          top-level scalars, BEFORE per-entry
-//                                          loop data exists. Using one on a
-//                                          loop-item field can never work,
-//                                          no matter how it's closed.
-//   {{#each x.split '\n'}}...{{/each}}  — invented syntax with no renderer
-//                                          support at all; balanced, but
-//                                          categorically unimplementable.
-//
-// All four are balanced open/close pairs, so a pure count-based check (the
-// previous version of this file) passes every one of them. This version
-// instead checks tag names and conditional keys against exactly what
-// dynamicTemplateRenderer.ts is capable of rendering.
+//   {{#jobTitle}}...{{/jobTitle}}       — balanced, but "jobTitle" wasn't a
+//                                          registered loop tag (now valid --
+//                                          renderer treats bare {{#scalar}}
+//                                          as a truthy conditional).
+//   {{#if location}}...{{/if}}          — balanced-looking; now valid, the
+//                                          renderer accepts a bare {{/if}}.
+//   {{#if exp.description}}...{{/if}}   — now ALSO valid: renderer resolves
+//   {{#exp.description}}...{{/...}}       per-entry conditionals using that
+//                                          item's own field map (see
+//                                          renderScalarConditionals calls
+//                                          inside each renderLoop callback).
+//   {{#each x.split '\n'}}...{{/each}}  — still invented syntax with no
+//                                          renderer support; still rejected.
+//   {{#project.date}}...{{/...}}        — still rejected: "project.date"
+//                                          isn't a real field (only project.
+//                                          name/description/url exist) —
+//                                          fabricating a plausible-looking
+//                                          per-entry field name is just as
+//                                          broken as fabricating a top-level
+//                                          one, so this still needs an
+//                                          allowlist, not just balance.
 // ---------------------------------------------------------------------------
 
 export interface TemplateValidationError {
@@ -48,12 +48,28 @@ const ALLOWED_LOOP_TAGS = new Set([
 ]);
 
 // Keep in sync with the `scalars` object in dynamicTemplateRenderer.ts —
-// these are the ONLY keys {{#if key}} can ever evaluate truthily, since
-// conditionals run once, globally, before any per-entry loop data exists.
+// these are the fields available at the top level, before any loop runs.
 const ALLOWED_CONDITIONAL_KEYS = new Set([
   'name', 'jobTitle', 'email', 'phone', 'location', 'linkedin', 'website',
   'summary', 'accentColor', 'accentColorSoft', 'accentColorDark',
 ]);
+
+// Keep in sync with every `fields` map built inside each renderLoop callback
+// in dynamicTemplateRenderer.ts — these are the ONLY per-entry fields that
+// genuinely exist on a loop item, and therefore the only dotted keys a
+// per-entry conditional can legitimately reference.
+const ALLOWED_ITEM_FIELDS = new Set([
+  'exp.title', 'exp.company', 'exp.location', 'exp.startDate', 'exp.endDate', 'exp.dateRange', 'exp.description',
+  'edu.degree', 'edu.school', 'edu.startDate', 'edu.endDate', 'edu.dateRange',
+  'skill.name',
+  'cert.name', 'cert.issuer', 'cert.date',
+  'project.name', 'project.description', 'project.url',
+  'lang.name', 'lang.proficiency',
+  'ref.name', 'ref.relationship', 'ref.contact',
+  'section.title',
+  'entry.fields',
+]);
+
 
 /**
  * Validates templateHtml against exactly what dynamicTemplateRenderer.ts
@@ -77,13 +93,12 @@ export function validateTemplateHtml(templateHtml: string): TemplateValidationEr
     ifOpenCount++;
     const key = m[1];
     if (key.includes('.')) {
-      errors.push({
-        tag: `if ${key}`,
-        message:
-          `{{#if ${key}}} conditionally shows a loop-item field, but conditionals only run once, ` +
-          `globally, before any per-entry data exists — this can never work. Remove the ` +
-          `conditional; the field will already render as empty text if it has no value.`,
-      });
+      if (!ALLOWED_ITEM_FIELDS.has(key)) {
+        errors.push({
+          tag: `if ${key}`,
+          message: `{{#if ${key}}} — "${key}" isn't a real per-entry field. Valid per-entry fields: ${[...ALLOWED_ITEM_FIELDS].join(', ')}.`,
+        });
+      }
       continue;
     }
     if (!ALLOWED_CONDITIONAL_KEYS.has(key)) {
@@ -127,13 +142,14 @@ export function validateTemplateHtml(templateHtml: string): TemplateValidationEr
   }
 
   for (const tag of seenTags) {
-    if (!ALLOWED_LOOP_TAGS.has(tag) && !ALLOWED_CONDITIONAL_KEYS.has(tag)) {
+    if (!ALLOWED_LOOP_TAGS.has(tag) && !ALLOWED_CONDITIONAL_KEYS.has(tag) && !ALLOWED_ITEM_FIELDS.has(tag)) {
       errors.push({
         tag,
         message:
           `{{#${tag}}} isn't a construct this renderer implements — it will never render, no matter ` +
           `how it's written. Supported loop tags: ${[...ALLOWED_LOOP_TAGS].filter((t) => t !== 'experience').join(', ')}. ` +
-          `Supported conditional fields: ${[...ALLOWED_CONDITIONAL_KEYS].join(', ')}.`,
+          `Supported conditional fields: ${[...ALLOWED_CONDITIONAL_KEYS].join(', ')}. ` +
+          `Supported per-entry fields: ${[...ALLOWED_ITEM_FIELDS].join(', ')}.`,
       });
       continue;
     }

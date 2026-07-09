@@ -253,6 +253,31 @@ function renderConditionals(source: string, scalars: Record<string, string>): st
   return out;
 }
 
+/**
+ * Resolves BOTH conditional forms — {{#if key}}...{{/if}} and bare
+ * {{#key}}...{{/key}} — against any key-value map. Originally only used
+ * for the top-level scalars (name, jobTitle, etc). Now also called from
+ * inside each loop's per-item callback with that item's own values map
+ * (exp.description, project.url, etc) — see renderLoop calls below. This
+ * is what makes {{#exp.description}}...{{/exp.description}} legitimately
+ * work now: previously conditionals only ever evaluated once, globally,
+ * before any per-entry data existed, so a per-entry conditional could
+ * never fire no matter how it was written. Calling this same resolver a
+ * second time, per item, with that item's own field map, means it now
+ * genuinely can.
+ */
+function renderScalarConditionals(html: string, values: Record<string, string>): string {
+  let out = renderConditionals(html, values);
+  for (const key of Object.keys(values)) {
+    while (true) {
+      const block = extractBlock(out, [key]);
+      if (!block) break;
+      out = out.slice(0, block.index) + (values[key] ? block.inner : '') + out.slice(block.index + block.match.length);
+    }
+  }
+  return out;
+}
+
 function renderLoop<T>(
   source: string,
   tagNames: string | string[],
@@ -342,42 +367,21 @@ export function renderDynamicTemplate(templateHtml: string, resume: Resume): str
     out = out.replaceAll(`{{${k}}}`, v);
   }
 
-  // ── Conditionals  {{#if key}} ... {{/if key}}  OR  {{#if key}} ... {{/if}} ──
-  // Deliberately lenient about the closing tag: real Handlebars closes any
-  // block with a bare {{/if}}, and that's what models trained on real
-  // Handlebars overwhelmingly write regardless of how explicitly the
-  // system prompt asks for a repeated key. In practice, requiring the exact
-  // repeated-key form meant nearly every generation failed validation on
-  // this alone. Matching the model's natural output is far more reliable
-  // than continuing to demand a stricter syntax it won't consistently
-  // produce -- see extractIfBlock below.
-  out = renderConditionals(out, scalars);
-
-  // ── Bare {{#scalarField}} ... {{/scalarField}} as a conditional ───────────
-  // Real Handlebars uses the exact same {{#x}}...{{/x}} syntax for both
-  // "loop over an array" and "show this block if x is truthy" -- there's no
-  // separate #if form required for a plain boolean/string check. Models
-  // very often reach for this simpler, more idiomatic form for an optional
-  // scalar field (e.g. {{#jobTitle}}...{{/jobTitle}}) instead of the more
-  // verbose {{#if jobTitle}}. Previously this was ALWAYS dead literal text,
-  // since "jobTitle" was never a registered loop tag. Supporting it here,
-  // for every known scalar key, removes an entire class of "didn't match
-  // our house style" failures instead of continuing to reject and retry
-  // them. Reuses extractBlock -- the same depth-aware matcher the loop
-  // tags below already rely on -- so nesting is handled identically.
-  for (const key of Object.keys(scalars)) {
-    while (true) {
-      const block = extractBlock(out, [key]);
-      if (!block) break;
-      out = out.slice(0, block.index) + (scalars[key] ? block.inner : '') + out.slice(block.index + block.match.length);
-    }
-  }
+  // ── Conditionals — both {{#if key}}...{{/if}} and bare {{#key}}...{{/key}} ─
+  // Deliberately lenient: real Handlebars closes any block with a bare
+  // {{/if}}, and uses the exact same {{#x}}...{{/x}} syntax for both looping
+  // and a plain truthy check — no separate #if form required. That's what
+  // models trained on real Handlebars overwhelmingly write regardless of
+  // how explicitly the system prompt asks for something stricter. Matching
+  // the model's natural output is far more reliable than continuing to
+  // demand a syntax it won't consistently produce. See renderScalarConditionals.
+  out = renderScalarConditionals(out, scalars);
 
   // ── {{#experiences}} ... {{/experiences}} ────────────────────────────────
   const expSection = resume.sections.find((s) => s.type === 'experience');
   out = renderLoop(out, ['experiences', 'experience'], expSection?.entries ?? [], (tmpl, e) => {
     const v = (e.values ?? {}) as Record<string, string>;
-    return interpolate(tmpl, {
+    const fields = {
       'exp.title':       escHtml(v.title    ?? ''),
       'exp.company':     escHtml(v.company  ?? ''),
       'exp.location':    escHtml(v.location ?? ''),
@@ -386,70 +390,77 @@ export function renderDynamicTemplate(templateHtml: string, resume: Resume): str
       'exp.dateRange':   dateRange(v.startDate, v.endDate),
       // description may contain \n — convert to <br> for HTML output
       'exp.description': (v.description ?? '').replace(/\n/g, '<br>'),
-    });
+    };
+    return interpolate(renderScalarConditionals(tmpl, fields), fields);
   });
 
   // ── {{#education}} ... {{/education}} ────────────────────────────────────
   const eduSection = resume.sections.find((s) => s.type === 'education');
   out = renderLoop(out, 'education', eduSection?.entries ?? [], (tmpl, e) => {
     const v = (e.values ?? {}) as Record<string, string>;
-    return interpolate(tmpl, {
+    const fields = {
       'edu.degree':    escHtml(v.degree ?? ''),
       'edu.school':    escHtml(v.school ?? ''),
       'edu.startDate': fmtDate(v.startDate),
       'edu.endDate':   v.endDate ? fmtDate(v.endDate) : '',
       'edu.dateRange': dateRange(v.startDate, v.endDate === '' ? undefined : v.endDate),
-    });
+    };
+    return interpolate(renderScalarConditionals(tmpl, fields), fields);
   });
 
   // ── {{#skills}} ... {{/skills}} ──────────────────────────────────────────
   const skillsSection = resume.sections.find((s) => s.type === 'skills');
   out = renderLoop(out, 'skills', skillsSection?.entries ?? [], (tmpl, e) => {
     const v = (e.values ?? {}) as Record<string, string>;
-    return interpolate(tmpl, { 'skill.name': escHtml(v.name ?? '') });
+    const fields = { 'skill.name': escHtml(v.name ?? '') };
+    return interpolate(renderScalarConditionals(tmpl, fields), fields);
   });
 
   // ── {{#certifications}} ... {{/certifications}} ──────────────────────────
   const certSection = resume.sections.find((s) => s.type === 'certifications');
   out = renderLoop(out, 'certifications', certSection?.entries ?? [], (tmpl, e) => {
     const v = (e.values ?? {}) as Record<string, string>;
-    return interpolate(tmpl, {
+    const fields = {
       'cert.name':   escHtml(v.name   ?? ''),
       'cert.issuer': escHtml(v.issuer ?? ''),
       'cert.date':   fmtDate(v.date),
-    });
+    };
+    return interpolate(renderScalarConditionals(tmpl, fields), fields);
   });
 
   // ── {{#projects}} ... {{/projects}} ──────────────────────────────────────
   const projectsSection = resume.sections.find((s) => s.type === 'projects');
   out = renderLoop(out, 'projects', projectsSection?.entries ?? [], (tmpl, e) => {
     const v = (e.values ?? {}) as Record<string, string>;
-    return interpolate(tmpl, {
+    const fields = {
       'project.name':        escHtml(v.name ?? ''),
       'project.description': (v.description ?? '').replace(/\n/g, '<br>'),
       'project.url':         escHtml(v.url ?? ''),
-    });
+    };
+    return interpolate(renderScalarConditionals(tmpl, fields), fields);
   });
 
   // ── {{#languages}} ... {{/languages}} ────────────────────────────────────
   const languagesSection = resume.sections.find((s) => s.type === 'languages');
   out = renderLoop(out, 'languages', languagesSection?.entries ?? [], (tmpl, e) => {
     const v = (e.values ?? {}) as Record<string, string>;
-    return interpolate(tmpl, {
+    const fields = {
       'lang.name':        escHtml(v.name ?? ''),
       'lang.proficiency': escHtml(v.proficiency ?? ''),
-    });
+    };
+    return interpolate(renderScalarConditionals(tmpl, fields), fields);
   });
 
   // ── {{#references}} ... {{/references}} ──────────────────────────────────
   const referencesSection = resume.sections.find((s) => s.type === 'references');
   out = renderLoop(out, 'references', referencesSection?.entries ?? [], (tmpl, e) => {
     const v = (e.values ?? {}) as Record<string, string>;
-    return interpolate(tmpl, {
+    const fields = {
       'ref.name':         escHtml(v.name ?? ''),
       'ref.relationship': escHtml(v.relationship ?? ''),
       'ref.contact':      escHtml(v.contact ?? ''),
-    });
+    };
+    return interpolate(renderScalarConditionals(tmpl, fields), fields);
   });
 
   // ── {{#customSections}} ... {{/customSections}} ─────────────────────────
@@ -461,12 +472,12 @@ export function renderDynamicTemplate(templateHtml: string, resume: Resume): str
   // entry, each already-flattened to HTML via {{entry.fields}}.
   const customSections = resume.sections.filter((s) => s.type === 'custom');
   out = renderLoop(out, 'customSections', customSections, (tmpl, section) => {
-    const withTitle = tmpl.replace(/\{\{section\.title\}\}/g, escHtml(section.title ?? ''));
-    return renderLoop(withTitle, 'entries', section.entries ?? [], (entryTmpl, entry) =>
-      interpolate(entryTmpl, {
-        'entry.fields': renderEntryFieldsAsHtml(entry, section.fields ?? []),
-      }),
-    );
+    const sectionFields = { 'section.title': escHtml(section.title ?? '') };
+    const withTitle = interpolate(renderScalarConditionals(tmpl, sectionFields), sectionFields);
+    return renderLoop(withTitle, 'entries', section.entries ?? [], (entryTmpl, entry) => {
+      const entryFields = { 'entry.fields': renderEntryFieldsAsHtml(entry, section.fields ?? []) };
+      return interpolate(renderScalarConditionals(entryTmpl, entryFields), entryFields);
+    });
   });
 
   return out;
