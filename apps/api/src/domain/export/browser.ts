@@ -42,6 +42,16 @@ export async function getBrowser(): Promise<import('puppeteer-core').Browser> {
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage', // avoids /dev/shm size issues in containers
           '--disable-gpu',
+          // Render's container restricts the syscalls Chrome's zygote process
+          // uses to adjust a forked renderer's OOM score — without this flag,
+          // launch fails outright with "Failed to adjust OOM score of
+          // renderer ... Permission denied (13)" before ever reaching a
+          // working page. --no-zygote skips that fork model entirely.
+          '--no-zygote',
+          // Crash reporting isn't useful in this environment (no crashpad
+          // service to report to) and its startup errors add noise to the
+          // logs; this is a standard, well-supported Chromium flag.
+          '--disable-crash-reporter',
         ],
       });
     })();
