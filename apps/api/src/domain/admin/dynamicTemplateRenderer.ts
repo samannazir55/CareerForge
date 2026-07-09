@@ -197,6 +197,62 @@ function extractBlock(
  *            → the heading is kept exactly once (it's outside the inner
  *              repeater), and only the inner block repeats per item.
  */
+/**
+ * Finds the first {{#if KEY}} ... {{/if}} (or {{/if KEY}}) block, depth-aware
+ * across NESTED {{#if}} blocks of any key -- any {{/if...}} closes the
+ * innermost currently-open {{#if}}, whether or not it repeats the key.
+ * Deliberately lenient (see renderDynamicTemplate's conditional section for
+ * why): this accepts every closing form a model actually produces, rather
+ * than only the one form the system prompt originally asked for.
+ * Returns null if no {{#if}} is found, or if it's unbalanced (no matching
+ * close by end of string) -- an unbalanced block is left as literal text,
+ * same as an unbalanced loop tag.
+ */
+function extractIfBlock(source: string): { key: string; match: string; inner: string; index: number } | null {
+  const openMatch = source.match(/\{\{#if\s+([\w.]+)\}\}/);
+  if (!openMatch || openMatch.index === undefined) return null;
+
+  const key = openMatch[1];
+  const start = openMatch.index;
+  const tokenRe = /\{\{#if\s+[\w.]+\}\}|\{\{\/if(?:\s+[\w.]+)?\}\}/g;
+  tokenRe.lastIndex = start + openMatch[0].length;
+
+  let depth = 1;
+  let m: RegExpExecArray | null;
+  while ((m = tokenRe.exec(source))) {
+    if (m[0].startsWith('{{#if')) {
+      depth++;
+    } else {
+      depth--;
+      if (depth === 0) {
+        const end = m.index + m[0].length;
+        return {
+          key,
+          match: source.slice(start, end),
+          inner: source.slice(start + openMatch[0].length, m.index),
+          index: start,
+        };
+      }
+    }
+  }
+  return null;
+}
+
+/** Repeatedly extracts and resolves {{#if key}} blocks (innermost-first via
+ * recursion into `inner` before splicing back), dropping the block entirely
+ * when scalars[key] is falsy and keeping (recursively-resolved) inner
+ * content otherwise. */
+function renderConditionals(source: string, scalars: Record<string, string>): string {
+  let out = source;
+  while (true) {
+    const block = extractIfBlock(out);
+    if (!block) break;
+    const rendered = scalars[block.key] ? renderConditionals(block.inner, scalars) : '';
+    out = out.slice(0, block.index) + rendered + out.slice(block.index + block.match.length);
+  }
+  return out;
+}
+
 function renderLoop<T>(
   source: string,
   tagNames: string | string[],
@@ -286,11 +342,36 @@ export function renderDynamicTemplate(templateHtml: string, resume: Resume): str
     out = out.replaceAll(`{{${k}}}`, v);
   }
 
-  // ── Conditionals  {{#if key}} ... {{/if key}} ─────────────────────────────
-  out = out.replace(
-    /\{\{#if ([\w.]+)\}\}([\s\S]*?)\{\{\/if \1\}\}/g,
-    (_, key, inner) => (scalars[key] ? inner : ''),
-  );
+  // ── Conditionals  {{#if key}} ... {{/if key}}  OR  {{#if key}} ... {{/if}} ──
+  // Deliberately lenient about the closing tag: real Handlebars closes any
+  // block with a bare {{/if}}, and that's what models trained on real
+  // Handlebars overwhelmingly write regardless of how explicitly the
+  // system prompt asks for a repeated key. In practice, requiring the exact
+  // repeated-key form meant nearly every generation failed validation on
+  // this alone. Matching the model's natural output is far more reliable
+  // than continuing to demand a stricter syntax it won't consistently
+  // produce -- see extractIfBlock below.
+  out = renderConditionals(out, scalars);
+
+  // ── Bare {{#scalarField}} ... {{/scalarField}} as a conditional ───────────
+  // Real Handlebars uses the exact same {{#x}}...{{/x}} syntax for both
+  // "loop over an array" and "show this block if x is truthy" -- there's no
+  // separate #if form required for a plain boolean/string check. Models
+  // very often reach for this simpler, more idiomatic form for an optional
+  // scalar field (e.g. {{#jobTitle}}...{{/jobTitle}}) instead of the more
+  // verbose {{#if jobTitle}}. Previously this was ALWAYS dead literal text,
+  // since "jobTitle" was never a registered loop tag. Supporting it here,
+  // for every known scalar key, removes an entire class of "didn't match
+  // our house style" failures instead of continuing to reject and retry
+  // them. Reuses extractBlock -- the same depth-aware matcher the loop
+  // tags below already rely on -- so nesting is handled identically.
+  for (const key of Object.keys(scalars)) {
+    while (true) {
+      const block = extractBlock(out, [key]);
+      if (!block) break;
+      out = out.slice(0, block.index) + (scalars[key] ? block.inner : '') + out.slice(block.index + block.match.length);
+    }
+  }
 
   // ── {{#experiences}} ... {{/experiences}} ────────────────────────────────
   const expSection = resume.sections.find((s) => s.type === 'experience');

@@ -86,17 +86,21 @@ nothing under it will appear on real resumes that skip that section.
         text. This is not optional polish — every template must style these
         three classes, because any resume can contain a custom section.
 
-CONDITIONALS — {{#if key}} ... {{/if key}} — ONLY works on the SCALAR keys
-above (linkedin, website, phone, location, summary, jobTitle). It does NOT
-work inside a loop and does NOT work on loop-item fields — {{#if exp.location}}
-will not fire; do not write it, it will render as broken literal text.
-Use conditionals for things that might not exist at all on the person, e.g.:
-  {{#if linkedin}}<a href="{{linkedin}}">{{linkedin}}</a>{{/if linkedin}}
-  {{#if website}}<span class="sep">{{website}}</span>{{/if website}}
+CONDITIONALS — wrap an optional SCALAR field (linkedin, website, phone,
+location, summary, jobTitle — nothing else) in {{#key}} ... {{/key}}, exactly
+like a loop tag, e.g.:
+  {{#linkedin}}<a href="{{linkedin}}">{{linkedin}}</a>{{/linkedin}}
+  {{#website}}<span class="sep">{{website}}</span>{{/website}}
+({{#if key}} ... {{/if}} also works identically, if you prefer that form —
+either is fine, just close whatever you opened.)
+This does NOT work inside a loop and does NOT work on loop-item fields —
+{{#exp.location}} or {{#if exp.location}} will never fire; do not write
+either, they render as broken literal text. See the next section for why
+you don't need a conditional there anyway.
 
 LOOP-ITEM FIELDS CAN'T BE CONDITIONALLY HIDDEN — exp.location, cert.issuer,
 project.url, lang.proficiency, ref.relationship, ref.contact can all be an
-empty string on a per-entry basis, with no {{#if}} available inside a loop
+empty string on a per-entry basis, with no conditional available inside a loop
 to hide them. Never hardcode a separator glyph next to one of these fields —
 "{{exp.location}} · {{exp.dateRange}}" will render "· Jan 2020 – Present"
 with a dangling bullet when location is blank. Instead, put the separator
@@ -110,7 +114,10 @@ Apply this :empty pattern to every optional loop-item field you display
 inline (exp.location, cert.issuer, project.url, lang.proficiency,
 ref.relationship, ref.contact). Never wrap project.url in an <a href="">
 tag — it can be blank, producing a broken empty link — display it as plain
-text with the :empty pattern instead.
+text instead. Same reasoning for {{#each}} or any other loop/helper syntax
+that isn't listed above — this renderer only knows the tags in this prompt,
+nothing else, even if it looks like valid Handlebars. When in doubt, prefer
+the simplest possible tag over a more elaborate one.
 
 ════════════════════════════════════════════════════════════════
 2. WHERE THIS ACTUALLY RENDERS — non-negotiable production constraints
@@ -292,7 +299,20 @@ function extractSection(text: string, tag: string): string | null {
   return match ? match[1].trim() : null;
 }
 
-/** Parses a raw model response into a GeneratedTemplate, or null if any required section is missing. */
+/** Parses a raw model response into a GeneratedTemplate, or null if any required
+ * section is missing OR the response was truncated before finishing.
+ *
+ * The system prompt tells the model to end its response with a literal
+ * ===END=== marker as the 5th section. extractSection's fallback grabs to
+ * end-of-string when no next marker is found, which means a response that
+ * got cut off mid-HTML (hit the max_tokens ceiling before finishing) was
+ * previously accepted as "valid" -- non-empty, but genuinely incomplete
+ * (e.g. cut off inside <style>, never even reaching <body>). Neither the
+ * placeholder validator nor anything else downstream can catch this, since
+ * an incomplete document has no placeholder tags yet to be wrong about --
+ * it just silently renders blank. Requiring ===END=== to actually be
+ * present, and requiring the extracted HTML to end with </html>, catches
+ * this at the source instead. */
 export function parseGeneratedTemplateResponse(raw: string): GeneratedTemplate | null {
   const name = extractSection(raw, 'NAME');
   const slugRaw = extractSection(raw, 'SLUG');
@@ -300,6 +320,8 @@ export function parseGeneratedTemplateResponse(raw: string): GeneratedTemplate |
   const html = extractSection(raw, 'HTML');
 
   if (!name || !slugRaw || !html) return null;
+  if (!/\n===END===\s*$/.test(raw)) return null; // no END marker -> truncated before finishing
+  if (!/<\/html>\s*$/i.test(html.trim())) return null; // HTML itself never closed -> truncated mid-document
 
   return {
     name,

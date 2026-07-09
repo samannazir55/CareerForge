@@ -62,15 +62,19 @@ const ALLOWED_CONDITIONAL_KEYS = new Set([
 export function validateTemplateHtml(templateHtml: string): TemplateValidationError[] {
   const errors: TemplateValidationError[] = [];
 
-  // ── Conditionals: {{#if key}} ... {{/if key}} ─────────────────────────
-  // Renderer regex is literally /\{\{#if ([\w.]+)\}\}([\s\S]*?)\{\{\/if \1\}\}/g
-  // — a backreference requiring the exact same key on both sides. We check
-  // three things per {{#if key}} occurrence: the key is in the allowed
-  // scalar set, it's not a dotted per-entry field (exp.x / edu.x / etc,
-  // which can never work here regardless of spelling), and a matching
-  // {{/if key}} with that same exact key exists somewhere in the file.
+  // ── Conditionals: {{#if key}} ... {{/if}}  OR  {{#if key}} ... {{/if key}} ─
+  // The renderer (extractIfBlock/renderConditionals) now accepts EITHER
+  // closing form, depth-aware across nesting — matching real Handlebars,
+  // where a bare {{/if}} is completely standard. We still check that each
+  // key is a real, allowed scalar (not a per-entry field, which can never
+  // work here regardless of how it's closed), and that {{#if}} opens and
+  // {{/if...}} closes are globally balanced — an imbalance means the
+  // renderer's depth-aware matcher will hit an unclosed block somewhere
+  // and leave it as literal text, same as an unbalanced loop tag.
   const ifOpenRe = /\{\{#if\s+([\w.]+)\}\}/g;
+  let ifOpenCount = 0;
   for (const m of templateHtml.matchAll(ifOpenRe)) {
+    ifOpenCount++;
     const key = m[1];
     if (key.includes('.')) {
       errors.push({
@@ -87,32 +91,25 @@ export function validateTemplateHtml(templateHtml: string): TemplateValidationEr
         tag: `if ${key}`,
         message: `{{#if ${key}}} — "${key}" isn't a real field. Valid conditional keys: ${[...ALLOWED_CONDITIONAL_KEYS].join(', ')}.`,
       });
-      continue;
-    }
-    const closeTag = `{{/if ${key}}}`;
-    if (!templateHtml.includes(closeTag)) {
-      errors.push({
-        tag: `if ${key}`,
-        message: `{{#if ${key}}} has no matching {{/if ${key}}} — the closing tag must repeat the exact key (a bare {{/if}} will never match and both tags will render as literal text).`,
-      });
     }
   }
-
-  // Bare {{/if}} (no key) is always wrong — flag it even if there's no
-  // corresponding {{#if}} nearby, since it'll always render as dead text.
-  const bareIfCloseCount = (templateHtml.match(/\{\{\/if\}\}/g) ?? []).length;
-  if (bareIfCloseCount > 0) {
+  const ifCloseCount = (templateHtml.match(/\{\{\/if(?:\s+[\w.]+)?\}\}/g) ?? []).length;
+  if (ifOpenCount !== ifCloseCount) {
     errors.push({
       tag: 'if',
-      message: `Found ${bareIfCloseCount} occurrence(s) of {{/if}} with no key. Every {{#if key}} must close with {{/if key}}, repeating the same key.`,
+      message: `Found ${ifOpenCount} {{#if ...}} open(s) but ${ifCloseCount} {{/if...}} close(s) — unbalanced, one or more conditionals will render as literal text.`,
     });
   }
 
+
+
   // ── Loop tags: {{#tag}} ... {{/tag}} ───────────────────────────────────
-  // Any tag name here that isn't in ALLOWED_LOOP_TAGS is either a scalar
-  // used with the wrong syntax ({{#jobTitle}}) or invented syntax the
-  // renderer has never heard of ({{#each}}) — either way it will never
-  // render and needs to be caught before save, not balance-checked.
+  // A tag name here is valid if it's a real loop tag (ALLOWED_LOOP_TAGS)
+  // OR a real scalar field (ALLOWED_CONDITIONAL_KEYS) -- the renderer now
+  // treats a bare {{#scalarKey}}...{{/scalarKey}} as a truthy conditional,
+  // matching real Handlebars semantics (see dynamicTemplateRenderer.ts).
+  // Anything else ({{#each}}, {{#item}}, {{#this}}, a misspelled/invented
+  // tag) is never going to render, and needs to be caught before save.
   const openRe = /\{\{#(?!if\s)([\w.]+)\}\}/g;
   const closeRe = /\{\{\/(?!if\b)([\w.]+)\}\}/g;
 
@@ -130,12 +127,13 @@ export function validateTemplateHtml(templateHtml: string): TemplateValidationEr
   }
 
   for (const tag of seenTags) {
-    if (!ALLOWED_LOOP_TAGS.has(tag)) {
+    if (!ALLOWED_LOOP_TAGS.has(tag) && !ALLOWED_CONDITIONAL_KEYS.has(tag)) {
       errors.push({
         tag,
         message:
           `{{#${tag}}} isn't a construct this renderer implements — it will never render, no matter ` +
-          `how it's written. Supported loop tags: ${[...ALLOWED_LOOP_TAGS].filter((t) => t !== 'experience').join(', ')}.`,
+          `how it's written. Supported loop tags: ${[...ALLOWED_LOOP_TAGS].filter((t) => t !== 'experience').join(', ')}. ` +
+          `Supported conditional fields: ${[...ALLOWED_CONDITIONAL_KEYS].join(', ')}.`,
       });
       continue;
     }
