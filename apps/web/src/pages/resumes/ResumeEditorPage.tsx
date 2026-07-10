@@ -11,6 +11,7 @@ import { SectionCard } from '../../components/resume/SectionCard';
 import { ResumePreview } from '../../components/preview/ResumePreview';
 import { TemplateSwitcher } from '../../components/resume/TemplateSwitcher';
 import { AccentColorPicker } from '../../components/resume/AccentColorPicker';
+import { PhotoUploader } from '../../components/resume/PhotoUploader';
 import { AppShell } from '../../components/layout/AppShell';
 
 const ADDABLE_SECTION_TYPES: Array<{ value: Exclude<SectionType, 'custom'> | 'custom'; label: string }> = [
@@ -105,6 +106,10 @@ export function ResumeEditorPage() {
 
   function handleAccentColorChange(accentColor: string) {
     setTheme((t) => ({ ...t, accentColor }));
+  }
+
+  function handlePhotoChange(photoUrl: string | undefined) {
+    setTheme((t) => ({ ...t, photoUrl }));
   }
 
   async function handleSaveVersion() {
@@ -277,6 +282,12 @@ export function ResumeEditorPage() {
                         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Accent Color</p>
                         <AccentColorPicker value={theme.accentColor} onChange={handleAccentColorChange} />
                       </div>
+                      {id && (
+                        <div className="space-y-1.5">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Photo</p>
+                          <PhotoUploader resumeId={id} value={theme.photoUrl} onChange={handlePhotoChange} />
+                        </div>
+                      )}
                     </div>
                     <div ref={mobilePreviewContainerRef} className="flex justify-center px-4 pb-4">
                       {resume && (
@@ -340,6 +351,12 @@ export function ResumeEditorPage() {
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Accent Color</p>
                 <AccentColorPicker value={theme.accentColor} onChange={handleAccentColorChange} />
               </div>
+              {id && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Photo</p>
+                  <PhotoUploader resumeId={id} value={theme.photoUrl} onChange={handlePhotoChange} />
+                </div>
+              )}
             </div>
             <div className="flex flex-col gap-2 self-end items-end">
               <div className="flex gap-2">

@@ -145,11 +145,12 @@ function dateRange(start?: string, end?: string): string {
 function extractBlock(
   source: string,
   tagNames: string[],
+  openPrefix: '#' | '^' = '#',
 ): { match: string; inner: string; index: number } | null {
   let best: { match: string; inner: string; index: number } | null = null;
 
   for (const tag of tagNames) {
-    const openStr = `{{#${tag}}}`;
+    const openStr = `{{${openPrefix}${tag}}}`;
     const closeStr = `{{/${tag}}}`;
     const start = source.indexOf(openStr);
     if (start === -1) continue;
@@ -255,15 +256,20 @@ function renderConditionals(source: string, scalars: Record<string, string>): st
 
 /**
  * Resolves BOTH conditional forms — {{#if key}}...{{/if}} and bare
- * {{#key}}...{{/key}} — against any key-value map. Originally only used
- * for the top-level scalars (name, jobTitle, etc). Now also called from
- * inside each loop's per-item callback with that item's own values map
- * (exp.description, project.url, etc) — see renderLoop calls below. This
- * is what makes {{#exp.description}}...{{/exp.description}} legitimately
- * work now: previously conditionals only ever evaluated once, globally,
- * before any per-entry data existed, so a per-entry conditional could
- * never fire no matter how it was written. Calling this same resolver a
- * second time, per item, with that item's own field map, means it now
+ * {{#key}}...{{/key}} — against any key-value map, PLUS the inverse form
+ * {{^key}}...{{/key}} (real Handlebars: shows its content when the key is
+ * FALSY, the mirror image of {{#key}}). The inverse form exists specifically
+ * for "show the real thing if it's set, otherwise show a fallback" patterns
+ * — e.g. a photo vs. a placeholder avatar icon — which {{#key}} alone can't
+ * express (it can only hide-or-show one block, not pick between two).
+ * Originally only used for the top-level scalars (name, jobTitle, etc). Now
+ * also called from inside each loop's per-item callback with that item's
+ * own values map (exp.description, project.url, etc) — see renderLoop calls
+ * below. This is what makes {{#exp.description}}...{{/exp.description}}
+ * legitimately work now: previously conditionals only ever evaluated once,
+ * globally, before any per-entry data existed, so a per-entry conditional
+ * could never fire no matter how it was written. Calling this same resolver
+ * a second time, per item, with that item's own field map, means it now
  * genuinely can.
  */
 function renderScalarConditionals(html: string, values: Record<string, string>): string {
@@ -273,6 +279,11 @@ function renderScalarConditionals(html: string, values: Record<string, string>):
       const block = extractBlock(out, [key]);
       if (!block) break;
       out = out.slice(0, block.index) + (values[key] ? block.inner : '') + out.slice(block.index + block.match.length);
+    }
+    while (true) {
+      const block = extractBlock(out, [key], '^');
+      if (!block) break;
+      out = out.slice(0, block.index) + (values[key] ? '' : block.inner) + out.slice(block.index + block.match.length);
     }
   }
   return out;
@@ -358,6 +369,10 @@ export function renderDynamicTemplate(templateHtml: string, resume: Resume): str
     accentColor:     accentColor,
     accentColorSoft: mixToward(accentColor, [255, 255, 255], 0.88),
     accentColorDark: mixToward(accentColor, [0, 0, 0], 0.25),
+    // Cloudinary-hosted photo URL, set via the resume editor's photo
+    // uploader (see uploads/cloudinary.service.ts) -- not escHtml'd since
+    // it's only ever used in a src="" attribute, never as visible text.
+    photoUrl: resume.theme?.photoUrl ?? '',
   };
 
   let out = templateHtml;

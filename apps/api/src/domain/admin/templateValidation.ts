@@ -51,7 +51,7 @@ const ALLOWED_LOOP_TAGS = new Set([
 // these are the fields available at the top level, before any loop runs.
 const ALLOWED_CONDITIONAL_KEYS = new Set([
   'name', 'jobTitle', 'email', 'phone', 'location', 'linkedin', 'website',
-  'summary', 'accentColor', 'accentColorSoft', 'accentColorDark',
+  'summary', 'accentColor', 'accentColorSoft', 'accentColorDark', 'photoUrl',
 ]);
 
 // Keep in sync with every `fields` map built inside each renderLoop callback
@@ -78,6 +78,13 @@ const ALLOWED_ITEM_FIELDS = new Set([
 export function validateTemplateHtml(templateHtml: string): TemplateValidationError[] {
   const errors: TemplateValidationError[] = [];
 
+  // Strip HTML comments before scanning -- placeholder-like text inside a
+  // <!-- --> comment (e.g. a documentation note showing example syntax)
+  // isn't real template code and shouldn't be flagged as if it were. Keeps
+  // the same string length by replacing with spaces rather than deleting,
+  // so nothing downstream needs to worry about shifted indices.
+  const html = templateHtml.replace(/<!--[\s\S]*?-->/g, (m) => ' '.repeat(m.length));
+
   // ── Conditionals: {{#if key}} ... {{/if}}  OR  {{#if key}} ... {{/if key}} ─
   // The renderer (extractIfBlock/renderConditionals) now accepts EITHER
   // closing form, depth-aware across nesting — matching real Handlebars,
@@ -89,7 +96,7 @@ export function validateTemplateHtml(templateHtml: string): TemplateValidationEr
   // and leave it as literal text, same as an unbalanced loop tag.
   const ifOpenRe = /\{\{#if\s+([\w.]+)\}\}/g;
   let ifOpenCount = 0;
-  for (const m of templateHtml.matchAll(ifOpenRe)) {
+  for (const m of html.matchAll(ifOpenRe)) {
     ifOpenCount++;
     const key = m[1];
     if (key.includes('.')) {
@@ -108,7 +115,7 @@ export function validateTemplateHtml(templateHtml: string): TemplateValidationEr
       });
     }
   }
-  const ifCloseCount = (templateHtml.match(/\{\{\/if(?:\s+[\w.]+)?\}\}/g) ?? []).length;
+  const ifCloseCount = (html.match(/\{\{\/if(?:\s+[\w.]+)?\}\}/g) ?? []).length;
   if (ifOpenCount !== ifCloseCount) {
     errors.push({
       tag: 'if',
@@ -118,31 +125,45 @@ export function validateTemplateHtml(templateHtml: string): TemplateValidationEr
 
 
 
-  // ── Loop tags: {{#tag}} ... {{/tag}} ───────────────────────────────────
-  // A tag name here is valid if it's a real loop tag (ALLOWED_LOOP_TAGS)
-  // OR a real scalar field (ALLOWED_CONDITIONAL_KEYS) -- the renderer now
-  // treats a bare {{#scalarKey}}...{{/scalarKey}} as a truthy conditional,
-  // matching real Handlebars semantics (see dynamicTemplateRenderer.ts).
-  // Anything else ({{#each}}, {{#item}}, {{#this}}, a misspelled/invented
-  // tag) is never going to render, and needs to be caught before save.
-  const openRe = /\{\{#(?!if\s)([\w.]+)\}\}/g;
+  // ── Loop tags & inverse blocks: {{#tag}}/{{^tag}} ... {{/tag}} ──────────
+  // {{#tag}} is valid for a real loop tag (ALLOWED_LOOP_TAGS, via renderLoop)
+  // OR a real scalar/per-entry field (via renderScalarConditionals, which
+  // treats a bare {{#scalarKey}}...{{/scalarKey}} as a truthy conditional).
+  // {{^tag}} (Handlebars inverse — show if FALSY, e.g. "show a fallback
+  // icon if no photo is set") is ONLY valid for scalar/per-entry fields —
+  // renderLoop has no inverse handling at all, so {{^experiences}} would
+  // never fire no matter how it's written, even though {{#experiences}} is
+  // perfectly fine. Anything else ({{#each}}, {{#item}}, {{#this}}, a
+  // misspelled/invented tag) is never going to render either way.
+  const hashOpenRe = /\{\{#(?!if\s)([\w.]+)\}\}/g;
+  const caretOpenRe = /\{\{\^([\w.]+)\}\}/g;
   const closeRe = /\{\{\/(?!if\b)([\w.]+)\}\}/g;
 
-  const openCounts = new Map<string, number>();
+  const hashOpenCounts = new Map<string, number>();
+  const caretOpenCounts = new Map<string, number>();
   const closeCounts = new Map<string, number>();
   const seenTags = new Set<string>();
 
-  for (const m of templateHtml.matchAll(openRe)) {
-    openCounts.set(m[1], (openCounts.get(m[1]) ?? 0) + 1);
+  for (const m of html.matchAll(hashOpenRe)) {
+    hashOpenCounts.set(m[1], (hashOpenCounts.get(m[1]) ?? 0) + 1);
     seenTags.add(m[1]);
   }
-  for (const m of templateHtml.matchAll(closeRe)) {
+  for (const m of html.matchAll(caretOpenRe)) {
+    caretOpenCounts.set(m[1], (caretOpenCounts.get(m[1]) ?? 0) + 1);
+    seenTags.add(m[1]);
+  }
+  for (const m of html.matchAll(closeRe)) {
     closeCounts.set(m[1], (closeCounts.get(m[1]) ?? 0) + 1);
     seenTags.add(m[1]);
   }
 
+  const isFieldTag = (tag: string) => ALLOWED_CONDITIONAL_KEYS.has(tag) || ALLOWED_ITEM_FIELDS.has(tag);
+
   for (const tag of seenTags) {
-    if (!ALLOWED_LOOP_TAGS.has(tag) && !ALLOWED_CONDITIONAL_KEYS.has(tag) && !ALLOWED_ITEM_FIELDS.has(tag)) {
+    const hashes = hashOpenCounts.get(tag) ?? 0;
+    const carets = caretOpenCounts.get(tag) ?? 0;
+
+    if (hashes > 0 && !ALLOWED_LOOP_TAGS.has(tag) && !isFieldTag(tag)) {
       errors.push({
         tag,
         message:
@@ -151,14 +172,24 @@ export function validateTemplateHtml(templateHtml: string): TemplateValidationEr
           `Supported conditional fields: ${[...ALLOWED_CONDITIONAL_KEYS].join(', ')}. ` +
           `Supported per-entry fields: ${[...ALLOWED_ITEM_FIELDS].join(', ')}.`,
       });
-      continue;
     }
-    const opens = openCounts.get(tag) ?? 0;
-    const closes = closeCounts.get(tag) ?? 0;
-    if (opens !== closes) {
+    if (carets > 0 && !isFieldTag(tag)) {
       errors.push({
         tag,
-        message: `{{#${tag}}} appears ${opens} time(s) but {{/${tag}}} appears ${closes} time(s) — unbalanced, extra tags will render as literal text.`,
+        message: ALLOWED_LOOP_TAGS.has(tag)
+          ? `{{^${tag}}} isn't supported for loop tags — inverse blocks only work on scalar or per-entry ` +
+            `fields (e.g. {{^photoUrl}}), not on ${tag}. There's no "show this if the list is empty" form.`
+          : `{{^${tag}}} isn't a construct this renderer implements — it will never render. ` +
+            `Supported conditional fields: ${[...ALLOWED_CONDITIONAL_KEYS].join(', ')}. ` +
+            `Supported per-entry fields: ${[...ALLOWED_ITEM_FIELDS].join(', ')}.`,
+      });
+    }
+
+    const closes = closeCounts.get(tag) ?? 0;
+    if (hashes + carets !== closes) {
+      errors.push({
+        tag,
+        message: `{{#${tag}}}/{{^${tag}}} appears ${hashes + carets} time(s) total but {{/${tag}}} appears ${closes} time(s) — unbalanced, extra tags will render as literal text.`,
       });
     }
   }

@@ -198,15 +198,31 @@ For skills: key name. Use simple IDs like s1, s2, e1, e2.`,
   async completeRaw(systemPrompt: string, userMessage: string, maxTokens = 4096): Promise<string> {
     const client = getClient();
 
-    const response = await client.chat.completions.create({
+    // Streamed rather than a single blocking response: a non-streamed
+    // request has to sit silently until the ENTIRE completion is ready
+    // before anything comes back over the wire. At ~16k output tokens
+    // (bulk template generation) that can take well over a minute, and
+    // most infra between here and OpenRouter — proxies, load balancers,
+    // OpenRouter's own edge — has an idle/response timeout well under
+    // that, which is what an ECONNRESET mid-request almost always is.
+    // Streaming avoids the whole class of failure: bytes keep arriving
+    // the entire time, so nothing in the path sees an idle connection to
+    // kill. The accumulated text is identical either way — this doesn't
+    // change what completeRaw returns to callers, just how it gets it.
+    const stream = await client.chat.completions.create({
       model: this.model,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userMessage },
       ],
       max_tokens: maxTokens,
+      stream: true,
     });
 
-    return response.choices[0]?.message?.content ?? '';
+    let text = '';
+    for await (const chunk of stream) {
+      text += chunk.choices[0]?.delta?.content ?? '';
+    }
+    return text;
   }
 }

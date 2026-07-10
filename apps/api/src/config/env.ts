@@ -67,6 +67,15 @@ const EnvSchema = z.object({
   OPENROUTER_API_KEY: z.string().optional().default(''),
   OPENROUTER_MODEL: z.string().default('meta-llama/llama-3.2-3b-instruct:free'),
 
+  // Cloudinary — resume photo uploads (see domain/uploads/cloudinary.service.ts).
+  // No fallback/mock mode by design, same reasoning as email: an upload
+  // that silently "succeeds" without actually storing anything would be
+  // far worse than a loud, obvious failure. All three are required
+  // together for the photo upload route to work at all.
+  CLOUDINARY_CLOUD_NAME: z.string().optional().default(''),
+  CLOUDINARY_API_KEY: z.string().optional().default(''),
+  CLOUDINARY_API_SECRET: z.string().optional().default(''),
+
   // Feature flags — set to 'true' to enable; false by default so future
   // modules can be deployed behind flags without affecting current users
   FEATURE_INTERVIEW_PREP: z.string().default('false'),

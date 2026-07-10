@@ -54,6 +54,44 @@ async function rawRequest(path: string, options: RequestOptions = {}): Promise<R
   });
 }
 
+/** Same idea as rawRequest, but for multipart/form-data (file uploads).
+ * Deliberately does NOT set Content-Type -- the browser needs to set it
+ * itself so it can include the multipart boundary string, which we have
+ * no way to generate manually here. */
+async function rawMultipartRequest(path: string, formData: FormData, method: 'POST' | 'PATCH' = 'POST'): Promise<Response> {
+  const headers: Record<string, string> = {};
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+
+  return fetch(`/api${path}`, {
+    method,
+    headers,
+    credentials: 'include',
+    body: formData,
+  });
+}
+
+/** Same request/retry semantics as request<T>, but for multipart file
+ * uploads (resume photo). */
+export async function requestMultipart<T>(path: string, formData: FormData): Promise<T> {
+  let res = await rawMultipartRequest(path, formData);
+
+  if (res.status === 401) {
+    const refreshed = await tryRefresh();
+    if (refreshed) res = await rawMultipartRequest(path, formData);
+  }
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new ApiError(
+      res.status,
+      body?.error?.code ?? 'UNKNOWN_ERROR',
+      body?.error?.message ?? `Request failed with status ${res.status}`,
+    );
+  }
+
+  return res.json() as Promise<T>;
+}
+
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   let res = await rawRequest(path, options);
 
@@ -195,6 +233,12 @@ export const resumeApi = {
   diffVersions: (id: string, fromId: string, toId: string) => request<{ diff: ResumeVersionDiff }>(`/resumes/${id}/versions/diff?from=${fromId}&to=${toId}`),
   compareVersions: (id: string, fromId: string, toId: string) => request<{ diff: ResumeVersionDiff }>(`/resumes/${id}/versions/diff?from=${fromId}&to=${toId}`),
   export: (id: string, format: 'pdf' | 'docx') => requestBlob(`/resumes/${id}/export/${format}`),
+  uploadPhoto: (id: string, file: File) => {
+    const formData = new FormData();
+    formData.append('photo', file);
+    return requestMultipart<{ resume: Resume }>(`/resumes/${id}/photo`, formData);
+  },
+  deletePhoto: (id: string) => request<{ resume: Resume }>(`/resumes/${id}/photo`, { method: 'DELETE' }),
 };
 
 export const dashboardApi = {
@@ -220,7 +264,7 @@ export const plansApi = {
 
 export const pointsApi = {
   get: () => request<{ balance: number; transactions: Array<{ id: string; type: string; amount: number; description: string | null; createdAt: string }> }>('/points'),
-  getTemplates: () => request<{ templates: Array<{ id: string; name: string; category: string; family: string; cost: number }> }>('/points/templates'),
+  getTemplates: () => request<{ templates: Array<{ id: string; name: string; category: string; family: string; cost: number; owned: boolean }> }>('/points/templates'),
   purchaseTemplate: (templateId: string) => request<{ message: string }>('/points/purchase-template', { method: 'POST', body: { templateId } }),
 };
 

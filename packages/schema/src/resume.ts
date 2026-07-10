@@ -67,6 +67,11 @@ export const ResumeThemeSchema = z.object({
   templateId: z.string(),
   accentColor: z.string().default('#4f46e5'),
   fontFamily: z.string().default('Inter'),
+  // Cloudinary-hosted photo URL, set via the resume editor's photo
+  // uploader. Optional -- most templates don't use it, and even ones that
+  // do (see dynamicTemplateRenderer.ts's {{#photoUrl}}/{{^photoUrl}}
+  // handling) fall back to a placeholder avatar when it's unset.
+  photoUrl: z.string().url().optional(),
 });
 export type ResumeTheme = z.infer<typeof ResumeThemeSchema>;
 

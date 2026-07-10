@@ -35,6 +35,23 @@ SCALARS — replaced with escaped plain text, safe to use anywhere:
                         for hover states or where you need more contrast
                         than the raw accent gives you against a light
                         background.
+  {{photoUrl}}    the URL of a photo the person uploaded, IF they set one —
+                        entirely optional, most people leave it unset. NEVER
+                        just drop <img src="{{photoUrl}}"> unconditionally —
+                        an empty src renders a broken-image glyph. Always
+                        pair it with a fallback using the inverse block
+                        below, e.g.:
+                          {{#photoUrl}}<img src="{{photoUrl}}" alt="">{{/photoUrl}}
+                          {{^photoUrl}}<div class="avatar-fallback">...</div>{{/photoUrl}}
+                        A fallback can be as simple as a plain circle in
+                        {{accentColorSoft}} with a person-outline SVG icon —
+                        it doesn't need to be elaborate, it just needs to
+                        never be blank. Whether to include a photo slot at
+                        all is a per-template design choice, not mandatory —
+                        many professional/US-style resumes never use one;
+                        reserve it for templates where a portrait genuinely
+                        fits the brief (creative, portfolio-style, more
+                        personal formats).
 
 LOOP BLOCKS — the block between the open/close tags repeats once per entry,
 and is REMOVED ENTIRELY (not just hidden) if the user has zero entries of that
@@ -86,38 +103,51 @@ nothing under it will appear on real resumes that skip that section.
         text. This is not optional polish — every template must style these
         three classes, because any resume can contain a custom section.
 
-CONDITIONALS — wrap an optional SCALAR field (linkedin, website, phone,
-location, summary, jobTitle — nothing else) in {{#key}} ... {{/key}}, exactly
-like a loop tag, e.g.:
+CONDITIONALS — wrap ANY optional field — a top-level scalar (linkedin,
+website, phone, location, summary, jobTitle, photoUrl) OR a loop-item field
+(exp.description, cert.issuer, project.url, etc) — in {{#key}} ... {{/key}},
+exactly like a loop tag, e.g.:
   {{#linkedin}}<a href="{{linkedin}}">{{linkedin}}</a>{{/linkedin}}
-  {{#website}}<span class="sep">{{website}}</span>{{/website}}
+  {{#exp.description}}<p>{{exp.description}}</p>{{/exp.description}}
 ({{#if key}} ... {{/if}} also works identically, if you prefer that form —
-either is fine, just close whatever you opened.)
-This does NOT work inside a loop and does NOT work on loop-item fields —
-{{#exp.location}} or {{#if exp.location}} will never fire; do not write
-either, they render as broken literal text. See the next section for why
-you don't need a conditional there anyway.
+either is fine, just close whatever you opened.) This works INSIDE a loop
+too — a per-entry field's own value on that specific entry decides whether
+the block shows, entry by entry.
 
-LOOP-ITEM FIELDS CAN'T BE CONDITIONALLY HIDDEN — exp.location, cert.issuer,
-project.url, lang.proficiency, ref.relationship, ref.contact can all be an
-empty string on a per-entry basis, with no conditional available inside a loop
-to hide them. Never hardcode a separator glyph next to one of these fields —
-"{{exp.location}} · {{exp.dateRange}}" will render "· Jan 2020 – Present"
-with a dangling bullet when location is blank. Instead, put the separator
-INSIDE the same inline element as the optional value and hide it with CSS
-:empty, which is the standard, required pattern for every optional loop field:
+INVERSE BLOCKS — {{^key}} ... {{/key}} is the mirror image: shows its
+content when the field is EMPTY/unset instead of when it's set. Use this for
+a genuine two-way toggle — "show the real thing if set, otherwise show a
+fallback" — which {{#key}} alone can't express (it can only show-or-hide
+one block, not choose between two):
+  {{#photoUrl}}<img src="{{photoUrl}}" alt="">{{/photoUrl}}
+  {{^photoUrl}}<div class="avatar-fallback">...</div>{{/photoUrl}}
+Works on the same set of fields as {{#key}} — top-level scalars and
+loop-item fields alike.
+
+SEPARATORS STILL WANT THE CSS :empty PATTERN, NOT A CONDITIONAL BLOCK — for
+the common case of "put a separator glyph before an optional value, only
+when there's something to separate," a full {{#key}}...{{/key}} wrapper
+around the separator is more machinery than the problem needs. Never
+hardcode the glyph directly — "{{exp.location}} · {{exp.dateRange}}" renders
+"· Jan 2020 – Present" with a dangling bullet when location is blank.
+Instead, put the separator INSIDE the same inline element as the optional
+value and hide it with CSS :empty, which stays the standard pattern for
+this specific case:
 
     <span class="sep">{{exp.location}}</span>
     .sep:not(:empty)::before { content: " · "; opacity: .6; }
 
-Apply this :empty pattern to every optional loop-item field you display
-inline (exp.location, cert.issuer, project.url, lang.proficiency,
-ref.relationship, ref.contact). Never wrap project.url in an <a href="">
-tag — it can be blank, producing a broken empty link — display it as plain
-text instead. Same reasoning for {{#each}} or any other loop/helper syntax
-that isn't listed above — this renderer only knows the tags in this prompt,
-nothing else, even if it looks like valid Handlebars. When in doubt, prefer
-the simplest possible tag over a more elaborate one.
+Apply this :empty pattern to every optional field you display inline next
+to a separator (exp.location, cert.issuer, lang.proficiency, ref.relationship,
+ref.contact). Reach for a full {{#key}}/{{^key}} block instead when more
+than a separator needs to disappear — an entire line, an icon, a link
+wrapper. Never wrap project.url in an <a href=""> tag — it can be blank,
+producing a broken empty link — display it as plain text instead, or use
+{{#project.url}} to hide the whole line when there's no link at all. Same
+reasoning for {{#each}} or any other loop/helper syntax that isn't listed in
+this prompt — this renderer only knows the tags documented here, nothing
+else, even if it looks like valid Handlebars. When in doubt, prefer the
+simplest possible tag over a more elaborate one.
 
 ════════════════════════════════════════════════════════════════
 2. WHERE THIS ACTUALLY RENDERS — non-negotiable production constraints
@@ -247,7 +277,9 @@ Before responding, verify silently:
       everywhere — no hardcoded accent hex anywhere in the CSS. Only the
       neutral palette (text/background/grays) is hardcoded.
   [ ] .cf-field / .cf-field-label / .cf-field--richtext are styled in <style>.
-  [ ] No {{#if}} used inside a loop or on a loop-item field.
+  [ ] If a photo slot is included, {{#photoUrl}} always has a matching
+      {{^photoUrl}} fallback right next to it — never a bare <img> with
+      nothing to show when there's no photo.
   [ ] Every optional inline loop field (exp.location, cert.issuer,
       project.url, lang.proficiency, ref.relationship, ref.contact) uses the
       :empty separator pattern from §1, not a hardcoded separator.

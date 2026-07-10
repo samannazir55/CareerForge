@@ -230,6 +230,20 @@ function pointsForIndex(index: number): number {
   return PREMIUM_POINT_TIERS[Math.floor(rand() * PREMIUM_POINT_TIERS.length)];
 }
 
+// Roughly 40% of generated templates get an explicit instruction to include
+// a photo slot -- deliberately not every one, since plenty of professional
+// resume styles never use a photo, and not left purely to the model's own
+// judgment either, since the brief otherwise never mentions the feature at
+// all and the model won't spontaneously reach for it. A separate seeded
+// draw (not reusing pointsForIndex's sequence) so the two stay independent
+// of each other across re-runs with the same --seed.
+const PHOTO_INCLUSION_CHANCE = 0.4;
+
+function wantsPhotoForIndex(index: number): boolean {
+  const rand = mulberry32(index + 1_000_003); // offset so this draws from a different sequence than pointsForIndex
+  return rand() < PHOTO_INCLUSION_CHANCE;
+}
+
 function comboAt(index: number): { brief: string; key: string; familyId: string } {
   let n = index;
   const family = FAMILIES[n % FAMILIES.length]; n = Math.floor(n / FAMILIES.length);
@@ -239,9 +253,13 @@ function comboAt(index: number): { brief: string; key: string; familyId: string 
   const tone = NEUTRAL_TONES[n % NEUTRAL_TONES.length]; n = Math.floor(n / NEUTRAL_TONES.length);
   const layout = LAYOUTS[n % LAYOUTS.length];
 
+  const photoInstruction = wantsPhotoForIndex(index)
+    ? 'Include a circular photo slot in the header ({{#photoUrl}}/{{^photoUrl}} with a tasteful fallback icon), if it fits this family\'s style.'
+    : 'No photo slot -- keep the header text-only.';
+
   const brief =
     `${family.label} family (${family.brief}) — ${layout}, ${tone}, ${type} typography, ` +
-    `for ${persona}, ${mood} mood.`;
+    `for ${persona}, ${mood} mood. ${photoInstruction}`;
   return { brief, key: `${index}`, familyId: family.id };
 }
 
@@ -396,6 +414,7 @@ async function main() {
               timestamp: new Date().toISOString(),
             });
             successCount++;
+            lastError = undefined;
             break;
           }
 
@@ -435,6 +454,7 @@ async function main() {
             timestamp: new Date().toISOString(),
           });
           successCount++;
+          lastError = undefined;
           break;
         } catch (err) {
           lastError = err;

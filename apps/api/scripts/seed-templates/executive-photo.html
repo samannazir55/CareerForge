@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{name}} - Resume</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Inter', Arial, sans-serif;
+    color: #2b2b2b;
+    margin: 0;
+    background: #ffffff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .page {
+    width: 794px;
+    margin: 0 auto;
+    padding: 48px 56px;
+  }
+
+  /* ── Header ─────────────────────────────────────────────────────────── */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    border-bottom: 1px solid #e5e2dc;
+    padding-bottom: 24px;
+    margin-bottom: 24px;
+  }
+  .header-text h1 {
+    font-family: 'Poppins', sans-serif;
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: .5px;
+    margin: 0;
+    color: #1c1c1c;
+  }
+  .header-text h1 .accent { color: {{accentColor}}; }
+  .job-title {
+    font-size: 12.5px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #8a8a8a;
+    margin-top: 4px;
+  }
+  .contact-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    margin-top: 14px;
+    font-size: 12px;
+    color: #555;
+  }
+  .contact-row span { display: inline-flex; align-items: center; gap: 6px; }
+  .contact-row svg { width: 13px; height: 13px; flex: none; opacity: .7; }
+
+  /* Avatar: shows the uploaded photo if the person has set one, otherwise
+     falls back to a plain person-icon circle -- a standard truthy/falsy
+     toggle, exactly one branch ever renders. */
+  .avatar {
+    width: 88px;
+    height: 88px;
+    border-radius: 50%;
+    background: {{accentColorSoft}};
+    border: 2px solid {{accentColor}};
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .avatar svg { width: 40px; height: 40px; color: {{accentColor}}; }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+
+  /* ── Summary ────────────────────────────────────────────────────────── */
+  .summary { font-size: 13px; line-height: 1.7; color: #444; margin-bottom: 28px; }
+
+  /* ── Section headings ───────────────────────────────────────────────── */
+  h2.section-heading {
+    font-family: 'Poppins', sans-serif;
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: {{accentColor}};
+    margin: 0 0 14px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid {{accentColorSoft}};
+    break-after: avoid;
+  }
+  section { margin-bottom: 28px; }
+
+  /* ── Experience / Education / Certifications entries ──────────────────── */
+  .entry { margin-bottom: 18px; break-inside: avoid; }
+  .entry:last-child { margin-bottom: 0; }
+  .entry-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+  }
+  .entry-title { font-size: 14px; font-weight: 600; color: #1c1c1c; }
+  .entry-company { font-size: 12.5px; color: #555; margin-top: 2px; }
+  .entry-date { font-size: 11.5px; color: #8a8a8a; white-space: nowrap; }
+  .entry-desc { font-size: 12.5px; line-height: 1.65; color: #444; margin-top: 6px; }
+  .entry-desc ul { margin: 4px 0 0; padding-left: 18px; }
+
+  /* Optional inline field with a leading separator that only appears when
+     the field actually has a value -- required pattern for anything that
+     can be blank per-entry (location, issuer, url, etc). */
+  .sep:not(:empty)::before { content: " · "; opacity: .6; }
+
+  /* ── Skills ─────────────────────────────────────────────────────────── */
+  .skills-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .skill-pill {
+    background: {{accentColorSoft}};
+    color: {{accentColorDark}};
+    font-size: 11.5px;
+    font-weight: 500;
+    padding: 5px 12px;
+    border-radius: 999px;
+  }
+
+  /* ── Languages / References side-by-side ──────────────────────────────── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .language-item, .reference-item { font-size: 12.5px; margin-bottom: 8px; }
+  .language-item .lang-level, .reference-item .ref-meta { color: #8a8a8a; font-size: 11.5px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div class="header-text">
+      <h1>{{name}}</h1>
+      {{#jobTitle}}<div class="job-title">{{jobTitle}}</div>{{/jobTitle}}
+      <div class="contact-row">
+        {{#phone}}<span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>{{phone}}</span>{{/phone}}
+        {{#email}}<span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z" opacity="0"/><path d="M22 6L12 13 2 6"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg>{{email}}</span>{{/email}}
+        {{#location}}<span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>{{location}}</span>{{/location}}
+        {{#linkedin}}<span><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14zM8.34 18V9.75H5.67V18h2.67zM7 8.66a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM18.34 18v-4.6c0-2.46-1.31-3.6-3.06-3.6a2.64 2.64 0 0 0-2.39 1.31h-.04V9.75H10.3c.03.7 0 8.25 0 8.25h2.67v-4.6c0-.25.02-.5.09-.68.2-.5.65-1.02 1.42-1.02.99 0 1.4.76 1.4 1.87V18h2.66z"/></svg>{{linkedin}}</span>{{/linkedin}}
+        {{#website}}<span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>{{website}}</span>{{/website}}
+      </div>
+    </div>
+    <div class="avatar">
+      {{#photoUrl}}<img src="{{photoUrl}}" alt="">{{/photoUrl}}
+      {{^photoUrl}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="8" r="4"/>
+        <path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>
+      </svg>{{/photoUrl}}
+    </div>
+  </div>
+
+  {{#summary}}<div class="summary">{{summary}}</div>{{/summary}}
+
+  {{#experiences}}
+  <section>
+    <h2 class="section-heading">Professional Experience</h2>
+    {{#experiences}}
+    <div class="entry">
+      <div class="entry-top">
+        <div>
+          <div class="entry-title">{{exp.title}}</div>
+          <div class="entry-company">{{exp.company}}<span class="sep">{{exp.location}}</span></div>
+        </div>
+        <div class="entry-date">{{exp.dateRange}}</div>
+      </div>
+      {{#exp.description}}<div class="entry-desc">{{exp.description}}</div>{{/exp.description}}
+    </div>
+    {{/experiences}}
+  </section>
+  {{/experiences}}
+
+  {{#education}}
+  <section>
+    <h2 class="section-heading">Education</h2>
+    {{#education}}
+    <div class="entry">
+      <div class="entry-top">
+        <div>
+          <div class="entry-title">{{edu.degree}}</div>
+          <div class="entry-company">{{edu.school}}</div>
+        </div>
+        <div class="entry-date">{{edu.dateRange}}</div>
+      </div>
+    </div>
+    {{/education}}
+  </section>
+  {{/education}}
+
+  {{#certifications}}
+  <section>
+    <h2 class="section-heading">Certifications</h2>
+    {{#certifications}}
+    <div class="entry">
+      <div class="entry-top">
+        <div>
+          <div class="entry-title">{{cert.name}}</div>
+          <div class="entry-company">{{cert.issuer}}</div>
+        </div>
+        <div class="entry-date">{{cert.date}}</div>
+      </div>
+    </div>
+    {{/certifications}}
+  </section>
+  {{/certifications}}
+
+  {{#projects}}
+  <section>
+    <h2 class="section-heading">Projects</h2>
+    {{#projects}}
+    <div class="entry">
+      <div class="entry-title">{{project.name}}<span class="sep">{{project.url}}</span></div>
+      {{#project.description}}<div class="entry-desc">{{project.description}}</div>{{/project.description}}
+    </div>
+    {{/projects}}
+  </section>
+  {{/projects}}
+
+  {{#skills}}
+  <section>
+    <h2 class="section-heading">Skills</h2>
+    <div class="skills-list">
+      {{#skills}}<div class="skill-pill">{{skill.name}}</div>{{/skills}}
+    </div>
+  </section>
+  {{/skills}}
+
+  {{#languages}}
+  <section>
+    <h2 class="section-heading">Languages</h2>
+    <div class="two-col">
+      {{#languages}}<div class="language-item">{{lang.name}}<span class="lang-level sep">{{lang.proficiency}}</span></div>{{/languages}}
+    </div>
+  </section>
+  {{/languages}}
+
+  {{#references}}
+  <section>
+    <h2 class="section-heading">References</h2>
+    <div class="two-col">
+      {{#references}}<div class="reference-item">{{ref.name}}<span class="ref-meta sep">{{ref.relationship}}</span><span class="ref-meta sep">{{ref.contact}}</span></div>{{/references}}
+    </div>
+  </section>
+  {{/references}}
+
+  {{#customSections}}
+  <section>
+    <h2 class="section-heading">{{section.title}}</h2>
+    {{#entries}}<div class="entry">{{entry.fields}}</div>{{/entries}}
+  </section>
+  {{/customSections}}
+
+</div>
+</body>
+</html>

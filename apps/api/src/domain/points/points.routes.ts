@@ -70,11 +70,30 @@ pointsRouter.post(
 
 pointsRouter.get(
   '/templates',
-  asyncHandler(async (_req, res) => {
-    const codeTemplates = getAllTemplateMetadata().map((t) => ({
-      ...t,
-      cost: isPremiumTemplate(t.id) ? (TEMPLATE_COSTS[t.id] ?? 300) : 0,
-    }));
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const user = req.user!;
+
+    // Admins and paid-tier subscribers get every premium template for free
+    // (matches assertCanExport in export.service.ts — the marketplace
+    // should never claim something is locked for a user who can already
+    // download it). Everyone else's ownership is whatever's actually in
+    // template_purchases.
+    const unlocksAllPremium = user.role === 'ADMIN' || user.subscriptionTier === 'PREMIUM' || user.subscriptionTier === 'PROFESSIONAL';
+    const purchases = await prisma.templatePurchase.findMany({
+      where: { userId: user.id },
+      select: { templateId: true },
+    });
+    const purchasedIds = new Set(purchases.map((p) => p.templateId));
+
+    const codeTemplates = getAllTemplateMetadata().map((t) => {
+      const premium = isPremiumTemplate(t.id);
+      return {
+        ...t,
+        cost: premium ? (TEMPLATE_COSTS[t.id] ?? 300) : 0,
+        owned: !premium || unlocksAllPremium || purchasedIds.has(t.id),
+      };
+    });
     const dynamicTemplates = await prisma.dynamicTemplate.findMany({ where: { isActive: true } });
     const fromDynamic = dynamicTemplates.map((t) => ({
       id: t.id,
@@ -83,6 +102,7 @@ pointsRouter.get(
       family: t.family,
       previewClass: 'template-dynamic',
       cost: t.category === 'premium' ? t.pointsCost : 0,
+      owned: t.category !== 'premium' || unlocksAllPremium || purchasedIds.has(t.id),
     }));
     res.status(200).json({ templates: [...codeTemplates, ...fromDynamic] });
   }),

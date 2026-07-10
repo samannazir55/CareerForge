@@ -13,6 +13,12 @@ import { asyncHandler } from '../../lib/asyncHandler.js';
 import { requireAuth, requireVerifiedEmail } from '../../middleware/authGuard.js';
 import { BadRequestError, NotFoundError } from '../../lib/errors.js';
 import { prisma } from '../../lib/prisma.js';
+import multer from 'multer';
+import { uploadResumePhoto, deleteResumePhoto } from '../uploads/cloudinary.service.js';
+
+// Memory storage — photos are small (capped at 8MB, see cloudinary.service.ts)
+// and go straight to Cloudinary, never touching this server's disk.
+const photoUpload = multer({ storage: multer.memoryStorage() });
 
 export const resumeRouter = Router();
 
@@ -52,6 +58,41 @@ resumeRouter.patch(
     const patch = UpdateResumeRequestSchema.parse(req.body);
     const resume = await resumeService.updateResume(req.params.id, req.user!.id, patch);
     res.status(200).json({ resume });
+  }),
+);
+
+// --- Profile photo -----------------------------------------------------------
+// Stored as theme.photoUrl (see ResumeThemeSchema) -- same JSON blob
+// accentColor already lives in, so no separate DB column/migration needed.
+// The actual image lives on Cloudinary; only its URL is persisted here.
+
+resumeRouter.post(
+  '/:id/photo',
+  photoUpload.single('photo'),
+  asyncHandler(async (req, res) => {
+    if (!req.file) throw new BadRequestError('No photo file provided (expected multipart field "photo").');
+
+    const resume = await resumeService.getResume(req.params.id, req.user!.id); // also checks ownership
+    const uploaded = await uploadResumePhoto(req.file.buffer, req.file.mimetype, req.user!.id);
+
+    const updated = await resumeService.updateResume(req.params.id, req.user!.id, {
+      theme: { ...resume.theme, photoUrl: uploaded.url },
+    });
+    res.status(200).json({ resume: updated });
+  }),
+);
+
+resumeRouter.delete(
+  '/:id/photo',
+  asyncHandler(async (req, res) => {
+    const resume = await resumeService.getResume(req.params.id, req.user!.id); // also checks ownership
+    await deleteResumePhoto(req.user!.id);
+
+    const { photoUrl, ...themeWithoutPhoto } = resume.theme;
+    const updated = await resumeService.updateResume(req.params.id, req.user!.id, {
+      theme: themeWithoutPhoto,
+    });
+    res.status(200).json({ resume: updated });
   }),
 );
 

@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ShieldCheck, Lock, Unlock, Coins, X } from 'lucide-react';
+import { Search, ShieldCheck, Lock, Unlock, Coins, X, FilePlus, FileText } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
 import { TemplateLivePreview } from '../../components/preview/TemplateLivePreview';
-import { pointsApi, ApiError } from '../../lib/api';
+import { pointsApi, resumeApi, ApiError } from '../../lib/api';
 import { TEMPLATE_FAMILIES } from '@careerforge/schema';
+import type { ResumeSummary } from '@careerforge/schema';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../lib/utils';
 
@@ -15,19 +17,28 @@ interface TemplateItem {
   category: 'free' | 'premium';
   family: string;
   cost: number;
+  owned: boolean;
 }
 
 export function MarketplacePage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [templates, setTemplates] = useState<TemplateItem[]>([]);
   const [balance, setBalance] = useState(0);
   const [purchasing, setPurchasing] = useState<string | null>(null);
+  // Optimistic overlay only — the source of truth is template.owned from the
+  // server (backed by template_purchases), refetched fresh on every page
+  // load. This just avoids waiting on a refetch right after a purchase.
   const [purchased, setPurchased] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<'All' | 'free' | 'premium'>('All');
+  const [selectedCategory, setSelectedCategory] = useState<'All' | 'free' | 'premium' | 'owned'>('All');
   const [selectedFamily, setSelectedFamily] = useState<'All' | string>('All');
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateItem | null>(null);
+
+  // "Use this template" flow: pick which existing resume to apply it to, or
+  // start a new one. null = not open; resumes: null = still loading.
+  const [resumePicker, setResumePicker] = useState<{ resumes: ResumeSummary[] | null; applyingTo: string | null } | null>(null);
 
   useEffect(() => {
     Promise.all([pointsApi.getTemplates(), pointsApi.get()])
@@ -39,21 +50,28 @@ export function MarketplacePage() {
   }, []);
 
   // Matches export.service.ts's assertCanExport: any paid tier unlocks every
-  // premium template. Previously only PREMIUM was checked here, which would
-  // have shown templates as locked to a paying PROFESSIONAL subscriber even
-  // though they're now actually entitled to download them.
+  // premium template. The server already bakes this into template.owned,
+  // but keeping the local checks too means a stale/failed template fetch
+  // doesn't wrongly show a paying subscriber's own templates as locked.
   const isPremiumUser = user?.subscriptionTier === 'PREMIUM' || user?.subscriptionTier === 'PROFESSIONAL';
 
-  const categories: Array<'All' | 'free' | 'premium'> = ['All', 'free', 'premium'];
+  function isOwned(template: TemplateItem): boolean {
+    return template.owned || purchased.has(template.id) || template.category === 'free' || isPremiumUser;
+  }
+
+  const categories: Array<'All' | 'free' | 'premium' | 'owned'> = ['All', 'free', 'premium', 'owned'];
 
   const filteredTemplates = useMemo(() => {
     return templates.filter((t) => {
       const matchesSearch = t.name.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCategory = selectedCategory === 'All' || t.category === selectedCategory;
+      const matchesCategory =
+        selectedCategory === 'All' ||
+        (selectedCategory === 'owned' ? isOwned(t) : t.category === selectedCategory);
       const matchesFamily = selectedFamily === 'All' || t.family === selectedFamily;
       return matchesSearch && matchesCategory && matchesFamily;
     });
-  }, [templates, searchQuery, selectedCategory, selectedFamily]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- isOwned closes over purchased/isPremiumUser, both listed
+  }, [templates, searchQuery, selectedCategory, selectedFamily, purchased, isPremiumUser]);
 
   async function handlePurchase(template: TemplateItem) {
     if (balance < template.cost) {
@@ -66,12 +84,61 @@ export function MarketplacePage() {
       await pointsApi.purchaseTemplate(template.id);
       setPurchased((prev) => new Set([...prev, template.id]));
       setBalance((b) => b - template.cost);
-      setSelectedTemplate(null);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Purchase failed.');
     } finally {
       setPurchasing(null);
     }
+  }
+
+  // Opens the "which resume?" step inside the unlock modal. Requires
+  // `selectedTemplate` to already be set (this only ever runs from inside
+  // that modal), and lazily loads the resume list the first time it's opened.
+  function handleStartUsingTemplate() {
+    setResumePicker({ resumes: null, applyingTo: null });
+    resumeApi
+      .list()
+      .then((data) => setResumePicker((s) => (s ? { ...s, resumes: data.resumes } : s)))
+      .catch(() => {
+        setError('Could not load your resumes.');
+        setResumePicker(null);
+      });
+  }
+
+  // resumeId=null means "create a brand new resume and apply the template
+  // to it". Otherwise applies to an existing resume the user picked.
+  //
+  // Fetches the resume's CURRENT full theme before patching in the new
+  // templateId, rather than PATCHing { theme: { templateId } } alone —
+  // UpdateResumeRequestSchema's theme field replaces the whole theme object,
+  // and its accentColor/fontFamily zod defaults would silently overwrite
+  // any custom accent color the user had already picked for that resume.
+  async function applyTemplateToResume(resumeId: string | null) {
+    if (!selectedTemplate) return;
+    setResumePicker((s) => (s ? { ...s, applyingTo: resumeId ?? 'new' } : s));
+    setError(null);
+    try {
+      let targetId = resumeId;
+      let theme;
+      if (targetId) {
+        const { resume } = await resumeApi.get(targetId);
+        theme = resume.theme;
+      } else {
+        const { resume } = await resumeApi.create({ title: 'Untitled Resume' });
+        targetId = resume.id;
+        theme = resume.theme;
+      }
+      await resumeApi.update(targetId, { theme: { ...theme, templateId: selectedTemplate.id } });
+      navigate(`/resumes/${targetId}`);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not apply this template.');
+      setResumePicker((s) => (s ? { ...s, applyingTo: null } : s));
+    }
+  }
+
+  function closeModal() {
+    setSelectedTemplate(null);
+    setResumePicker(null);
   }
 
   return (
@@ -163,7 +230,7 @@ export function MarketplacePage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             <AnimatePresence>
               {filteredTemplates.map((template, i) => {
-                const isOwned = purchased.has(template.id) || template.category === 'free' || isPremiumUser;
+                const owned = isOwned(template);
                 return (
                   <motion.div
                     layout
@@ -185,7 +252,7 @@ export function MarketplacePage() {
                         </div>
                       </div>
                       <div className="absolute top-3 right-3">
-                        {isOwned ? (
+                        {owned ? (
                           <div className="bg-emerald-500 text-white text-xs font-bold px-2 py-1 rounded-md shadow-sm flex items-center gap-1">
                             <Unlock size={12} /> Owned
                           </div>
@@ -204,7 +271,7 @@ export function MarketplacePage() {
 
                       <div className="absolute inset-0 bg-background/60 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <Button variant="primary" className="shadow-xl">
-                          {isOwned ? 'Use Template' : 'View Details'}
+                          {owned ? 'Use Template' : 'View Details'}
                         </Button>
                       </div>
                     </div>
@@ -219,7 +286,7 @@ export function MarketplacePage() {
                       </p>
                       <div className="flex items-center justify-between text-xs text-muted-foreground font-medium">
                         <span className="capitalize">{template.category}</span>
-                        {!isOwned && (
+                        {!owned && (
                           <span className="flex items-center gap-1">
                             <Lock size={12} /> Locked
                           </span>
@@ -243,7 +310,7 @@ export function MarketplacePage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="absolute inset-0 bg-background/80 backdrop-blur-sm"
-              onClick={() => setSelectedTemplate(null)}
+              onClick={closeModal}
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -252,7 +319,7 @@ export function MarketplacePage() {
               className="relative w-full max-w-lg glass-panel rounded-3xl overflow-hidden shadow-2xl"
             >
               <button
-                onClick={() => setSelectedTemplate(null)}
+                onClick={closeModal}
                 className="absolute top-4 right-4 z-10 h-8 w-8 rounded-full bg-background/80 flex items-center justify-center hover:bg-background transition-colors"
                 aria-label="Close"
               >
@@ -267,10 +334,48 @@ export function MarketplacePage() {
                   {selectedTemplate.category} template, ATS-friendly layout.
                 </p>
 
-                {purchased.has(selectedTemplate.id) || selectedTemplate.category === 'free' || isPremiumUser ? (
-                  <Button className="w-full" size="lg">
-                    Use This Template
-                  </Button>
+                {isOwned(selectedTemplate) ? (
+                  resumePicker ? (
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                        Apply to which resume?
+                      </p>
+                      {resumePicker.resumes === null ? (
+                        <p className="text-sm text-muted-foreground py-4 text-center">Loading your resumes…</p>
+                      ) : (
+                        <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1">
+                          {resumePicker.resumes.map((r) => (
+                            <button
+                              key={r.id}
+                              onClick={() => applyTemplateToResume(r.id)}
+                              disabled={resumePicker.applyingTo !== null}
+                              className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-border bg-background hover:border-primary/40 hover:bg-accent/50 transition-colors text-left disabled:opacity-60"
+                            >
+                              <FileText size={15} className="text-muted-foreground shrink-0" />
+                              <span className="text-sm font-medium truncate flex-1">{r.title}</span>
+                              {resumePicker.applyingTo === r.id && (
+                                <span className="text-xs text-muted-foreground shrink-0">Applying…</span>
+                              )}
+                            </button>
+                          ))}
+                          <button
+                            onClick={() => applyTemplateToResume(null)}
+                            disabled={resumePicker.applyingTo !== null}
+                            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-dashed border-input hover:border-primary/40 hover:bg-accent/50 transition-colors text-left disabled:opacity-60"
+                          >
+                            <FilePlus size={15} className="text-muted-foreground shrink-0" />
+                            <span className="text-sm font-medium flex-1">
+                              {resumePicker.applyingTo === 'new' ? 'Creating…' : 'Create a new resume'}
+                            </span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <Button className="w-full" size="lg" onClick={handleStartUsingTemplate}>
+                      Use This Template
+                    </Button>
+                  )
                 ) : (
                   <Button
                     className="w-full"

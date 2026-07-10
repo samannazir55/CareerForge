@@ -12,7 +12,8 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "templates:bulk-generate": "tsx scripts/bulkGenerateTemplates.ts"
+    "templates:bulk-generate": "tsx scripts/bulkGenerateTemplates.ts",
+    "templates:seed-executive-photo": "tsx scripts/seedExecutivePhotoTemplate.ts"
   },
   "dependencies": {
     "@careerforge/schema": "*",
@@ -31,7 +32,9 @@
     "puppeteer-core": "^22.15.0",
     "stripe": "^16.0.0",
     "@anthropic-ai/sdk": "^0.32.0",
-    "openai": "^4.72.0"
+    "openai": "^4.72.0",
+    "cloudinary": "^2.10.0",
+    "multer": "^2.2.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -42,6 +45,7 @@
     "@types/node": "^22.7.0",
     "prisma": "^5.20.0",
     "tsx": "^4.19.0",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "@types/multer": "^2.1.0"
   }
 }
