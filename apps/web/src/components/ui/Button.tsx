@@ -1,4 +1,4 @@
-import { forwardRef } from 'react';
+import { forwardRef, type ReactNode } from 'react';
 import { motion, type HTMLMotionProps } from 'framer-motion';
 import { cn } from '../../lib/utils';
 
@@ -10,7 +10,7 @@ interface ButtonProps extends HTMLMotionProps<'button'> {
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = 'primary', size = 'md', ...props }, ref) => {
+  ({ className, variant = 'primary', size = 'md', children, ...props }, ref) => {
     const baseStyles =
       'btn-shine-wrap relative overflow-hidden inline-flex items-center justify-center rounded-xl font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50';
     const variants = {
@@ -37,7 +37,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       >
         <span className="btn-shine-sweep" aria-hidden="true" />
         <span className="relative z-10 inline-flex items-center justify-center gap-1.5">
-          {props.children}
+          {children as ReactNode}
         </span>
       </motion.button>
     );
