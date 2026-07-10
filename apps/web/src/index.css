@@ -127,6 +127,81 @@
   text-shadow: 0 0 24px rgba(99, 102, 241, 0.6), 0 0 60px rgba(168, 85, 247, 0.3);
 }
 
+/* Button hover shine-sweep — global, used by the shared Button component */
+.btn-shine-wrap {
+  isolation: isolate;
+}
+.btn-shine-sweep {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.35) 50%, transparent 70%);
+  transform: translateX(-130%);
+  transition: transform 0.55s ease;
+}
+.btn-shine-wrap:hover .btn-shine-sweep {
+  transform: translateX(130%);
+}
+
+/* ---------------------------------------------------------------------------
+   Welcome page — neon pipe feature carousel.
+--------------------------------------------------------------------------- */
+.welcome-page .pipe-core {
+  position: absolute;
+  width: 84px;
+  height: 440px;
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    rgb(var(--neon-indigo)),
+    rgb(var(--neon-purple)),
+    rgb(var(--neon-pink)),
+    rgb(var(--neon-cyan)),
+    rgb(var(--neon-indigo))
+  );
+  filter: blur(3px);
+  opacity: 0.85;
+  animation: pipe-spin 6s linear infinite;
+  mask-image: radial-gradient(ellipse 60% 100% at center, black 55%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 60% 100% at center, black 55%, transparent 100%);
+}
+.welcome-page .pipe-ring {
+  position: absolute;
+  border-radius: 999px;
+  border: 1.5px solid transparent;
+}
+.welcome-page .pipe-ring-a {
+  width: 130px;
+  height: 130px;
+  animation: pipe-spin 3.5s linear infinite;
+  box-shadow: 0 0 30px rgba(var(--neon-indigo), 0.35), inset 0 0 20px rgba(var(--neon-indigo), 0.25);
+  border-color: rgba(var(--neon-indigo), 0.5);
+}
+.welcome-page .pipe-ring-b {
+  width: 210px;
+  height: 270px;
+  animation: pipe-spin 5s linear infinite reverse;
+  box-shadow: 0 0 40px rgba(var(--neon-purple), 0.3), inset 0 0 24px rgba(var(--neon-purple), 0.2);
+  border-color: rgba(var(--neon-purple), 0.4);
+}
+.welcome-page .pipe-ring-c {
+  width: 290px;
+  height: 430px;
+  animation: pipe-spin 8s linear infinite;
+  box-shadow: 0 0 50px rgba(var(--neon-cyan), 0.22);
+  border-color: rgba(var(--neon-cyan), 0.3);
+}
+@keyframes pipe-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.welcome-page .neon-carousel-card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: box-shadow 0.3s ease;
+}
+
 /* ---------------------------------------------------------------------------
    Auth pages (login/register/OTP/forgot/reset) — same dark/neon family as
    the welcome page, calmer (fewer, dimmer squares) since these are

@@ -12,7 +12,7 @@ interface ButtonProps extends HTMLMotionProps<'button'> {
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', ...props }, ref) => {
     const baseStyles =
-      'inline-flex items-center justify-center rounded-xl font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50';
+      'btn-shine-wrap relative overflow-hidden inline-flex items-center justify-center rounded-xl font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50';
     const variants = {
       primary: 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm',
       secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
@@ -29,10 +29,17 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <motion.button
         ref={ref}
-        whileTap={{ scale: 0.98 }}
+        whileHover={{ scale: 1.035 }}
+        whileTap={{ scale: 0.96 }}
+        transition={{ type: 'spring', stiffness: 420, damping: 22 }}
         className={cn(baseStyles, variants[variant], sizes[size], className)}
         {...props}
-      />
+      >
+        <span className="btn-shine-sweep" aria-hidden="true" />
+        <span className="relative z-10 inline-flex items-center justify-center gap-1.5">
+          {props.children}
+        </span>
+      </motion.button>
     );
   },
 );

@@ -21,7 +21,8 @@ import {
 } from 'lucide-react';
 import { useRef } from 'react';
 import { FloatingSquares } from '../../components/welcome/FloatingSquares';
-import { FeatureCard, type FeatureItem } from '../../components/welcome/FeatureCard';
+import { NeonPipeCarousel } from '../../components/welcome/NeonPipeCarousel';
+import { type FeatureItem } from '../../components/welcome/FeatureCard';
 import { Button } from '../../components/ui/Button';
 import { useAuth } from '../../context/AuthContext';
 
@@ -46,11 +47,21 @@ const FEATURES: FeatureItem[] = [
 
 export function WelcomePage() {
   const { status } = useAuth();
+  const pageRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
+
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
-  const heroOpacity = useTransform(scrollYProgress, [0, 1], [1, 0.2]);
-  const heroY = useTransform(scrollYProgress, [0, 1], [0, 80]);
-  const heroScale = useTransform(scrollYProgress, [0, 1], [1, 0.96]);
+  const heroOpacity = useTransform(scrollYProgress, [0, 1], [1, 0]);
+  const heroY = useTransform(scrollYProgress, [0, 1], [0, 140]);
+  const heroScale = useTransform(scrollYProgress, [0, 1], [1, 0.9]);
+  const heroBlurPx = useTransform(scrollYProgress, [0, 1], [0, 8]);
+  const heroFilter = useTransform(heroBlurPx, (b) => `blur(${b}px)`);
+  const bgY = useTransform(scrollYProgress, [0, 1], [0, -100]);
+
+  const { scrollYProgress: navProgress } = useScroll({ target: pageRef, offset: ['start start', '200px start'] });
+  const navBg = useTransform(navProgress, [0, 1], ['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.45)']);
+  const navBlurPx = useTransform(navProgress, [0, 1], [6, 18]);
+  const navBackdrop = useTransform(navBlurPx, (b) => `blur(${b}px)`);
 
   // Skip the marketing page for users who are already signed in.
   if (status === 'authenticated') {
@@ -58,9 +69,12 @@ export function WelcomePage() {
   }
 
   return (
-    <div className="welcome-page min-h-screen w-full overflow-x-hidden">
+    <div ref={pageRef} className="welcome-page min-h-screen w-full overflow-x-hidden">
       {/* Top nav */}
-      <header className="sticky top-0 z-30 backdrop-blur-md bg-black/20 border-b border-white/5">
+      <motion.header
+        style={{ backgroundColor: navBg, backdropFilter: navBackdrop }}
+        className="sticky top-0 z-30 border-b border-white/5"
+      >
         <div className="max-w-6xl mx-auto flex items-center justify-between px-6 py-4">
           <span className="font-semibold text-lg tracking-tight">
             Career<span className="text-gradient">Forge</span>
@@ -78,14 +92,16 @@ export function WelcomePage() {
             </Link>
           </div>
         </div>
-      </header>
+      </motion.header>
 
       {/* Hero */}
       <section ref={heroRef} className="relative min-h-[88vh] flex items-center justify-center px-6 pt-10 pb-24">
-        <FloatingSquares count={18} />
+        <motion.div style={{ y: bgY }} className="absolute inset-0">
+          <FloatingSquares count={18} />
+        </motion.div>
 
         <motion.div
-          style={{ opacity: heroOpacity, y: heroY, scale: heroScale }}
+          style={{ opacity: heroOpacity, y: heroY, scale: heroScale, filter: heroFilter }}
           className="relative z-10 max-w-3xl mx-auto text-center"
         >
           <motion.div
@@ -165,11 +181,7 @@ export function WelcomePage() {
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {FEATURES.map((feature, i) => (
-              <FeatureCard key={feature.title} feature={feature} index={i} />
-            ))}
-          </div>
+          <NeonPipeCarousel features={FEATURES} />
         </div>
       </section>
 
@@ -180,6 +192,7 @@ export function WelcomePage() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-80px' }}
           transition={{ duration: 0.5 }}
+          whileHover={{ boxShadow: '0 0 60px rgba(129,140,248,0.25)' }}
           className="max-w-3xl mx-auto text-center rounded-3xl border border-white/10 bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-pink-500/10 p-12"
         >
           <h2 className="text-2xl sm:text-3xl font-bold mb-3">Ready to forge your next role?</h2>
