@@ -185,25 +185,47 @@ export function setOnSessionExpired(callback: (() => void) | null): void {
   onSessionExpired = callback;
 }
 
-let refreshInFlight: Promise<boolean> | null = null;
+let refreshInFlight: Promise<AuthResponse | null> | null = null;
 
-async function tryRefresh(): Promise<boolean> {
+// Every caller — the 401-retry logic below AND AuthContext's mount-time
+// bootstrap — now goes through this single shared promise instead of each
+// firing its own POST /auth/refresh. That used to be a real race: refresh
+// tokens are rotated/revoked server-side on use (auth.service.ts), so two
+// concurrent refresh calls sharing the same httpOnly cookie meant the
+// second one always failed against an already-revoked token. On first
+// page load, AuthContext's bootstrap refresh and every other component's
+// 401-triggered refresh (dashboard stats, points, points/templates,
+// preview-render, etc. all fetch on mount before the access token is
+// hydrated) were exactly that pair of concurrent calls — hence the burst
+// of unrelated 401s across totally different endpoints at once.
+async function performRefresh(): Promise<AuthResponse | null> {
   if (!refreshInFlight) {
     refreshInFlight = (async () => {
       try {
         const data = await request<AuthResponse>('/auth/refresh', { method: 'POST', skipAuthRetry: true });
         setAccessToken(data.accessToken);
-        return true;
+        return data;
       } catch {
         setAccessToken(null);
         onSessionExpired?.();
-        return false;
+        return null;
       } finally {
         refreshInFlight = null;
       }
     })();
   }
   return refreshInFlight;
+}
+
+async function tryRefresh(): Promise<boolean> {
+  return (await performRefresh()) !== null;
+}
+
+/** Exported so AuthContext's mount-time bootstrap can share the same
+ * in-flight refresh as every other request's 401 retry, instead of firing
+ * a second, independent /auth/refresh call. See performRefresh() above. */
+export async function refreshSession(): Promise<AuthResponse | null> {
+  return performRefresh();
 }
 
 export const authApi = {

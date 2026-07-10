@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef, type ReactNode } from 'react';
 import type { LoginRequest, RegisterRequest, UserPublic } from '@careerforge/schema';
-import { authApi, setAccessToken, setOnSessionExpired, ApiError } from '../lib/api';
+import { authApi, refreshSession, setAccessToken, setOnSessionExpired, ApiError } from '../lib/api';
 
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
@@ -41,15 +41,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // On first load there's no access token in memory (page was just (re)loaded),
   // so the only way to know if there's a valid session is to ask the API to
   // mint a fresh access token from the httpOnly refresh cookie.
+  //
+  // This goes through the shared refreshSession() helper (in lib/api.ts)
+  // rather than calling authApi.refresh() directly. Refresh tokens are
+  // rotated/revoked server-side on every use, so if some other component
+  // mounted alongside AuthProvider also fetches on load (dashboard stats,
+  // points, points/templates, preview-render, etc.), its request goes out
+  // before this effect has hydrated the access token, gets a 401, and
+  // fires its own refresh — a second call racing this one on the same
+  // httpOnly cookie. Whichever refresh reached the server second was
+  // handed an already-revoked token and failed, surfacing as a 401 on an
+  // otherwise-unrelated endpoint. Routing everyone through the same
+  // in-flight promise means only one /auth/refresh call ever goes out.
   useEffect(() => {
     (async () => {
-      try {
-        const data = await authApi.refresh();
-        setAccessToken(data.accessToken);
+      const data = await refreshSession();
+      if (data) {
         setUser(data.user);
         setStatus('authenticated');
-      } catch {
-        setAccessToken(null);
+      } else {
         setUser(null);
         setStatus('unauthenticated');
       }
