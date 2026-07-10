@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react';
 import { motion, useAnimationFrame, useMotionValue, useSpring } from 'framer-motion';
 import type { FeatureItem } from './FeatureCard';
+import { NeonTower } from './NeonTower';
+import { TowerSatellites } from './TowerSatellites';
 
 const ACCENT_HEX: Record<FeatureItem['accent'], string> = {
   indigo: '#818cf8',
@@ -60,12 +62,15 @@ export function NeonPipeCarousel({ features }: NeonPipeCarouselProps) {
       onPointerUp={onPointerUp}
       onPointerLeave={onPointerUp}
     >
-      {/* Hollow glowing pipe core */}
+      {/* Satellite squares — rise up and join a permanent orbit around the tower */}
+      <TowerSatellites />
+
+      {/* Dark royal-blue lattice tower with glowing halo rings */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="pipe-core" />
         <div className="pipe-ring pipe-ring-a" />
         <div className="pipe-ring pipe-ring-b" />
         <div className="pipe-ring pipe-ring-c" />
+        <NeonTower />
       </div>
 
       <motion.div

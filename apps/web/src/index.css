@@ -109,19 +109,74 @@
     #06060c;
   color: #f5f5f8;
 }
+.welcome-page .orbit-track {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  animation-duration: var(--orbit-duration, 60s);
+  pointer-events: none;
+}
+.welcome-page .orbit-track-cw {
+  animation-name: orbit-cw;
+}
+.welcome-page .orbit-track-ccw {
+  animation-name: orbit-ccw;
+}
+.welcome-page .orbit-item {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+/* Counter-rotates at the same speed/duration as its parent track so the
+   square itself stays upright while still being carried around the circle —
+   the standard "orbit" CSS trick (two opposite animations cancel rotation,
+   translation from the parent's transform origin remains). */
+.welcome-page .orbit-counter {
+  position: relative;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  animation-duration: var(--orbit-duration, 60s);
+}
+.welcome-page .orbit-counter-cw {
+  animation-name: orbit-cw;
+}
+.welcome-page .orbit-counter-ccw {
+  animation-name: orbit-ccw;
+}
+@keyframes orbit-cw {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes orbit-ccw {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(-360deg); }
+}
 .welcome-page .neon-square {
   position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   border-radius: 0.75rem;
   border: 1px solid rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(1px);
   pointer-events: none;
 }
-@keyframes drift-float {
-  0%, 100% { transform: translate(0, 0) rotate(var(--rot, 0deg)); }
-  50% { transform: translate(var(--dx, 14px), var(--dy, -18px)) rotate(var(--rot2, 6deg)); }
-}
-.welcome-page .neon-square {
-  animation: drift-float var(--dur, 9s) ease-in-out infinite;
+/* Faint blurred echo sitting just behind each square in its orbit slot —
+   a stylized "motion trail" that reads as elegant streaking rather than
+   true directional motion blur (which would need per-frame angle math). */
+.welcome-page .neon-square-ghost {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-42%, -58%) scale(1.15);
+  border-radius: 0.9rem;
+  filter: blur(9px);
+  opacity: 0.32;
+  pointer-events: none;
 }
 .welcome-page .neon-glow-text {
   text-shadow: 0 0 24px rgba(99, 102, 241, 0.6), 0 0 60px rgba(168, 85, 247, 0.3);
@@ -147,24 +202,8 @@
 /* ---------------------------------------------------------------------------
    Welcome page — neon pipe feature carousel.
 --------------------------------------------------------------------------- */
-.welcome-page .pipe-core {
-  position: absolute;
-  width: 84px;
-  height: 440px;
-  border-radius: 999px;
-  background: linear-gradient(
-    180deg,
-    rgb(var(--neon-indigo)),
-    rgb(var(--neon-purple)),
-    rgb(var(--neon-pink)),
-    rgb(var(--neon-cyan)),
-    rgb(var(--neon-indigo))
-  );
-  filter: blur(3px);
-  opacity: 0.85;
-  animation: pipe-spin 6s linear infinite;
-  mask-image: radial-gradient(ellipse 60% 100% at center, black 55%, transparent 100%);
-  -webkit-mask-image: radial-gradient(ellipse 60% 100% at center, black 55%, transparent 100%);
+.welcome-page .tower-glow {
+  filter: drop-shadow(0 0 24px rgba(37, 71, 216, 0.5)) drop-shadow(0 0 60px rgba(37, 71, 216, 0.22));
 }
 .welcome-page .pipe-ring {
   position: absolute;
@@ -172,25 +211,25 @@
   border: 1.5px solid transparent;
 }
 .welcome-page .pipe-ring-a {
-  width: 130px;
-  height: 130px;
-  animation: pipe-spin 3.5s linear infinite;
-  box-shadow: 0 0 30px rgba(var(--neon-indigo), 0.35), inset 0 0 20px rgba(var(--neon-indigo), 0.25);
-  border-color: rgba(var(--neon-indigo), 0.5);
+  width: 150px;
+  height: 150px;
+  animation: pipe-spin 4.5s linear infinite;
+  box-shadow: 0 0 26px rgba(37, 71, 216, 0.32), inset 0 0 18px rgba(37, 71, 216, 0.2);
+  border-color: rgba(37, 71, 216, 0.4);
 }
 .welcome-page .pipe-ring-b {
-  width: 210px;
-  height: 270px;
-  animation: pipe-spin 5s linear infinite reverse;
-  box-shadow: 0 0 40px rgba(var(--neon-purple), 0.3), inset 0 0 24px rgba(var(--neon-purple), 0.2);
-  border-color: rgba(var(--neon-purple), 0.4);
+  width: 240px;
+  height: 310px;
+  animation: pipe-spin 6.5s linear infinite reverse;
+  box-shadow: 0 0 34px rgba(244, 114, 182, 0.2);
+  border-color: rgba(244, 114, 182, 0.3);
 }
 .welcome-page .pipe-ring-c {
-  width: 290px;
-  height: 430px;
-  animation: pipe-spin 8s linear infinite;
-  box-shadow: 0 0 50px rgba(var(--neon-cyan), 0.22);
-  border-color: rgba(var(--neon-cyan), 0.3);
+  width: 330px;
+  height: 470px;
+  animation: pipe-spin 10s linear infinite;
+  box-shadow: 0 0 46px rgba(37, 71, 216, 0.16);
+  border-color: rgba(37, 71, 216, 0.22);
 }
 @keyframes pipe-spin {
   from { transform: rotate(0deg); }
@@ -200,6 +239,18 @@
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
   border: 1px solid rgba(255, 255, 255, 0.1);
   transition: box-shadow 0.3s ease;
+}
+/* Small squares that rise up and join a permanent orbit around the tower
+   the first time the carousel scrolls into view. Reuses the same
+   .orbit-track / .orbit-counter infrastructure as the hero's FloatingSquares. */
+.welcome-page .satellite-square {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 0.5rem;
+  border: 1px solid transparent;
+  pointer-events: none;
 }
 
 /* ---------------------------------------------------------------------------
