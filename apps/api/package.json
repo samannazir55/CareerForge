@@ -12,8 +12,7 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "templates:bulk-generate": "tsx scripts/bulkGenerateTemplates.ts",
-    "templates:seed-executive-photo": "tsx scripts/seedExecutivePhotoTemplate.ts"
+    "templates:bulk-generate": "tsx scripts/bulkGenerateTemplates.ts"
   },
   "dependencies": {
     "@careerforge/schema": "*",

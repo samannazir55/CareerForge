@@ -71,3 +71,65 @@
 {"comboKey":"418387","status":"failed","error":"Generated template has unsupported/broken placeholder tags -- try again:\n- {{#photoUrl}} isn't a construct this renderer implements — it will never render, no matter how it's written. Supported loop tags: experiences, education, skills, certifications, projects, languages, references, customSections, entries. Supported conditional fields: name, jobTitle, email, phone, location, linkedin, website, summary, accentColor, accentColorSoft, accentColorDark. Supported per-entry fields: exp.title, exp.company, exp.location, exp.startDate, exp.endDate, exp.dateRange, exp.description, edu.degree, edu.school, edu.startDate, edu.endDate, edu.dateRange, skill.name, cert.name, cert.issuer, cert.date, project.name, project.description, project.url, lang.name, lang.proficiency, ref.name, ref.relationship, ref.contact, section.title, entry.fields.","timestamp":"2026-07-10T09:49:55.785Z"}
 {"comboKey":"611596","status":"failed","error":"Generated template has unsupported/broken placeholder tags -- try again:\n- {{#photoUrl}} isn't a construct this renderer implements — it will never render, no matter how it's written. Supported loop tags: experiences, education, skills, certifications, projects, languages, references, customSections, entries. Supported conditional fields: name, jobTitle, email, phone, location, linkedin, website, summary, accentColor, accentColorSoft, accentColorDark. Supported per-entry fields: exp.title, exp.company, exp.location, exp.startDate, exp.endDate, exp.dateRange, exp.description, edu.degree, edu.school, edu.startDate, edu.endDate, edu.dateRange, skill.name, cert.name, cert.issuer, cert.date, project.name, project.description, project.url, lang.name, lang.proficiency, ref.name, ref.relationship, ref.contact, section.title, entry.fields.","timestamp":"2026-07-10T09:50:27.625Z"}
 {"comboKey":"213515","status":"success","name":"Nonprofit Quiet Sidebar","slug":"nonprofit-quiet-sidebar","timestamp":"2026-07-10T09:50:43.638Z"}
+{"comboKey":"696487","status":"success","name":"Technical Black","slug":"technical-black","timestamp":"2026-07-10T13:08:25.056Z"}
+{"comboKey":"271755","status":"success","name":"Executive Counsel","slug":"executive-counsel-dark-sidebar","timestamp":"2026-07-10T13:08:27.556Z"}
+{"comboKey":"652356","status":"success","name":"Aurelius Executive","slug":"aurelius-executive","timestamp":"2026-07-10T13:09:59.148Z"}
+{"comboKey":"31481","status":"success","name":"Scandinavian Classic","slug":"scandinavian-classic-2","timestamp":"2026-07-10T13:10:06.493Z"}
+{"comboKey":"630716","status":"success","name":"Consultant's Editorial","slug":"consultant-editorial","timestamp":"2026-07-10T13:11:49.903Z"}
+{"comboKey":"725423","status":"success","name":"Opus Editorial","slug":"opus-editorial","timestamp":"2026-07-10T13:12:24.171Z"}
+{"comboKey":"726109","status":"success","name":"Surgical Focus","slug":"surgical-focus","timestamp":"2026-07-10T13:13:07.654Z"}
+{"comboKey":"820557","status":"success","name":"Charter Ivory","slug":"charter-ivory","timestamp":"2026-07-10T13:13:24.030Z"}
+{"comboKey":"280141","status":"success","name":"Research Heritage","slug":"research-heritage","timestamp":"2026-07-10T13:14:26.662Z"}
+{"comboKey":"276364","status":"success","name":"Tradesman Slate","slug":"tradesman-slate","timestamp":"2026-07-10T13:15:04.529Z"}
+{"comboKey":"32704","status":"success","name":"Serene Focus","slug":"serene-focus","timestamp":"2026-07-10T13:15:33.674Z"}
+{"comboKey":"820211","status":"success","name":"Editorial Masthead","slug":"editorial-masthead","timestamp":"2026-07-10T13:17:09.880Z"}
+{"comboKey":"687288","status":"failed","error":"AI response was missing required sections. Try again, or use a more specific prompt.","timestamp":"2026-07-10T13:17:13.418Z"}
+{"comboKey":"44002","status":"success","name":"Mission Dark","slug":"mission-dark","timestamp":"2026-07-10T13:18:31.818Z"}
+{"comboKey":"611596","status":"success","name":"Healthcare Professional","slug":"healthcare-professional","timestamp":"2026-07-10T13:28:02.504Z"}
+{"comboKey":"86809","status":"success","name":"Technical Family (Compact Academia)","slug":"technical-family-compact-academia","timestamp":"2026-07-10T13:28:11.549Z"}
+{"comboKey":"418387","status":"success","name":"Research Serif","slug":"research-serif","timestamp":"2026-07-10T13:28:25.521Z"}
+{"comboKey":"375043","status":"success","name":"TechBand Healthcare","slug":"techband-healthcare","timestamp":"2026-07-10T13:29:17.688Z"}
+{"comboKey":"577842","status":"success","name":"Portfolio Executive Dark","slug":"portfolio-executive-dark","timestamp":"2026-07-10T13:29:56.456Z"}
+{"comboKey":"86336","status":"success","name":"Classic Consultant","slug":"classic-consultant","timestamp":"2026-07-10T13:30:19.805Z"}
+{"comboKey":"647263","status":"success","name":"Clinical Statement","slug":"clinical-statement","timestamp":"2026-07-10T13:31:37.820Z"}
+{"comboKey":"111644","status":"success","name":"Academic Editorial","slug":"academic-editorial","timestamp":"2026-07-10T13:31:43.510Z"}
+{"comboKey":"260769","status":"success","name":"Academic Editorial","slug":"academic-editorial-2","timestamp":"2026-07-10T13:32:09.606Z"}
+{"comboKey":"255455","status":"success","name":"Traditional Charcoal","slug":"traditional-charcoal","timestamp":"2026-07-10T13:33:33.195Z"}
+{"comboKey":"505236","status":"success","name":"Academic Chronology","slug":"academic-chronology","timestamp":"2026-07-10T13:33:33.361Z"}
+{"comboKey":"145711","status":"success","name":"Charcoal Grotesque","slug":"charcoal-grotesque","timestamp":"2026-07-10T13:34:35.583Z"}
+{"comboKey":"471914","status":"success","name":"Editorial Timeline","slug":"editorial-timeline-2","timestamp":"2026-07-10T13:35:19.707Z"}
+{"comboKey":"244740","status":"success","name":"Academic Counsel","slug":"academic-counsel","timestamp":"2026-07-10T13:36:09.584Z"}
+{"comboKey":"528792","status":"success","name":"Portfolio Timeline","slug":"portfolio-timeline","timestamp":"2026-07-10T13:37:15.336Z"}
+{"comboKey":"824332","status":"success","name":"Healthline Technical","slug":"healthline-technical","timestamp":"2026-07-10T13:37:23.571Z"}
+{"comboKey":"679626","status":"success","name":"Nightingale – Editorial","slug":"nightingale-editorial","timestamp":"2026-07-10T13:38:03.594Z"}
+{"comboKey":"136799","status":"success","name":"Legal Pro Serif","slug":"legal-pro-serif","timestamp":"2026-07-10T13:38:43.813Z"}
+{"comboKey":"313169","status":"success","name":"Timeless Editorial","slug":"timeless-editorial","timestamp":"2026-07-10T13:40:01.126Z"}
+{"comboKey":"655108","status":"success","name":"Artesan","slug":"artesan","timestamp":"2026-07-10T13:40:30.973Z"}
+{"comboKey":"188318","status":"success","name":"Editorial Academic","slug":"editorial-academic","timestamp":"2026-07-10T13:40:53.023Z"}
+{"comboKey":"374613","status":"success","name":"Builder's Portfolio","slug":"builders-portfolio","timestamp":"2026-07-10T13:40:54.799Z"}
+{"comboKey":"772711","status":"success","name":"Masthead Classic","slug":"masthead-classic","timestamp":"2026-07-10T13:41:57.294Z"}
+{"comboKey":"355396","status":"success","name":"Technical Executive","slug":"technical-executive","timestamp":"2026-07-10T13:43:18.140Z"}
+{"comboKey":"748644","status":"success","name":"Developer Portfolio Dark","slug":"developer-portfolio-dark","timestamp":"2026-07-10T13:43:19.571Z"}
+{"comboKey":"67898","status":"success","name":"Site Foreman","slug":"site-foreman","timestamp":"2026-07-10T13:43:39.572Z"}
+{"comboKey":"98350","status":"success","name":"Scandinavian Executive","slug":"scandinavian-executive","timestamp":"2026-07-10T13:45:02.850Z"}
+{"comboKey":"141571","status":"success","name":"Monolith","slug":"monolith","timestamp":"2026-07-10T13:45:40.550Z"}
+{"comboKey":"805677","status":"success","name":"Blackstone Portfolio","slug":"blackstone-portfolio","timestamp":"2026-07-10T13:46:00.981Z"}
+{"comboKey":"704598","status":"success","name":"Research Grid","slug":"research-grid","timestamp":"2026-07-10T13:46:43.177Z"}
+{"comboKey":"355437","status":"success","name":"Narrative Edge","slug":"narrative-edge","timestamp":"2026-07-10T13:48:20.854Z"}
+{"comboKey":"314969","status":"success","name":"Legacy Brief","slug":"legacy-brief","timestamp":"2026-07-10T13:48:36.708Z"}
+{"comboKey":"228222","status":"success","name":"Echelon","slug":"echelon-executive-sidebar","timestamp":"2026-07-10T13:48:53.094Z"}
+{"comboKey":"276354","status":"success","name":"Executive Ivory with Sidebar","slug":"executive-ivory-sidebar","timestamp":"2026-07-10T13:49:36.598Z"}
+{"comboKey":"787123","status":"success","name":"Brutalist Service","slug":"brutalist-service","timestamp":"2026-07-10T13:50:02.736Z"}
+{"comboKey":"825463","status":"success","name":"Healthcare Structural","slug":"healthcare-structural","timestamp":"2026-07-10T13:50:52.277Z"}
+{"comboKey":"219509","status":"success","name":"Artisan Sidebar","slug":"artisan-sidebar","timestamp":"2026-07-10T13:52:23.515Z"}
+{"comboKey":"804803","status":"success","name":"Editorial Monochrome","slug":"editorial-monochrome","timestamp":"2026-07-10T13:53:03.314Z"}
+{"comboKey":"210920","status":"success","name":"Luxury Editorial Healthcare","slug":"luxury-editorial-healthcare","timestamp":"2026-07-10T13:54:15.589Z"}
+{"comboKey":"400181","status":"success","name":"Editorial Luxe","slug":"editorial-luxe-2","timestamp":"2026-07-10T13:55:18.073Z"}
+{"comboKey":"258686","status":"success","name":"Classic Heritage","slug":"classic-heritage","timestamp":"2026-07-10T14:01:24.389Z"}
+{"comboKey":"191097","status":"success","name":"Executive Dark","slug":"executive-dark","timestamp":"2026-07-10T14:01:28.016Z"}
+{"comboKey":"648114","status":"failed","error":"Connection error.","timestamp":"2026-07-10T14:03:03.915Z"}
+{"comboKey":"307778","status":"failed","error":"Connection error.","timestamp":"2026-07-10T14:03:03.932Z"}
+{"comboKey":"247016","status":"failed","error":"Connection error.","timestamp":"2026-07-10T14:03:36.120Z"}
+{"comboKey":"636113","status":"failed","error":"Connection error.","timestamp":"2026-07-10T14:03:36.154Z"}
+{"comboKey":"260437","status":"failed","error":"Connection error.","timestamp":"2026-07-10T14:03:36.565Z"}
+{"comboKey":"781544","status":"failed","error":"Connection error.","timestamp":"2026-07-10T14:04:21.615Z"}
