@@ -250,6 +250,7 @@ export const aiApi = {
 
 export const templatesApi = {
   list: () => request<{ templates: PublicTemplateListItem[] }>('/templates'),
+  preview: (id: string) => requestText(`/templates/${id}/preview`),
 };
 
 export const sharingApi = {

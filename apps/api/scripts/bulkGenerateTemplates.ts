@@ -12,9 +12,10 @@
  *
  * FLAGS
  *   --count=1500        how many templates to generate (default 1500)
- *   --concurrency=3      parallel AI calls in flight at once (default 3 —
- *                        raise cautiously, your configured AI_PROVIDER's
- *                        rate limits apply -- GROQ, OpenRouter, or Anthropic)
+ *   --concurrency=3      parallel OpenRouter calls in flight at once
+ *                        (default 3 — raise cautiously, your OPENROUTER_MODEL's
+ *                        rate limits apply). Groq is skipped entirely by
+ *                        this script, regardless of AI_PROVIDER — see below.
  *   --admin-email=...    which admin user to attribute these to in the
  *                        audit log (default: first ADMIN user found)
  *   --seed=42            shuffle seed for picking combinations — reuse the
@@ -37,10 +38,11 @@ import * as readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { TEMPLATE_FAMILIES } from '@careerforge/schema';
 import '../src/config/env.js';
+import { env } from '../src/config/env.js';
 import { prisma } from '../src/lib/prisma.js';
 import { generateTemplateViaProvider } from '../src/domain/admin/templateGeneration.js';
 import { dynamicTemplatesService } from '../src/domain/admin/dynamicTemplates.service.js';
-import { aiProvider } from '../src/domain/ai/index.js';
+import { OpenRouterProvider } from '../src/domain/ai/openrouter.adapter.js';
 
 // ---------------------------------------------------------------------------
 // CLI args
@@ -63,6 +65,53 @@ const LOG_PATH = String(args.log ?? fileURLToPath(new URL('./bulk-generate-log.j
 const DRY_RUN = Boolean(args['dry-run']);
 const SKIP_CONFIRM = Boolean(args.yes);
 const ADMIN_EMAIL = typeof args['admin-email'] === 'string' ? args['admin-email'] : undefined;
+
+// ---------------------------------------------------------------------------
+// AI client
+// ---------------------------------------------------------------------------
+// This script previously went through the app's provider-agnostic
+// aiProvider (whatever AI_PROVIDER is configured — Groq → OpenRouter
+// fallback in this deployment), via generateTemplateViaProvider(aiProvider,
+// ...). That's fine for interactive chat features, but wrong for bulk
+// template generation specifically because of Groq: Groq's free tier caps
+// at 8,000 tokens/minute, and a single generation call here needs ~16k
+// *output* tokens alone (before counting the ~4k-token system prompt) — it
+// can never fit, so on this path every single call fails on Groq first and
+// only succeeds (or doesn't) after falling through to OpenRouter. That's
+// wasted latency/retries on every call, and it's what produced the
+// "413 Request too large ... Limit 8000, Requested 19957" noise in your
+// terminal output.
+//
+// This script now talks to OpenRouter directly, skipping Groq and the
+// FallbackAIProvider chain entirely — no wasted Groq attempt, no
+// AI_PROVIDER env var involved, just OPENROUTER_API_KEY + OPENROUTER_MODEL.
+//
+// A NOTE ON MODEL CHOICE: whichever OPENROUTER_MODEL you have configured is
+// what generates every template. TEMPLATE_GENERATION_SYSTEM_PROMPT is an
+// unusually long, strict spec — §1's placeholder contract has to be
+// followed literally, with zero improvised syntax — so a small/fast/"lite"
+// tier model can succeed on some briefs and invent non-existent tags like
+// {{#section.entries}} on others, which is exactly the inconsistency an
+// unattended thousand-call batch can't tolerate (every failed attempt
+// still burns a paid call before the retry). If you're seeing broken-
+// placeholder failures, that's a model-capability problem to fix by
+// switching OPENROUTER_MODEL to a stronger (non-"lite"/"mini"/"flash-8b"
+// class) model on openrouter.ai/models — this script will use whatever
+// you set it to, no code change needed here.
+function getOpenRouterProvider(): OpenRouterProvider {
+  if (!env.OPENROUTER_API_KEY) {
+    console.error(
+      'OPENROUTER_API_KEY is not set. Bulk template generation talks to OpenRouter directly ' +
+        '(skipping Groq entirely, regardless of AI_PROVIDER) so it never wastes a call hitting ' +
+        "Groq's free-tier token-per-minute limit first. Set OPENROUTER_API_KEY (and, if you want " +
+        'a different model than your chat features use, OPENROUTER_MODEL) in apps/api/.env and ' +
+        'try again.',
+    );
+    process.exit(1);
+  }
+  return new OpenRouterProvider();
+}
+const openRouterProvider = getOpenRouterProvider();
 
 // ---------------------------------------------------------------------------
 // Variation matrix — mirrors the "Variation Matrix" from the copy-paste
@@ -160,6 +209,18 @@ const TOTAL_COMBOS =
 // fallback silently applied to all 1500 rows. Free-category templates
 // still cost 0 regardless (handled in the worker below); this only applies
 // to rows the AI marks as 'premium'.
+//
+// UPDATE: the product only wants two free templates total — the two
+// built-in code templates, Modern and Classic (see TemplateSwitcher /
+// dynamicTemplates.service.ts's RESERVED_SLUGS, which those two own).
+// Every template this script creates is bulk/AI-generated, so none of them
+// should ever be free — that used to depend on the model's own §5
+// CATEGORY judgment call ("a plain single-column layout should be free"),
+// which meant a chunk of the 1500 silently landed in the free tier with no
+// review. The worker below now hardcodes category: 'premium' for every row
+// it creates and ignores generated.category entirely; the AI's CATEGORY
+// section is still requested (the prompt/parser aren't worth forking) but
+// no longer trusted for pricing.
 const PREMIUM_POINT_TIERS = [40, 45, 50];
 
 /** Deterministic per-index pick so re-running with the same --seed
@@ -290,11 +351,12 @@ async function main() {
   console.log(`Attributing to admin: ${admin.email} (${admin.id})`);
   console.log(`Concurrency: ${CONCURRENCY}  ·  Log file: ${LOG_PATH}  ·  Dry run: ${DRY_RUN}`);
   console.log(
-    `\nHeads up: this makes ${pending.length} calls to your configured AI provider with a ~16k output-token ` +
-    `ceiling each. That's a real, non-trivial API cost/quota usage and will likely take multiple hours at this ` +
-    `concurrency — check your provider's current pricing/rate limits before committing to a large --count, ` +
-    `and consider a small test run first ` +
-    `(--count=5 --yes) to sanity-check output before spending the full budget.\n`,
+    `\nHeads up: this makes ${pending.length} calls directly to OpenRouter (model: ${env.OPENROUTER_MODEL}) ` +
+    `with a ~16k output-token ceiling each, skipping Groq entirely. That's real, non-trivial usage on ` +
+    `whichever paid OpenRouter model you've configured — check openrouter.ai/models for that model's current ` +
+    `pricing before committing to a large --count, and consider a small test run first ` +
+    `(--count=5 --yes) to sanity-check output quality (broken placeholder tags = switch to a stronger ` +
+    `OPENROUTER_MODEL, not a bug in this script) before spending the full budget.\n`,
   );
 
   if (pending.length === 0) {
@@ -325,7 +387,7 @@ async function main() {
 
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          const generated = await generateTemplateViaProvider(aiProvider, brief);
+          const generated = await generateTemplateViaProvider(openRouterProvider, brief);
 
           if (DRY_RUN) {
             console.log(`${label} ✓ (dry-run) "${generated.name}" — ${brief}`);
@@ -348,9 +410,9 @@ async function main() {
               created = await dynamicTemplatesService.create(admin.id, {
                 name: generated.name,
                 slug: slugAttempt,
-                category: generated.category,
+                category: 'premium', // bulk-generated templates are never free — see PREMIUM_POINT_TIERS comment above
                 family: familyId,
-                pointsCost: generated.category === 'premium' ? pointsForIndex(comboIndex) : 0,
+                pointsCost: pointsForIndex(comboIndex),
                 templateHtml: generated.html,
                 promptUsed: brief,
                 displayOrder: nextDisplayOrder++,

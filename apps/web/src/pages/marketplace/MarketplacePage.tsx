@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search, ShieldCheck, Lock, Unlock, Coins, X } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
+import { TemplateLivePreview } from '../../components/preview/TemplateLivePreview';
 import { pointsApi, ApiError } from '../../lib/api';
 import { TEMPLATE_FAMILIES } from '@careerforge/schema';
 import { useAuth } from '../../context/AuthContext';
@@ -14,32 +15,6 @@ interface TemplateItem {
   category: 'free' | 'premium';
   family: string;
   cost: number;
-}
-
-/**
- * Faux-document preview — a stack of muted blocks shaped like a resume's
- * header/lines/section, scaled differently per category so free and
- * premium templates read as visually distinct without needing real
- * preview images (the backend has none; previewClass is only a CSS
- * class string with no visual definition behind it).
- */
-function TemplatePreview({ category }: { category: TemplateItem['category'] }) {
-  return (
-    <div
-      className={cn(
-        'w-full h-full bg-card rounded-md shadow-sm border border-border/50 flex flex-col p-4',
-        category === 'premium' && 'border-amber-300/40',
-      )}
-    >
-      <div className="w-1/2 h-4 bg-muted-foreground/20 rounded mb-4" />
-      <div className="w-full h-2 bg-muted-foreground/10 rounded mb-2" />
-      <div className="w-3/4 h-2 bg-muted-foreground/10 rounded mb-6" />
-      <div className="w-1/3 h-3 bg-muted-foreground/20 rounded mb-3" />
-      <div className="w-full h-16 bg-muted-foreground/5 rounded mb-4" />
-      <div className="w-1/3 h-3 bg-muted-foreground/20 rounded mb-3" />
-      <div className="w-full h-10 bg-muted-foreground/5 rounded" />
-    </div>
-  );
 }
 
 export function MarketplacePage() {
@@ -201,7 +176,7 @@ export function MarketplacePage() {
                     onClick={() => setSelectedTemplate(template)}
                   >
                     <div className="aspect-[1/1.2] bg-muted relative overflow-hidden p-4">
-                      <TemplatePreview category={template.category} />
+                      <TemplateLivePreview templateId={template.id} className="rounded-md shadow-sm border border-border/50" />
 
                       <div className="absolute top-3 left-3 flex flex-col gap-2">
                         <div className="bg-background/90 backdrop-blur text-xs font-bold px-2 py-1 rounded-md shadow-sm flex items-center gap-1">
@@ -284,7 +259,7 @@ export function MarketplacePage() {
                 <X size={16} />
               </button>
               <div className="aspect-[2/1] bg-muted p-6">
-                <TemplatePreview category={selectedTemplate.category} />
+                <TemplateLivePreview templateId={selectedTemplate.id} className="rounded-md shadow-sm border border-border/50" />
               </div>
               <div className="p-8">
                 <h3 className="text-2xl font-bold mb-2">{selectedTemplate.name}</h3>

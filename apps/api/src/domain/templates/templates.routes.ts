@@ -4,6 +4,9 @@ import { requireAuth } from '../../middleware/authGuard.js';
 import { prisma } from '../../lib/prisma.js';
 import { getAllTemplateMetadata } from '@careerforge/templates';
 import type { PublicTemplateListItem } from '@careerforge/schema';
+import { NotFoundError } from '../../lib/errors.js';
+import { resolveTemplate } from './templateResolver.js';
+import { SAMPLE_RESUME } from '../admin/sampleResume.js';
 
 export const templatesRouter = Router();
 
@@ -59,5 +62,39 @@ templatesRouter.get(
     const templates = [...fromCode, ...fromDynamic].sort((a, b) => a.displayOrder - b.displayOrder);
 
     res.status(200).json({ templates });
+  }),
+);
+
+/**
+ * Real CV preview for the marketplace and template-switcher "View More"
+ * flow — renders the actual template HTML with a realistic sample resume
+ * (same SAMPLE_RESUME the admin authoring preview uses) so a shopper can
+ * see what they're about to spend points on instead of a generic mock-block
+ * placeholder. Works for both code-registered templates (modern, classic)
+ * and admin/AI-generated DynamicTemplate rows.
+ *
+ * 404s explicitly for an unknown/inactive id rather than silently falling
+ * back to Modern (which is what resolveTemplate() does for callers that
+ * render a real resume and always need *something* to show) — a bad id
+ * here should surface as "this template isn't available" in the UI, not
+ * quietly render Modern as if that were the actual template.
+ */
+templatesRouter.get(
+  '/:id/preview',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const isCodeTemplate = getAllTemplateMetadata().some((t) => t.id === id);
+    const dynamic = isCodeTemplate ? null : await prisma.dynamicTemplate.findUnique({ where: { id } });
+
+    if (!isCodeTemplate && (!dynamic || !dynamic.isActive)) {
+      throw new NotFoundError('Template not found.');
+    }
+
+    const resolved = await resolveTemplate(id);
+    const html = resolved.renderHtml(SAMPLE_RESUME);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    res.send(html);
   }),
 );
