@@ -52,6 +52,11 @@ export function createApp() {
         directives: {
           ...helmet.contentSecurityPolicy.getDefaultDirectives(),
           'script-src': ["'self'", "'sha256-9flWX4yX1evPgQSfTFk0Ahh8d8AhomVOTzUKHTnGgks='"],
+          // Resume profile photos are served from Cloudinary (see
+          // domain/uploads/cloudinary.service.ts) -- the default CSP's
+          // img-src is 'self' data: only, which silently blocks the
+          // browser from loading them without this.
+          'img-src': ["'self'", 'data:', 'https://res.cloudinary.com'],
         },
       },
     }),
