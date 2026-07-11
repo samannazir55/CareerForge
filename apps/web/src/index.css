@@ -254,6 +254,54 @@
 }
 
 /* ---------------------------------------------------------------------------
+   Coverflow feature gallery.
+--------------------------------------------------------------------------- */
+.welcome-page .coverflow-card-surface {
+  border: 1px solid;
+  backdrop-filter: blur(6px);
+  transition: box-shadow 0.3s ease;
+}
+
+/* One-shot RGB-split glitch flicker on the front card's title when it
+   becomes active — settles after ~0.6s rather than looping, for a subtle,
+   elegant reveal rather than a constant distraction. */
+.welcome-page .glitch-text {
+  position: relative;
+  display: inline-block;
+}
+.welcome-page .glitch-text::before,
+.welcome-page .glitch-text::after {
+  content: attr(data-text);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+}
+.welcome-page .glitch-text::before {
+  color: #22d3ee;
+  animation: glitch-shift 0.6s steps(8) 1;
+  mix-blend-mode: screen;
+  transform: translate(-2px, 0);
+}
+.welcome-page .glitch-text::after {
+  color: #f472b6;
+  animation: glitch-shift 0.6s steps(8) 1 reverse;
+  mix-blend-mode: screen;
+  transform: translate(2px, 0);
+}
+@keyframes glitch-shift {
+  0% { clip-path: inset(0 0 88% 0); }
+  20% { clip-path: inset(12% 0 58% 0); }
+  40% { clip-path: inset(42% 0 22% 0); }
+  60% { clip-path: inset(68% 0 6% 0); }
+  80% { clip-path: inset(18% 0 48% 0); }
+  100% { clip-path: inset(0 0 0 0); opacity: 0; }
+}
+
+/* ---------------------------------------------------------------------------
    Auth pages (login/register/OTP/forgot/reset) — same dark/neon family as
    the welcome page, calmer (fewer, dimmer squares) since these are
    functional screens someone may sit on for a minute typing a password.

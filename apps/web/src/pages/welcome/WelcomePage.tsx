@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { useRef } from 'react';
 import { FloatingSquares } from '../../components/welcome/FloatingSquares';
-import { NeonPipeCarousel } from '../../components/welcome/NeonPipeCarousel';
+import { CoverflowGallery } from '../../components/welcome/CoverflowGallery';
 import { type FeatureItem } from '../../components/welcome/FeatureCard';
 import { Button } from '../../components/ui/Button';
 import { useAuth } from '../../context/AuthContext';
@@ -165,23 +165,25 @@ export function WelcomePage() {
         </motion.div>
       </section>
 
-      {/* Feature grid */}
+      {/* Feature coverflow */}
       <section className="relative px-6 pb-28">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-6xl mx-auto mb-12">
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-80px' }}
             transition={{ duration: 0.5 }}
-            className="text-center mb-12"
+            className="text-center"
           >
             <h2 className="text-2xl sm:text-3xl font-bold mb-3">Everything your career needs</h2>
             <p className="text-white/50 text-sm max-w-md mx-auto">
               Some of this is live today. Some is on the way. All of it lives in one place.
             </p>
           </motion.div>
+        </div>
 
-          <NeonPipeCarousel features={FEATURES} />
+        <div className="max-w-5xl mx-auto">
+          <CoverflowGallery features={FEATURES} />
         </div>
       </section>
 
