@@ -1,4 +1,4 @@
-import { Link, Navigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import {
   Sparkles,
@@ -24,7 +24,6 @@ import { FloatingSquares } from '../../components/welcome/FloatingSquares';
 import { CoverflowGallery } from '../../components/welcome/CoverflowGallery';
 import { type FeatureItem } from '../../components/welcome/FeatureCard';
 import { Button } from '../../components/ui/Button';
-import { useAuth } from '../../context/AuthContext';
 
 const FEATURES: FeatureItem[] = [
   { icon: Sparkles, title: 'AI Chat Resume Builder', description: 'Build your resume by chatting — the AI gathers your story and drafts it live.', status: 'live', accent: 'indigo' },
@@ -46,7 +45,6 @@ const FEATURES: FeatureItem[] = [
 ];
 
 export function WelcomePage() {
-  const { status } = useAuth();
   const pageRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
 
@@ -63,10 +61,11 @@ export function WelcomePage() {
   const navBlurPx = useTransform(navProgress, [0, 1], [6, 18]);
   const navBackdrop = useTransform(navBlurPx, (b) => `blur(${b}px)`);
 
-  // Skip the marketing page for users who are already signed in.
-  if (status === 'authenticated') {
-    return <Navigate to="/dashboard" replace />;
-  }
+  // Deliberately no auto-redirect here: the welcome page always renders,
+  // regardless of auth status. Clicking through to "Get Started" or "I have
+  // an account" (i.e. /register or /login) is what sends an already
+  // signed-in, verified user straight on to /dashboard — see the guard at
+  // the top of those two pages.
 
   return (
     <div ref={pageRef} className="welcome-page min-h-screen w-full overflow-x-hidden">
