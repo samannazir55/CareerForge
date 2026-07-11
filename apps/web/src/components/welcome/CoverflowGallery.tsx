@@ -106,7 +106,14 @@ function TowerSatellites() {
 function Tower() {
   return (
     <div className="feature-tower tower-glow" style={{ zIndex: 0 }} aria-hidden="true">
-      <div className="relative w-[6px] h-64 mx-auto rounded-full bg-gradient-to-b from-indigo-300/90 via-indigo-500/40 to-transparent" />
+      {/* Bright core at dead-center — the "reactor" the rings and cards
+          orbit around. Without this the rings read as thin outlines
+          floating in space rather than energy circling something lit. */}
+      <div
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full"
+        style={{ background: 'radial-gradient(circle, #c7d2fe 0%, #818cf8 40%, transparent 75%)', filter: 'blur(3px)' }}
+      />
+      <div className="relative w-[6px] h-64 mx-auto rounded-full bg-gradient-to-b from-indigo-200 via-indigo-400/60 to-transparent" />
       <div className="pipe-ring pipe-ring-a" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
       <div className="pipe-ring pipe-ring-b" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
       <div className="pipe-ring pipe-ring-c" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
@@ -208,6 +215,17 @@ export function CoverflowGallery({ features }: CoverflowGalleryProps) {
           onPointerUp={onPointerUp}
           onPointerLeave={() => (dragging.current = false)}
         >
+          {/* Ambient haze behind the whole cluster — without this the tower
+              and cards sit in flat black space instead of a lit scene. */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background:
+                'radial-gradient(circle at 50% 48%, rgba(129,140,248,0.28), rgba(244,114,182,0.14) 42%, transparent 72%)',
+            }}
+            aria-hidden="true"
+          />
+
           {/* Glowing tower the cards fan out from — sits behind everything */}
           <motion.div
             initial={{ opacity: 0, scale: 0.7 }}
@@ -245,10 +263,15 @@ export function CoverflowGallery({ features }: CoverflowGalleryProps) {
                     ? {
                         x: offset * cardSpacing,
                         y: 0,
-                        scale: Math.max(0.58, 1 - abs * 0.16),
+                        // Side cards used to bottom out at 12% opacity / 9px
+                        // blur, which made them read as empty dark
+                        // rectangles instead of receded cards. Raised the
+                        // floor and lowered the ceiling so they stay
+                        // visibly card-shaped.
+                        scale: Math.max(0.6, 1 - abs * 0.15),
                         rotateY: Math.max(-55, Math.min(55, offset * (isMobile ? -16 : -20))),
-                        opacity: abs > VISIBLE_RANGE ? 0 : Math.max(0.12, 1 - abs * 0.26),
-                        filter: `blur(${isFront ? 0 : Math.min(9, abs * 3)}px)`,
+                        opacity: abs > VISIBLE_RANGE ? 0 : Math.max(0.32, 1 - abs * 0.2),
+                        filter: `blur(${isFront ? 0 : Math.min(5, abs * 2)}px)`,
                       }
                     : { opacity: 0, y: 130, scale: 0.55 }
                 }
@@ -265,7 +288,12 @@ export function CoverflowGallery({ features }: CoverflowGalleryProps) {
                   style={{
                     background: `radial-gradient(circle at 30% 20%, ${hex}22, transparent 60%), linear-gradient(160deg, rgba(255,255,255,0.07), rgba(255,255,255,0.015))`,
                     borderColor: `${hex}40`,
-                    boxShadow: isFront ? `0 20px 60px -15px ${hex}55, 0 0 0 1px ${hex}30` : 'none',
+                    // Side cards now keep a dim version of their accent glow
+                    // instead of losing it entirely — that's what reads as
+                    // "still a lit card" rather than "gone dark".
+                    boxShadow: isFront
+                      ? `0 20px 60px -15px ${hex}55, 0 0 0 1px ${hex}30`
+                      : `0 0 28px -8px ${hex}40`,
                   }}
                 >
                   <div className="flex items-start justify-between">
@@ -286,19 +314,25 @@ export function CoverflowGallery({ features }: CoverflowGalleryProps) {
                     </span>
                   </div>
 
-                  {/* Only the front card carries legible copy — side cards are
-                      intentionally blurred past the point of reading, matching
-                      the reference video. */}
+                  {/* Only the front card carries copy. Previously this used
+                      a chromatic "glitch" split (cyan/pink duplicate layers)
+                      that re-triggered every time a new card became front —
+                      since autoplay rotates every 3.4s, that meant a decent
+                      chance of catching the title mid RGB-split, which is
+                      what was actually making it read as unreadable. Swapped
+                      for a plain, fast fade — text is legible immediately. */}
                   {isFront && (
-                    <div key={i}>
-                      <h3
-                        className="glitch-text text-base sm:text-xl font-bold uppercase tracking-wide text-white mb-1.5 sm:mb-2"
-                        data-text={feature.title}
-                      >
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, ease: 'easeOut' }}
+                    >
+                      <h3 className="text-base sm:text-xl font-bold uppercase tracking-wide text-white mb-1.5 sm:mb-2">
                         {feature.title}
                       </h3>
                       <p className="text-xs sm:text-sm text-white/55 leading-relaxed">{feature.description}</p>
-                    </div>
+                    </motion.div>
                   )}
                 </div>
               </motion.div>
