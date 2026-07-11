@@ -261,7 +261,17 @@
   backdrop-filter: blur(6px);
   transition: box-shadow 0.3s ease;
 }
-
+.welcome-page .feature-tower {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(1);
+}
+@media (max-width: 640px) {
+  .welcome-page .feature-tower {
+    transform: translate(-50%, -50%) scale(0.55);
+  }
+}
 /* One-shot RGB-split glitch flicker on the front card's title when it
    becomes active — settles after ~0.6s rather than looping, for a subtle,
    elegant reveal rather than a constant distraction.
