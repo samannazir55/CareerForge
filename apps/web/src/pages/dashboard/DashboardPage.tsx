@@ -94,16 +94,16 @@ export function DashboardPage() {
 
   return (
     <AppShell>
-      <div className="p-6 sm:p-8 max-w-6xl mx-auto space-y-8">
+      <div className="p-4 sm:p-8 max-w-6xl mx-auto space-y-6 sm:space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
               Welcome back{data?.user.fullName ? `, ${data.user.fullName.split(' ')[0]}` : ''} 👋
             </h1>
             <p className="text-muted-foreground mt-1">Here's your career overview.</p>
           </div>
-          <Button onClick={handleCreateResume}>
+          <Button onClick={handleCreateResume} className="w-full sm:w-auto">
             <Plus size={16} className="mr-1.5" />
             New Resume
           </Button>

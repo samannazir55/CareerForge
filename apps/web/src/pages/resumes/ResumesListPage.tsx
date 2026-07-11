@@ -51,20 +51,20 @@ export function ResumesListPage() {
 
   return (
     <AppShell>
-      <div className="p-6 sm:p-8 max-w-3xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
+      <div className="p-4 sm:p-8 max-w-3xl mx-auto">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
           <h1 className="text-2xl font-semibold">Your Resumes</h1>
-          <div className="flex items-center gap-2">
-            <Link to="/resumes/new/chat">
-              <Button variant="secondary" size="sm">
-                <Sparkles size={14} className="mr-1.5" /> AI Builder
+          <div className="grid grid-cols-3 gap-2 sm:flex sm:items-center sm:gap-2 sm:w-auto">
+            <Link to="/resumes/new/chat" className="col-span-1">
+              <Button variant="secondary" size="sm" className="w-full">
+                <Sparkles size={14} className="sm:mr-1.5" /> <span className="hidden sm:inline">AI Builder</span>
               </Button>
             </Link>
-            <Button variant="outline" size="sm" onClick={handleImportClick} disabled={isCreating}>
-              <Upload size={14} className="mr-1.5" /> Import
+            <Button variant="outline" size="sm" onClick={handleImportClick} disabled={isCreating} className="w-full">
+              <Upload size={14} className="sm:mr-1.5" /> <span className="hidden sm:inline">Import</span>
             </Button>
-            <Button onClick={handleCreate} disabled={isCreating} size="sm">
-              <Plus size={14} className="mr-1.5" /> New resume
+            <Button onClick={handleCreate} disabled={isCreating} size="sm" className="w-full">
+              <Plus size={14} className="sm:mr-1.5" /> <span className="hidden sm:inline">New resume</span>
             </Button>
           </div>
         </div>

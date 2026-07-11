@@ -51,7 +51,13 @@ export function createApp() {
       contentSecurityPolicy: {
         directives: {
           ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-          'script-src': ["'self'", "'sha256-9flWX4yX1evPgQSfTFk0Ahh8d8AhomVOTzUKHTnGgks='"],
+          // Hash of the inline <script id="cf-interactive-script"> injected by
+          // injectInteractivity() (see domain/resume/previewInteractivity.ts)
+          // into the live editor's interactive preview iframe (srcdoc, which
+          // inherits this document's CSP). Recompute with the sha256sum-style
+          // snippet in that file's comments if the script's content ever
+          // changes — a stale hash here just silently breaks click-to-edit.
+          'script-src': ["'self'", "'sha256-wqQxuRRS3TXa8tRtZli/9DSIYn0yvC6xTd101Q/Q+rc='"],
           // Resume profile photos are served from Cloudinary (see
           // domain/uploads/cloudinary.service.ts) -- the default CSP's
           // img-src is 'self' data: only, which silently blocks the

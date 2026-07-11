@@ -30,6 +30,26 @@
  * the parent-side handler (ResumePreview.tsx) validates message shape and
  * ignores anything unexpected before ever touching resume state.
  * ============================================================================
+ *
+ * CSP NOTE: this script's exact bytes must match the sha256 hash whitelisted
+ * in app.ts's helmet script-src (srcdoc iframes inherit the parent
+ * document's CSP, and there's no nonce here, so an inline script only runs
+ * if its hash is explicitly listed). If you edit SCRIPT below, recompute the
+ * hash with:
+ *
+ *   node -e "
+ *     const fs = require('fs');
+ *     const src = fs.readFileSync('previewInteractivity.ts', 'utf8');
+ *     const full = src.match(/const SCRIPT = \`([\s\S]*?)\`;/)[1];
+ *     const start = full.indexOf('id=\"cf-interactive-script\">') + 'id=\"cf-interactive-script\">'.length;
+ *     const inner = full.slice(start, full.indexOf('</script>'));
+ *     console.log('sha256-' + require('crypto').createHash('sha256').update(inner, 'utf8').digest('base64'));
+ *   "
+ *
+ * and paste the result into app.ts. A previous version of this file had CRLF
+ * line endings while app.ts's whitelisted hash was computed against LF
+ * content — same script, different bytes, different hash — which is exactly
+ * why this was silently broken. Keep this file LF-only.
  */
 
 const STYLE = `

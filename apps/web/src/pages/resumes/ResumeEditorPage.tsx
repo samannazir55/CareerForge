@@ -217,8 +217,8 @@ export function ResumeEditorPage() {
     <AppShell>
       <div className="flex flex-col h-[calc(100vh-64px)]">
         {/* Contextual editor bar */}
-        <div className="glass-panel border-b border-border px-4 sm:px-6 py-3 flex items-center justify-between gap-4 shrink-0">
-          <div className="flex items-center gap-3 min-w-0 flex-1">
+        <div className="glass-panel border-b border-border px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3 sm:gap-4 shrink-0">
+          <div className="flex items-center gap-3 min-w-0 flex-1 basis-full sm:basis-auto">
             <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-500/15 to-purple-500/15 flex items-center justify-center shrink-0">
               <Sparkles size={15} className="text-indigo-400" />
             </div>
@@ -227,14 +227,14 @@ export function ResumeEditorPage() {
               onChange={(e: ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
               className="text-lg font-semibold bg-transparent border-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md px-1 min-w-0 flex-1"
             />
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
             <AutosaveIndicator status={autosaveStatus} />
+          </div>
+          <div className="flex items-center gap-2 shrink-0 ml-auto sm:ml-0">
             <Button variant="ghost" size="sm" onClick={() => navigate(`/resumes/${id}/chat`)}>
-              <Sparkles size={14} className="mr-1.5" /> Back to chat
+              <Sparkles size={14} className="sm:mr-1.5" /> <span className="hidden sm:inline">Back to chat</span>
             </Button>
             <Button variant="ghost" size="sm" onClick={() => navigate(`/resumes/${id}/versions`)}>
-              <History size={14} className="mr-1.5" /> History
+              <History size={14} className="sm:mr-1.5" /> <span className="hidden sm:inline">History</span>
             </Button>
             <Button
               size="sm"
@@ -242,7 +242,12 @@ export function ResumeEditorPage() {
               disabled={isSavingVersion}
               className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-500/90 hover:to-purple-600/90 shadow-lg shadow-indigo-500/20"
             >
-              {versionSaved ? 'Saved ✓' : isSavingVersion ? 'Saving…' : 'Save version'}
+              {versionSaved ? 'Saved ✓' : isSavingVersion ? 'Saving…' : (
+                <>
+                  <span className="sm:hidden">Save</span>
+                  <span className="hidden sm:inline">Save version</span>
+                </>
+              )}
             </Button>
           </div>
         </div>

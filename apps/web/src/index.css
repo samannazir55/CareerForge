@@ -369,6 +369,28 @@
   box-shadow: 0 0 28px rgba(99,102,241,0.4);
 }
 
+/* ---------------------------------------------------------------------------
+   Mobile neon pass for in-app (non-welcome-page) screens.
+   The welcome/auth pages already read as "neon" — the dashboard/resumes/etc.
+   screens didn't, so their secondary/outline buttons looked flat and
+   mismatched next to it, especially on small screens where there's no
+   hover state to reveal any depth at all. Scoped to a max-width media query
+   so desktop's calmer look is untouched; only mobile gets the glow.
+--------------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .dark button[class*="bg-primary"] {
+    box-shadow: 0 0 18px rgba(99,102,241,0.45);
+  }
+  .dark button[class*="bg-secondary"] {
+    border: 1px solid rgba(168,85,247,0.4);
+    box-shadow: 0 0 16px rgba(168,85,247,0.28);
+  }
+  .dark button[class*="border-input"] {
+    border-color: rgba(34,211,238,0.4);
+    box-shadow: 0 0 14px rgba(34,211,238,0.22);
+  }
+}
+
 /* Glass panel depth in dark mode */
 .dark .glass-panel {
   background: var(--glass-bg);
