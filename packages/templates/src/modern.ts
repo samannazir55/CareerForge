@@ -12,6 +12,13 @@ import {
   getPersonalInfo,
   getBodySections,
   getSummaryText,
+  getSummaryRef,
+  cfField,
+  cfEntry,
+  cfSectionTitle,
+  CF_TITLE_SECTION_ID,
+  CF_TITLE_ENTRY_ID,
+  CF_TITLE_FIELD_KEY,
 } from './helpers';
 
 // ---------------------------------------------------------------------------
@@ -52,6 +59,7 @@ function renderSection(section: Section, accentColor: string): string {
   if (!entries.length) return '';
 
   let content = '';
+  const sid = section.id;
 
   switch (section.type) {
     case 'experience':
@@ -63,17 +71,20 @@ function renderSection(section: Section, accentColor: string): string {
           const dateRange = formatDateRange(e.values.startDate, e.values.endDate);
           const description = getString(e, 'description');
           const secondaryLine = [company, location].filter(Boolean).join(', ');
-          return `
-            <div class="cf-entry">
+          return cfEntry(
+            sid,
+            e.id,
+            `
               <div class="cf-entry-header">
                 <div>
-                  <div class="cf-entry-primary">${escapeHtml(title)}</div>
+                  <div class="cf-entry-primary">${cfField(sid, e.id, 'title', escapeHtml(title))}</div>
                   ${secondaryLine ? `<div class="cf-entry-secondary">${escapeHtml(secondaryLine)}</div>` : ''}
                 </div>
                 ${dateRange ? `<div class="cf-entry-date">${escapeHtml(dateRange)}</div>` : ''}
               </div>
-              ${description ? richTextToHtml(description) : ''}
-            </div>`;
+              ${description ? cfField(sid, e.id, 'description', richTextToHtml(description)) : ''}`,
+            'cf-entry',
+          );
         })
         .join('');
       break;
@@ -84,22 +95,27 @@ function renderSection(section: Section, accentColor: string): string {
           const degree = getString(e, 'degree');
           const school = getString(e, 'school');
           const dateRange = formatDateRange(e.values.startDate, e.values.endDate);
-          return `
-            <div class="cf-entry">
+          return cfEntry(
+            sid,
+            e.id,
+            `
               <div class="cf-entry-header">
                 <div>
-                  <div class="cf-entry-primary">${escapeHtml(degree)}</div>
+                  <div class="cf-entry-primary">${cfField(sid, e.id, 'degree', escapeHtml(degree))}</div>
                   ${school ? `<div class="cf-entry-secondary">${escapeHtml(school)}</div>` : ''}
                 </div>
                 ${dateRange ? `<div class="cf-entry-date">${escapeHtml(dateRange)}</div>` : ''}
-              </div>
-            </div>`;
+              </div>`,
+            'cf-entry',
+          );
         })
         .join('');
       break;
 
     case 'skills':
-      content = `<div class="cf-skills-list">${entries.map((e) => `<span class="cf-skill-tag">${escapeHtml(getString(e, 'name'))}</span>`).join('')}</div>`;
+      // Tag list, not a click-to-edit field (see the note above cfField) —
+      // still wrapped per-entry so each tag can be deleted individually.
+      content = `<div class="cf-skills-list">${entries.map((e) => cfEntry(sid, e.id, `<span class="cf-skill-tag">${escapeHtml(getString(e, 'name'))}</span>`, '')).join('')}</div>`;
       break;
 
     case 'certifications':
@@ -108,7 +124,12 @@ function renderSection(section: Section, accentColor: string): string {
           const name = getString(e, 'name');
           const issuer = getString(e, 'issuer');
           const date = formatDate(getString(e, 'date'));
-          return `<div class="cf-entry"><div class="cf-entry-header"><div><div class="cf-entry-primary">${escapeHtml(name)}</div>${issuer ? `<div class="cf-entry-secondary">${escapeHtml(issuer)}</div>` : ''}</div>${date ? `<div class="cf-entry-date">${escapeHtml(date)}</div>` : ''}</div></div>`;
+          return cfEntry(
+            sid,
+            e.id,
+            `<div class="cf-entry-header"><div><div class="cf-entry-primary">${cfField(sid, e.id, 'name', escapeHtml(name))}</div>${issuer ? `<div class="cf-entry-secondary">${escapeHtml(issuer)}</div>` : ''}</div>${date ? `<div class="cf-entry-date">${escapeHtml(date)}</div>` : ''}</div>`,
+            'cf-entry',
+          );
         })
         .join('');
       break;
@@ -119,7 +140,12 @@ function renderSection(section: Section, accentColor: string): string {
           const name = getString(e, 'name');
           const description = getString(e, 'description');
           const url = getString(e, 'url');
-          return `<div class="cf-entry"><div class="cf-entry-primary">${escapeHtml(name)}${url ? ` <a href="${escapeHtml(url)}" style="font-size:8.5pt;font-weight:400">${escapeHtml(url)}</a>` : ''}</div>${description ? richTextToHtml(description) : ''}</div>`;
+          return cfEntry(
+            sid,
+            e.id,
+            `<div class="cf-entry-primary">${cfField(sid, e.id, 'name', escapeHtml(name))}${url ? ` <a href="${escapeHtml(url)}" style="font-size:8.5pt;font-weight:400">${escapeHtml(url)}</a>` : ''}</div>${description ? cfField(sid, e.id, 'description', richTextToHtml(description)) : ''}`,
+            'cf-entry',
+          );
         })
         .join('');
       break;
@@ -129,7 +155,12 @@ function renderSection(section: Section, accentColor: string): string {
         .map((e) => {
           const name = getString(e, 'name');
           const proficiency = getString(e, 'proficiency');
-          return `<div class="cf-entry"><span class="cf-entry-primary">${escapeHtml(name)}</span>${proficiency ? `<span class="cf-entry-secondary"> — ${escapeHtml(proficiency)}</span>` : ''}</div>`;
+          return cfEntry(
+            sid,
+            e.id,
+            `<span class="cf-entry-primary">${cfField(sid, e.id, 'name', escapeHtml(name))}</span>${proficiency ? `<span class="cf-entry-secondary"> — ${escapeHtml(proficiency)}</span>` : ''}`,
+            'cf-entry',
+          );
         })
         .join('');
       break;
@@ -140,7 +171,12 @@ function renderSection(section: Section, accentColor: string): string {
           const name = getString(e, 'name');
           const relationship = getString(e, 'relationship');
           const contact = getString(e, 'contact');
-          return `<div class="cf-entry"><div class="cf-entry-primary">${escapeHtml(name)}</div>${relationship ? `<div class="cf-entry-secondary">${escapeHtml(relationship)}</div>` : ''}${contact ? `<div class="cf-entry-secondary">${escapeHtml(contact)}</div>` : ''}</div>`;
+          return cfEntry(
+            sid,
+            e.id,
+            `<div class="cf-entry-primary">${cfField(sid, e.id, 'name', escapeHtml(name))}</div>${relationship ? `<div class="cf-entry-secondary">${escapeHtml(relationship)}</div>` : ''}${contact ? `<div class="cf-entry-secondary">${escapeHtml(contact)}</div>` : ''}`,
+            'cf-entry',
+          );
         })
         .join('');
       break;
@@ -148,13 +184,13 @@ function renderSection(section: Section, accentColor: string): string {
     default:
       // Custom sections: generic field renderer — this is the "automatically
       // renders custom sections" guarantee. No template-level code change needed.
-      content = entries.map((e) => `<div class="cf-entry">${renderEntryFieldsGeneric(e, section.fields)}</div>`).join('');
+      content = entries.map((e) => cfEntry(sid, e.id, renderEntryFieldsGeneric(sid, e, section.fields), 'cf-entry')).join('');
       break;
   }
 
   return `
     <div class="cf-section">
-      <div class="cf-section-title">${escapeHtml(section.title)}</div>
+      ${cfSectionTitle(sid, escapeHtml(section.title))}
       ${content}
     </div>`;
 }
@@ -164,8 +200,18 @@ function renderHtml(resume: Resume): string {
   const accent = resume.theme.accentColor || '#4f46e5';
   const bodySections = getBodySections(resume);
   const summaryText = getSummaryText(resume);
+  const summaryRef = getSummaryRef(resume);
 
-  const contactParts = [info.email, info.phone, info.location, info.linkedin, info.website].filter(Boolean);
+  const contactParts: Array<{ key: string; value: string }> = [
+    { key: 'email', value: info.email },
+    { key: 'phone', value: info.phone },
+    { key: 'location', value: info.location },
+    { key: 'linkedin', value: info.linkedin },
+    { key: 'website', value: info.website },
+  ].filter((p) => p.value);
+
+  const wrapHeaderField = (fieldKey: string, html: string) =>
+    summaryRef ? cfField(summaryRef.sectionId, summaryRef.entryId, fieldKey, html) : html;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -180,12 +226,12 @@ function renderHtml(resume: Resume): string {
 <body>
   <div class="cf-page">
     <div class="cf-header">
-      <h1>${escapeHtml(info.fullName)}</h1>
-      ${info.jobTitle ? `<div class="cf-job-title">${escapeHtml(info.jobTitle)}</div>` : ''}
-      ${contactParts.length ? `<div class="cf-contact">${contactParts.map((p) => `<span>${escapeHtml(p)}</span>`).join('')}</div>` : ''}
+      <h1>${cfField(CF_TITLE_SECTION_ID, CF_TITLE_ENTRY_ID, CF_TITLE_FIELD_KEY, escapeHtml(info.fullName))}</h1>
+      ${info.jobTitle ? `<div class="cf-job-title">${wrapHeaderField('jobTitle', escapeHtml(info.jobTitle))}</div>` : ''}
+      ${contactParts.length ? `<div class="cf-contact">${contactParts.map((p) => `<span>${wrapHeaderField(p.key, escapeHtml(p.value))}</span>`).join('')}</div>` : ''}
     </div>
     <div class="cf-body">
-      ${summaryText ? `<div class="cf-section"><div class="cf-section-title">Summary</div><div class="cf-field--richtext">${richTextToHtml(summaryText)}</div></div>` : ''}
+      ${summaryText ? `<div class="cf-section"><div class="cf-section-title">Summary</div><div class="cf-field--richtext">${wrapHeaderField('text', richTextToHtml(summaryText))}</div></div>` : ''}
       ${bodySections.map((s) => renderSection(s, accent)).join('')}
     </div>
   </div>

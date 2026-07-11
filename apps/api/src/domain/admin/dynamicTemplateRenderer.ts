@@ -62,6 +62,43 @@ function escHtml(str: string): string {
     .replace(/'/g, '&#039;');
 }
 
+// ── Inline-preview editing hooks ("Canva-style" click-to-edit/delete) ─────
+// Same idea as packages/templates/src/helpers.ts's cfField/cfEntry, applied
+// at the substitution layer instead of inside each template's markup. Since
+// EVERY dynamic (AI-generated) template's field values and per-entry loop
+// iterations pass through this one file, wrapping them here means every
+// existing and future dynamic template gets inline editing for free — no
+// per-template changes needed, regardless of the arbitrary HTML/CSS layout
+// each one uses.
+//
+// wrapEntry uses `display:contents` rather than a normal block/inline
+// wrapper specifically because we don't control (or know) the surrounding
+// CSS — an AI-authored template might lay entries out with flex/grid, and
+// a wrapper div participating in that layout could visibly break it.
+// display:contents makes the wrapper invisible to layout while remaining a
+// real DOM node the bootstrap script (see previewInteractivity.ts) can
+// find and measure for its hover/delete overlay.
+//
+// As with the code templates, only plain text/richtext/url values get
+// wrapField'd — computed date/date-range strings and the section-title
+// loop don't have a clean structured round-trip, so those aren't made
+// directly editable here.
+const CF_TITLE_SECTION_ID = '__title__';
+const CF_TITLE_ENTRY_ID = '__title__';
+const CF_TITLE_FIELD_KEY = 'title';
+
+function wrapField(sectionId: string, entryId: string, fieldKey: string, html: string): string {
+  return `<span data-cf-section="${escHtml(sectionId)}" data-cf-entry="${escHtml(entryId)}" data-cf-field="${escHtml(fieldKey)}">${html}</span>`;
+}
+
+function wrapEntry(sectionId: string, entryId: string, html: string): string {
+  return `<div data-cf-section="${escHtml(sectionId)}" data-cf-entry-wrap="${escHtml(entryId)}" style="display:contents">${html}</div>`;
+}
+
+function wrapSectionTitle(sectionId: string, html: string): string {
+  return `<span data-cf-section-title="${escHtml(sectionId)}">${html}</span>`;
+}
+
 // ── Color helpers for {{accentColorSoft}} / {{accentColorDark}} ───────────
 // Templates have no CSS preprocessor available (no Sass lighten()/darken()),
 // so these shades are computed once here, server-side, from the plain hex
@@ -325,10 +362,12 @@ function renderLoop<T>(
  * templates use (renderEntryFieldsGeneric in packages/templates/src/helpers)
  * for section shapes a template has no fixed layout for. */
 function renderEntryFieldsAsHtml(
-  entry: { values?: Record<string, unknown> },
+  sectionId: string,
+  entry: { id?: string; values?: Record<string, unknown> },
   fields: Array<{ key: string; label: string; kind: string }>,
 ): string {
   const values = entry.values ?? {};
+  const entryId = entry.id ?? '';
   return fields
     .map((field) => {
       const val = values[field.key];
@@ -336,10 +375,13 @@ function renderEntryFieldsAsHtml(
       if (field.kind === 'list' && Array.isArray(val)) {
         return `<div class="cf-field"><span class="cf-field-label">${escHtml(field.label)}:</span> ${escHtml(val.map(String).join(', '))}</div>`;
       }
-      if (field.kind === 'richtext') {
-        return `<div class="cf-field cf-field--richtext"><span class="cf-field-label">${escHtml(field.label)}</span>${String(val).replace(/\n/g, '<br>')}</div>`;
+      if (field.kind === 'date') {
+        return `<div class="cf-field"><span class="cf-field-label">${escHtml(field.label)}:</span> ${escHtml(String(val))}</div>`;
       }
-      return `<div class="cf-field"><span class="cf-field-label">${escHtml(field.label)}:</span> ${escHtml(String(val))}</div>`;
+      if (field.kind === 'richtext') {
+        return `<div class="cf-field cf-field--richtext"><span class="cf-field-label">${escHtml(field.label)}</span>${wrapField(sectionId, entryId, field.key, String(val).replace(/\n/g, '<br>'))}</div>`;
+      }
+      return `<div class="cf-field"><span class="cf-field-label">${escHtml(field.label)}:</span> ${wrapField(sectionId, entryId, field.key, escHtml(String(val)))}</div>`;
     })
     .filter(Boolean)
     .join('');
@@ -356,16 +398,26 @@ export function renderDynamicTemplate(templateHtml: string, resume: Resume): str
 
   const accentColor = resume.theme?.accentColor || '#4f46e5';
 
+  // wrapField must only be applied when the raw value is non-empty —
+  // wrapping an empty string still yields a non-empty span tag, which
+  // would make {{#jobTitle}}-style conditionals (checked against this same
+  // `scalars` map's truthiness below) always fire even when the field is
+  // genuinely blank. `field()` preserves '' as '' so conditionals keep
+  // working exactly as before; only truthy values become click-to-edit.
+  const summaryEntryId = summarySection?.entries[0]?.id ?? '';
+  const field = (fieldKey: string, raw: string): string =>
+    summarySection && raw ? wrapField(summarySection.id, summaryEntryId, fieldKey, escHtml(raw)) : escHtml(raw);
+
   const scalars: Record<string, string> = {
-    name:     escHtml(resume.title ?? ''),
-    jobTitle: escHtml(sv.jobTitle ?? ''),
-    email:    escHtml(sv.email    ?? ''),
-    phone:    escHtml(sv.phone    ?? ''),
-    location: escHtml(sv.location ?? ''),
-    linkedin: escHtml(sv.linkedin ?? ''),
-    website:  escHtml(sv.website  ?? ''),
+    name:     resume.title ? wrapField(CF_TITLE_SECTION_ID, CF_TITLE_ENTRY_ID, CF_TITLE_FIELD_KEY, escHtml(resume.title)) : '',
+    jobTitle: field('jobTitle', sv.jobTitle ?? ''),
+    email:    field('email',    sv.email    ?? ''),
+    phone:    field('phone',    sv.phone    ?? ''),
+    location: field('location', sv.location ?? ''),
+    linkedin: field('linkedin', sv.linkedin ?? ''),
+    website:  field('website',  sv.website  ?? ''),
     // summary text may contain basic HTML; don't double-escape it
-    summary:  sv.text ?? '',
+    summary:  summarySection && sv.text ? wrapField(summarySection.id, summaryEntryId, 'text', sv.text) : (sv.text ?? ''),
     accentColor:     accentColor,
     accentColorSoft: mixToward(accentColor, [255, 255, 255], 0.88),
     accentColorDark: mixToward(accentColor, [0, 0, 0], 0.25),
@@ -396,86 +448,93 @@ export function renderDynamicTemplate(templateHtml: string, resume: Resume): str
   const expSection = resume.sections.find((s) => s.type === 'experience');
   out = renderLoop(out, ['experiences', 'experience'], expSection?.entries ?? [], (tmpl, e) => {
     const v = (e.values ?? {}) as Record<string, string>;
+    const wrap = (key: string, raw: string) => (raw ? wrapField(expSection!.id, e.id, key, raw) : raw);
     const fields = {
-      'exp.title':       escHtml(v.title    ?? ''),
-      'exp.company':     escHtml(v.company  ?? ''),
-      'exp.location':    escHtml(v.location ?? ''),
+      'exp.title':       wrap('title', escHtml(v.title ?? '')),
+      'exp.company':     wrap('company', escHtml(v.company ?? '')),
+      'exp.location':    wrap('location', escHtml(v.location ?? '')),
       'exp.startDate':   fmtDate(v.startDate),
       'exp.endDate':     v.endDate ? fmtDate(v.endDate) : 'Present',
       'exp.dateRange':   dateRange(v.startDate, v.endDate),
       // description may contain \n — convert to <br> for HTML output
-      'exp.description': (v.description ?? '').replace(/\n/g, '<br>'),
+      'exp.description': wrap('description', (v.description ?? '').replace(/\n/g, '<br>')),
     };
-    return interpolate(renderScalarConditionals(tmpl, fields), fields);
+    return wrapEntry(expSection!.id, e.id, interpolate(renderScalarConditionals(tmpl, fields), fields));
   });
 
   // ── {{#education}} ... {{/education}} ────────────────────────────────────
   const eduSection = resume.sections.find((s) => s.type === 'education');
   out = renderLoop(out, 'education', eduSection?.entries ?? [], (tmpl, e) => {
     const v = (e.values ?? {}) as Record<string, string>;
+    const wrap = (key: string, raw: string) => (raw ? wrapField(eduSection!.id, e.id, key, raw) : raw);
     const fields = {
-      'edu.degree':    escHtml(v.degree ?? ''),
-      'edu.school':    escHtml(v.school ?? ''),
+      'edu.degree':    wrap('degree', escHtml(v.degree ?? '')),
+      'edu.school':    wrap('school', escHtml(v.school ?? '')),
       'edu.startDate': fmtDate(v.startDate),
       'edu.endDate':   v.endDate ? fmtDate(v.endDate) : '',
       'edu.dateRange': dateRange(v.startDate, v.endDate === '' ? undefined : v.endDate),
     };
-    return interpolate(renderScalarConditionals(tmpl, fields), fields);
+    return wrapEntry(eduSection!.id, e.id, interpolate(renderScalarConditionals(tmpl, fields), fields));
   });
 
   // ── {{#skills}} ... {{/skills}} ──────────────────────────────────────────
   const skillsSection = resume.sections.find((s) => s.type === 'skills');
   out = renderLoop(out, 'skills', skillsSection?.entries ?? [], (tmpl, e) => {
     const v = (e.values ?? {}) as Record<string, string>;
-    const fields = { 'skill.name': escHtml(v.name ?? '') };
-    return interpolate(renderScalarConditionals(tmpl, fields), fields);
+    const name = escHtml(v.name ?? '');
+    const fields = { 'skill.name': name ? wrapField(skillsSection!.id, e.id, 'name', name) : name };
+    return wrapEntry(skillsSection!.id, e.id, interpolate(renderScalarConditionals(tmpl, fields), fields));
   });
 
   // ── {{#certifications}} ... {{/certifications}} ──────────────────────────
   const certSection = resume.sections.find((s) => s.type === 'certifications');
   out = renderLoop(out, 'certifications', certSection?.entries ?? [], (tmpl, e) => {
     const v = (e.values ?? {}) as Record<string, string>;
+    const wrap = (key: string, raw: string) => (raw ? wrapField(certSection!.id, e.id, key, raw) : raw);
     const fields = {
-      'cert.name':   escHtml(v.name   ?? ''),
-      'cert.issuer': escHtml(v.issuer ?? ''),
+      'cert.name':   wrap('name', escHtml(v.name ?? '')),
+      'cert.issuer': wrap('issuer', escHtml(v.issuer ?? '')),
       'cert.date':   fmtDate(v.date),
     };
-    return interpolate(renderScalarConditionals(tmpl, fields), fields);
+    return wrapEntry(certSection!.id, e.id, interpolate(renderScalarConditionals(tmpl, fields), fields));
   });
 
   // ── {{#projects}} ... {{/projects}} ──────────────────────────────────────
   const projectsSection = resume.sections.find((s) => s.type === 'projects');
   out = renderLoop(out, 'projects', projectsSection?.entries ?? [], (tmpl, e) => {
     const v = (e.values ?? {}) as Record<string, string>;
+    const wrap = (key: string, raw: string) => (raw ? wrapField(projectsSection!.id, e.id, key, raw) : raw);
     const fields = {
-      'project.name':        escHtml(v.name ?? ''),
-      'project.description': (v.description ?? '').replace(/\n/g, '<br>'),
-      'project.url':         escHtml(v.url ?? ''),
+      'project.name':        wrap('name', escHtml(v.name ?? '')),
+      'project.description': wrap('description', (v.description ?? '').replace(/\n/g, '<br>')),
+      'project.url':         wrap('url', escHtml(v.url ?? '')),
     };
-    return interpolate(renderScalarConditionals(tmpl, fields), fields);
+    return wrapEntry(projectsSection!.id, e.id, interpolate(renderScalarConditionals(tmpl, fields), fields));
   });
 
   // ── {{#languages}} ... {{/languages}} ────────────────────────────────────
   const languagesSection = resume.sections.find((s) => s.type === 'languages');
   out = renderLoop(out, 'languages', languagesSection?.entries ?? [], (tmpl, e) => {
     const v = (e.values ?? {}) as Record<string, string>;
+    const wrap = (key: string, raw: string) => (raw ? wrapField(languagesSection!.id, e.id, key, raw) : raw);
     const fields = {
-      'lang.name':        escHtml(v.name ?? ''),
-      'lang.proficiency': escHtml(v.proficiency ?? ''),
+      'lang.name':        wrap('name', escHtml(v.name ?? '')),
+      'lang.proficiency': wrap('proficiency', escHtml(v.proficiency ?? '')),
     };
-    return interpolate(renderScalarConditionals(tmpl, fields), fields);
+    return wrapEntry(languagesSection!.id, e.id, interpolate(renderScalarConditionals(tmpl, fields), fields));
   });
 
   // ── {{#references}} ... {{/references}} ──────────────────────────────────
   const referencesSection = resume.sections.find((s) => s.type === 'references');
   out = renderLoop(out, 'references', referencesSection?.entries ?? [], (tmpl, e) => {
     const v = (e.values ?? {}) as Record<string, string>;
+    const wrap = (key: string, raw: string) => (raw ? wrapField(referencesSection!.id, e.id, key, raw) : raw);
     const fields = {
-      'ref.name':         escHtml(v.name ?? ''),
-      'ref.relationship': escHtml(v.relationship ?? ''),
-      'ref.contact':      escHtml(v.contact ?? ''),
+      'ref.name':         wrap('name', escHtml(v.name ?? '')),
+      'ref.relationship': wrap('relationship', escHtml(v.relationship ?? '')),
+      'ref.contact':      wrap('contact', escHtml(v.contact ?? '')),
     };
-    return interpolate(renderScalarConditionals(tmpl, fields), fields);
+    return wrapEntry(referencesSection!.id, e.id, interpolate(renderScalarConditionals(tmpl, fields), fields));
   });
 
   // ── {{#customSections}} ... {{/customSections}} ─────────────────────────
@@ -487,11 +546,11 @@ export function renderDynamicTemplate(templateHtml: string, resume: Resume): str
   // entry, each already-flattened to HTML via {{entry.fields}}.
   const customSections = resume.sections.filter((s) => s.type === 'custom');
   out = renderLoop(out, 'customSections', customSections, (tmpl, section) => {
-    const sectionFields = { 'section.title': escHtml(section.title ?? '') };
+    const sectionFields = { 'section.title': wrapSectionTitle(section.id, escHtml(section.title ?? '')) };
     const withTitle = interpolate(renderScalarConditionals(tmpl, sectionFields), sectionFields);
     return renderLoop(withTitle, 'entries', section.entries ?? [], (entryTmpl, entry) => {
-      const entryFields = { 'entry.fields': renderEntryFieldsAsHtml(entry, section.fields ?? []) };
-      return interpolate(renderScalarConditionals(entryTmpl, entryFields), entryFields);
+      const entryFields = { 'entry.fields': renderEntryFieldsAsHtml(section.id, entry, section.fields ?? []) };
+      return wrapEntry(section.id, entry.id, interpolate(renderScalarConditionals(entryTmpl, entryFields), entryFields));
     });
   });
 

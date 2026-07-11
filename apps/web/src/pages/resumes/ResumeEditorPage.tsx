@@ -3,12 +3,12 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Plus, History, Download, FileType2, Sparkles, Lock } from 'lucide-react';
 import type { Resume, ResumeTheme, Section, SectionType } from '@careerforge/schema';
-import { createSection, createCustomSection, addSection, reorderSections, isDynamicTemplateId, DEFAULT_THEME } from '@careerforge/schema';
+import { createSection, createCustomSection, addSection, reorderSections, isDynamicTemplateId, DEFAULT_THEME, updateEntry, removeEntry, removeSection } from '@careerforge/schema';
 import { resumeApi, ApiError } from '../../lib/api';
 import { useAutosave } from '../../hooks/useAutosave';
 import { Button } from '../../components/ui/Button';
 import { SectionCard } from '../../components/resume/SectionCard';
-import { ResumePreview } from '../../components/preview/ResumePreview';
+import { ResumePreview, type ResumePreviewEditEvent } from '../../components/preview/ResumePreview';
 import { TemplateSwitcher } from '../../components/resume/TemplateSwitcher';
 import { AccentColorPicker } from '../../components/resume/AccentColorPicker';
 import { PhotoUploader } from '../../components/resume/PhotoUploader';
@@ -110,6 +110,32 @@ export function ResumeEditorPage() {
 
   function handlePhotoChange(photoUrl: string | undefined) {
     setTheme((t) => ({ ...t, photoUrl }));
+  }
+
+  // The resume's full name (title) is the one editable field that isn't
+  // stored in any section/entry (see CF_TITLE_* in dynamicTemplateRenderer.ts
+  // and packages/templates/src/helpers.ts) — the preview's inline-editing
+  // bootstrap uses this sentinel section/entry id pair to flag it as a
+  // special case rather than a real entry to look up.
+  const CF_TITLE_SECTION_ID = '__title__';
+
+  /** Routes edits/deletes made directly on the interactive preview (see
+   * ResumePreview's `interactive` prop) through the exact same pure
+   * section-mutation helpers the left-hand form uses (SectionCard.tsx) —
+   * "what does editing a field / deleting an entry mean" has one
+   * definition regardless of which UI triggered it. */
+  function handlePreviewEdit(event: ResumePreviewEditEvent) {
+    if (event.type === 'field-edit' && event.sectionId === CF_TITLE_SECTION_ID) {
+      setTitle(event.value);
+      return;
+    }
+    if (event.type === 'field-edit') {
+      setSections((s) => updateEntry(s, event.sectionId, event.entryId, { [event.field]: event.value }));
+    } else if (event.type === 'delete-entry') {
+      setSections((s) => removeEntry(s, event.sectionId, event.entryId));
+    } else if (event.type === 'delete-section') {
+      setSections((s) => removeSection(s, event.sectionId));
+    }
   }
 
   async function handleSaveVersion() {
@@ -295,6 +321,8 @@ export function ResumeEditorPage() {
                           resume={{ ...resume, title, sections, theme }}
                           scale={mobilePreviewScale}
                           className="ring-1 ring-white/10 shadow-2xl shadow-indigo-500/10"
+                          interactive
+                          onEdit={handlePreviewEdit}
                         />
                       )}
                     </div>
@@ -393,7 +421,15 @@ export function ResumeEditorPage() {
                 </div>
               )}
             </div>
-            {resume && <ResumePreview resume={{ ...resume, title, sections, theme }} scale={0.48} className="ring-1 ring-white/10 shadow-2xl shadow-indigo-500/10" />}
+            {resume && (
+              <ResumePreview
+                resume={{ ...resume, title, sections, theme }}
+                scale={0.48}
+                className="ring-1 ring-white/10 shadow-2xl shadow-indigo-500/10"
+                interactive
+                onEdit={handlePreviewEdit}
+              />
+            )}
           </div>
         </div>
       </div>

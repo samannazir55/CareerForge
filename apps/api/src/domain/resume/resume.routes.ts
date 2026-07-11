@@ -181,6 +181,12 @@ const PreviewRenderRequestSchema = z.object({
   title: z.string().min(1),
   theme: ResumeThemeSchema,
   sections: z.array(PreviewSectionSchema),
+  // When true, injects the click-to-edit/delete bootstrap (see
+  // previewInteractivity.ts) into the returned HTML. Only the resume
+  // editor's live preview sets this — the read-only AI-chat-builder
+  // preview, and PDF/DOCX export (which don't call this route at all),
+  // must never render with the editing UI visible.
+  interactive: z.boolean().optional(),
 });
 
 resumeRouter.post(
@@ -208,7 +214,11 @@ resumeRouter.post(
     }));
 
     const template = await resolveTemplate(input.theme.templateId ?? 'modern');
-    const html = template.renderHtml({ ...input, sections: enrichedSections } as any);
+    let html = template.renderHtml({ ...input, sections: enrichedSections } as any);
+    if (input.interactive) {
+      const { injectInteractivity } = await import('./previewInteractivity.js');
+      html = injectInteractivity(html);
+    }
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store');
     res.send(html);

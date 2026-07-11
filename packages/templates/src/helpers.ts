@@ -108,7 +108,7 @@ export function getSummaryText(resume: Resume): string {
  * as a fallback for any field kind a template doesn't have a special case for.
  * This is what makes "templates automatically render custom sections" true —
  * templates call this for custom/unknown sections and every field just works. */
-export function renderEntryFieldsGeneric(entry: Entry, fields: FieldDef[]): string {
+export function renderEntryFieldsGeneric(sectionId: string, entry: Entry, fields: FieldDef[]): string {
   return fields
     .map((field) => {
       const val = entry.values[field.key];
@@ -119,12 +119,15 @@ export function renderEntryFieldsGeneric(entry: Entry, fields: FieldDef[]): stri
         return `<div class="cf-field"><span class="cf-field-label">${escapeHtml(field.label)}:</span> ${escapeHtml(items.join(', '))}</div>`;
       }
       if (field.kind === 'richtext') {
-        return `<div class="cf-field cf-field--richtext"><span class="cf-field-label">${escapeHtml(field.label)}</span>${richTextToHtml(String(val))}</div>`;
+        return `<div class="cf-field cf-field--richtext"><span class="cf-field-label">${escapeHtml(field.label)}</span>${cfField(sectionId, entry.id, field.key, richTextToHtml(String(val)))}</div>`;
       }
       if (field.kind === 'url') {
-        return `<div class="cf-field"><span class="cf-field-label">${escapeHtml(field.label)}:</span> <a href="${escapeHtml(String(val))}">${escapeHtml(String(val))}</a></div>`;
+        return `<div class="cf-field"><span class="cf-field-label">${escapeHtml(field.label)}:</span> ${cfField(sectionId, entry.id, field.key, `<a href="${escapeHtml(String(val))}">${escapeHtml(String(val))}</a>`)}</div>`;
       }
-      return `<div class="cf-field"><span class="cf-field-label">${escapeHtml(field.label)}:</span> ${escapeHtml(String(val))}</div>`;
+      if (field.kind === 'date') {
+        return `<div class="cf-field"><span class="cf-field-label">${escapeHtml(field.label)}:</span> ${escapeHtml(String(val))}</div>`;
+      }
+      return `<div class="cf-field"><span class="cf-field-label">${escapeHtml(field.label)}:</span> ${cfField(sectionId, entry.id, field.key, escapeHtml(String(val)))}</div>`;
     })
     .filter(Boolean)
     .join('');
@@ -137,3 +140,66 @@ export function getBodySections(resume: Resume): Section[] {
     .filter((s) => s.type !== 'summary')
     .sort((a, b) => a.order - b.order);
 }
+
+// ---------------------------------------------------------------------------
+// Inline-preview editing hooks ("Canva-style" click-to-edit/delete)
+//
+// These wrap rendered fragments with data-cf-* attributes that are 100%
+// inert in every normal context (PDF export, DOCX export, the read-only
+// AI-chat preview) — nothing reads them unless the interactive bootstrap
+// script is injected, which only happens server-side for the resume
+// editor's live preview (see
+// apps/api/src/domain/resume/previewInteractivity.ts and the
+// `interactive` flag on POST /resumes/preview-render). Keeping the
+// attributes unconditional here (rather than templates having two render
+// paths) means every template — including every existing and future
+// AI-generated dynamic template — gets inline editing for free.
+//
+// Only text / richtext / url fields get wrapped as directly editable;
+// `date` and `list` fields are deliberately left unwrapped (no click
+// affordance) since editing a formatted date range or a comma-joined tag
+// list in place doesn't map back to structured data cleanly — those stay
+// left-panel-only for now.
+// ---------------------------------------------------------------------------
+
+/** Marks a field's rendered HTML as click-to-edit. `html` may itself
+ * contain markup (e.g. richtext's <p> tags) — the whole thing becomes one
+ * contentEditable region. */
+export function cfField(sectionId: string, entryId: string, fieldKey: string, html: string): string {
+  return `<span data-cf-section="${escapeHtml(sectionId)}" data-cf-entry="${escapeHtml(entryId)}" data-cf-field="${escapeHtml(fieldKey)}">${html}</span>`;
+}
+
+/** Wraps a whole entry (one job, one degree, one project, ...) so hovering
+ * it in the preview surfaces a delete control. `tag` lets callers keep
+ * using the same element type/class the template already had. */
+export function cfEntry(sectionId: string, entryId: string, innerHtml: string, className: string): string {
+  return `<div class="${className}" data-cf-section="${escapeHtml(sectionId)}" data-cf-entry-wrap="${escapeHtml(entryId)}">${innerHtml}</div>`;
+}
+
+/** Wraps a section's heading so hovering it surfaces a "delete section"
+ * control, distinct from deleting an individual entry within it. */
+export function cfSectionTitle(sectionId: string, titleHtml: string, className = 'cf-section-title'): string {
+  return `<div class="${className}" data-cf-section-title="${escapeHtml(sectionId)}">${titleHtml}</div>`;
+}
+
+/** The summary section's id + first-entry id, if one exists — needed so
+ * the header block (name/jobTitle/email/phone/... which all live in that
+ * entry, see getPersonalInfo) can be wrapped with the right
+ * data-cf-section/data-cf-entry pair for inline editing. Returns null for
+ * a resume with no summary section yet (nothing to address). */
+export function getSummaryRef(resume: Resume): { sectionId: string; entryId: string } | null {
+  const summarySection = resume.sections.find((s) => s.type === 'summary');
+  const entry = summarySection?.entries[0];
+  if (!summarySection || !entry) return null;
+  return { sectionId: summarySection.id, entryId: entry.id };
+}
+
+/** Sentinel used for the resume's title (full name) field, which — unlike
+ * every other editable field — isn't stored in any section/entry at all
+ * (it's the top-level Resume.title). The preview's postMessage handler
+ * special-cases this sectionId to call the title setter instead of
+ * updateEntry(). */
+export const CF_TITLE_SECTION_ID = '__title__';
+export const CF_TITLE_ENTRY_ID = '__title__';
+export const CF_TITLE_FIELD_KEY = 'title';
+

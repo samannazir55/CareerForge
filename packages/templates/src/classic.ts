@@ -11,6 +11,13 @@ import {
   getPersonalInfo,
   getBodySections,
   getSummaryText,
+  getSummaryRef,
+  cfField,
+  cfEntry,
+  cfSectionTitle,
+  CF_TITLE_SECTION_ID,
+  CF_TITLE_ENTRY_ID,
+  CF_TITLE_FIELD_KEY,
 } from './helpers';
 
 // ---------------------------------------------------------------------------
@@ -46,8 +53,9 @@ const PRINT_CSS = `
   a { color: var(--accent, #818cf8); text-decoration: none; }
 `;
 
-function renderSidebarSection(title: string, content: string): string {
-  return `<div class="cf-sidebar-section"><div class="cf-sidebar-section-title">${escapeHtml(title)}</div>${content}</div>`;
+function renderSidebarSection(sectionId: string | null, title: string, content: string): string {
+  const titleHtml = sectionId ? cfSectionTitle(sectionId, escapeHtml(title), 'cf-sidebar-section-title') : `<div class="cf-sidebar-section-title">${escapeHtml(title)}</div>`;
+  return `<div class="cf-sidebar-section">${titleHtml}${content}</div>`;
 }
 
 function renderMainSection(section: Section): string {
@@ -55,6 +63,7 @@ function renderMainSection(section: Section): string {
   if (!entries.length) return '';
 
   let content = '';
+  const sid = section.id;
 
   switch (section.type) {
     case 'experience':
@@ -65,14 +74,18 @@ function renderMainSection(section: Section): string {
         const dateRange = formatDateRange(e.values.startDate, e.values.endDate);
         const description = getString(e, 'description');
         const secondary = [company, location].filter(Boolean).join(', ');
-        return `<div class="cf-entry">
+        return cfEntry(
+          sid,
+          e.id,
+          `
           <div class="cf-entry-header">
-            <div class="cf-entry-primary">${escapeHtml(title)}</div>
+            <div class="cf-entry-primary">${cfField(sid, e.id, 'title', escapeHtml(title))}</div>
             ${dateRange ? `<div class="cf-entry-date">${escapeHtml(dateRange)}</div>` : ''}
           </div>
           ${secondary ? `<div class="cf-entry-secondary">${escapeHtml(secondary)}</div>` : ''}
-          ${description ? richTextToHtml(description) : ''}
-        </div>`;
+          ${description ? cfField(sid, e.id, 'description', richTextToHtml(description)) : ''}`,
+          'cf-entry',
+        );
       }).join('');
       break;
 
@@ -81,13 +94,17 @@ function renderMainSection(section: Section): string {
         const degree = getString(e, 'degree');
         const school = getString(e, 'school');
         const dateRange = formatDateRange(e.values.startDate, e.values.endDate);
-        return `<div class="cf-entry">
+        return cfEntry(
+          sid,
+          e.id,
+          `
           <div class="cf-entry-header">
-            <div class="cf-entry-primary">${escapeHtml(degree)}</div>
+            <div class="cf-entry-primary">${cfField(sid, e.id, 'degree', escapeHtml(degree))}</div>
             ${dateRange ? `<div class="cf-entry-date">${escapeHtml(dateRange)}</div>` : ''}
           </div>
-          ${school ? `<div class="cf-entry-secondary">${escapeHtml(school)}</div>` : ''}
-        </div>`;
+          ${school ? `<div class="cf-entry-secondary">${escapeHtml(school)}</div>` : ''}`,
+          'cf-entry',
+        );
       }).join('');
       break;
 
@@ -96,13 +113,17 @@ function renderMainSection(section: Section): string {
         const name = getString(e, 'name');
         const issuer = getString(e, 'issuer');
         const date = formatDate(getString(e, 'date'));
-        return `<div class="cf-entry">
+        return cfEntry(
+          sid,
+          e.id,
+          `
           <div class="cf-entry-header">
-            <div class="cf-entry-primary">${escapeHtml(name)}</div>
+            <div class="cf-entry-primary">${cfField(sid, e.id, 'name', escapeHtml(name))}</div>
             ${date ? `<div class="cf-entry-date">${escapeHtml(date)}</div>` : ''}
           </div>
-          ${issuer ? `<div class="cf-entry-secondary">${escapeHtml(issuer)}</div>` : ''}
-        </div>`;
+          ${issuer ? `<div class="cf-entry-secondary">${escapeHtml(issuer)}</div>` : ''}`,
+          'cf-entry',
+        );
       }).join('');
       break;
 
@@ -111,19 +132,23 @@ function renderMainSection(section: Section): string {
         const name = getString(e, 'name');
         const description = getString(e, 'description');
         const url = getString(e, 'url');
-        return `<div class="cf-entry">
-          <div class="cf-entry-primary">${escapeHtml(name)}${url ? ` <a href="${escapeHtml(url)}" style="font-size:8.5pt;font-weight:400">${escapeHtml(url)}</a>` : ''}</div>
-          ${description ? richTextToHtml(description) : ''}
-        </div>`;
+        return cfEntry(
+          sid,
+          e.id,
+          `
+          <div class="cf-entry-primary">${cfField(sid, e.id, 'name', escapeHtml(name))}${url ? ` <a href="${escapeHtml(url)}" style="font-size:8.5pt;font-weight:400">${escapeHtml(url)}</a>` : ''}</div>
+          ${description ? cfField(sid, e.id, 'description', richTextToHtml(description)) : ''}`,
+          'cf-entry',
+        );
       }).join('');
       break;
 
     default:
-      content = entries.map((e) => `<div class="cf-entry">${renderEntryFieldsGeneric(e, section.fields)}</div>`).join('');
+      content = entries.map((e) => cfEntry(sid, e.id, renderEntryFieldsGeneric(sid, e, section.fields), 'cf-entry')).join('');
       break;
   }
 
-  return `<div class="cf-section"><div class="cf-section-title">${escapeHtml(section.title)}</div>${content}</div>`;
+  return `<div class="cf-section">${cfSectionTitle(sid, escapeHtml(section.title))}${content}</div>`;
 }
 
 function renderHtml(resume: Resume): string {
@@ -131,6 +156,10 @@ function renderHtml(resume: Resume): string {
   const accent = resume.theme.accentColor || '#818cf8';
   const allSections = getBodySections(resume);
   const summaryText = getSummaryText(resume);
+  const summaryRef = getSummaryRef(resume);
+
+  const wrapHeaderField = (fieldKey: string, html: string) =>
+    summaryRef ? cfField(summaryRef.sectionId, summaryRef.entryId, fieldKey, html) : html;
 
   // Sidebar: skills, languages, references  |  Main: everything else
   const sidebarTypes = new Set(['skills', 'languages', 'references']);
@@ -138,29 +167,39 @@ function renderHtml(resume: Resume): string {
   const mainSections = allSections.filter((s) => !sidebarTypes.has(s.type));
 
   const contactItems = [
-    info.email && `<div class="cf-contact-item">${escapeHtml(info.email)}</div>`,
-    info.phone && `<div class="cf-contact-item">${escapeHtml(info.phone)}</div>`,
-    info.location && `<div class="cf-contact-item">${escapeHtml(info.location)}</div>`,
-    info.linkedin && `<div class="cf-contact-item">${escapeHtml(info.linkedin)}</div>`,
-    info.website && `<div class="cf-contact-item">${escapeHtml(info.website)}</div>`,
-  ].filter(Boolean).join('');
+    info.email && { key: 'email', value: info.email },
+    info.phone && { key: 'phone', value: info.phone },
+    info.location && { key: 'location', value: info.location },
+    info.linkedin && { key: 'linkedin', value: info.linkedin },
+    info.website && { key: 'website', value: info.website },
+  ]
+    .filter((p): p is { key: string; value: string } => Boolean(p))
+    .map((p) => `<div class="cf-contact-item">${wrapHeaderField(p.key, escapeHtml(p.value))}</div>`)
+    .join('');
 
   const sidebarHtml = [
-    contactItems ? renderSidebarSection('Contact', contactItems) : '',
+    contactItems ? renderSidebarSection(null, 'Contact', contactItems) : '',
     ...sidebarSections.map((s) => {
       let content = '';
       if (s.type === 'skills') {
-        content = s.entries.map((e) => `<div class="cf-skill-item">${escapeHtml(getString(e, 'name'))}</div>`).join('');
+        content = s.entries.map((e) => cfEntry(s.id, e.id, `<div class="cf-skill-item">${cfField(s.id, e.id, 'name', escapeHtml(getString(e, 'name')))}</div>`, '')).join('');
       } else if (s.type === 'languages') {
         content = s.entries.map((e) => {
           const name = getString(e, 'name');
           const prof = getString(e, 'proficiency');
-          return `<div class="cf-skill-item">${escapeHtml(name)}${prof ? ` <span style="opacity:.7">(${escapeHtml(prof)})</span>` : ''}</div>`;
+          return cfEntry(
+            s.id,
+            e.id,
+            `<div class="cf-skill-item">${cfField(s.id, e.id, 'name', escapeHtml(name))}${prof ? ` <span style="opacity:.7">(${escapeHtml(prof)})</span>` : ''}</div>`,
+            '',
+          );
         }).join('');
       } else {
-        content = s.entries.map((e) => `<div class="cf-skill-item">${escapeHtml(getString(e, 'name') || renderEntryFieldsGeneric(e, s.fields))}</div>`).join('');
+        content = s.entries
+          .map((e) => cfEntry(s.id, e.id, `<div class="cf-skill-item">${getString(e, 'name') ? cfField(s.id, e.id, 'name', escapeHtml(getString(e, 'name'))) : renderEntryFieldsGeneric(s.id, e, s.fields)}</div>`, ''))
+          .join('');
       }
-      return renderSidebarSection(s.title, content);
+      return renderSidebarSection(s.id, s.title, content);
     }),
   ].join('');
 
@@ -176,12 +215,12 @@ function renderHtml(resume: Resume): string {
 <body style="${accentStyle}">
   <div class="cf-page">
     <div class="cf-sidebar">
-      <h1>${escapeHtml(info.fullName)}</h1>
-      ${info.jobTitle ? `<div class="cf-job-title">${escapeHtml(info.jobTitle)}</div>` : ''}
+      <h1>${cfField(CF_TITLE_SECTION_ID, CF_TITLE_ENTRY_ID, CF_TITLE_FIELD_KEY, escapeHtml(info.fullName))}</h1>
+      ${info.jobTitle ? `<div class="cf-job-title">${wrapHeaderField('jobTitle', escapeHtml(info.jobTitle))}</div>` : ''}
       ${sidebarHtml}
     </div>
     <div class="cf-main">
-      ${summaryText ? `<div class="cf-section"><div class="cf-section-title">Summary</div>${richTextToHtml(summaryText)}</div>` : ''}
+      ${summaryText ? `<div class="cf-section"><div class="cf-section-title">Summary</div>${wrapHeaderField('text', richTextToHtml(summaryText))}</div>` : ''}
       ${mainSections.map(renderMainSection).join('')}
     </div>
   </div>

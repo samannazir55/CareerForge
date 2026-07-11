@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useInView } from 'framer-motion';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { FeatureItem } from './FeatureCard';
 
@@ -34,6 +34,11 @@ export function CoverflowGallery({ features }: CoverflowGalleryProps) {
   const [paused, setPaused] = useState(false);
   const dragStartX = useRef(0);
   const dragging = useRef(false);
+  const stageRef = useRef<HTMLDivElement>(null);
+  // Once true, stays true forever — cards rise up into their fanned
+  // positions the first time the gallery scrolls into view, and never
+  // replay that entrance on subsequent navigation.
+  const hasEntered = useInView(stageRef, { once: true, margin: '-100px' });
 
   const goTo = useCallback(
     (i: number) => setCurrent(((i % total) + total) % total),
@@ -100,6 +105,7 @@ export function CoverflowGallery({ features }: CoverflowGalleryProps) {
 
         {/* Coverflow stage */}
         <div
+          ref={stageRef}
           className="relative flex-1 h-[420px] overflow-hidden select-none touch-none cursor-grab active:cursor-grabbing"
           style={{ perspective: '1400px' }}
           onPointerDown={onPointerDown}
@@ -119,14 +125,25 @@ export function CoverflowGallery({ features }: CoverflowGalleryProps) {
                 key={i}
                 className="absolute top-1/2 left-1/2 w-64 h-80 -ml-32 -mt-40"
                 style={{ zIndex: 100 - abs, pointerEvents: isFront ? 'auto' : 'none' } as CSSProperties}
-                animate={{
-                  x: offset * CARD_SPACING,
-                  scale: Math.max(0.58, 1 - abs * 0.16),
-                  rotateY: Math.max(-55, Math.min(55, offset * -20)),
-                  opacity: abs > VISIBLE_RANGE ? 0 : Math.max(0.12, 1 - abs * 0.26),
-                  filter: `blur(${isFront ? 0 : Math.min(9, abs * 3)}px)`,
+                initial={{ opacity: 0, y: 130, scale: 0.55 }}
+                animate={
+                  hasEntered
+                    ? {
+                        x: offset * CARD_SPACING,
+                        y: 0,
+                        scale: Math.max(0.58, 1 - abs * 0.16),
+                        rotateY: Math.max(-55, Math.min(55, offset * -20)),
+                        opacity: abs > VISIBLE_RANGE ? 0 : Math.max(0.12, 1 - abs * 0.26),
+                        filter: `blur(${isFront ? 0 : Math.min(9, abs * 3)}px)`,
+                      }
+                    : { opacity: 0, y: 130, scale: 0.55 }
+                }
+                transition={{
+                  type: 'spring',
+                  stiffness: 260,
+                  damping: 32,
+                  delay: hasEntered ? 0 : 0.1 + abs * 0.06,
                 }}
-                transition={{ type: 'spring', stiffness: 260, damping: 32 }}
                 onClick={() => !isFront && goTo(i)}
               >
                 <div
