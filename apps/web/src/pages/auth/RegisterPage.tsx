@@ -1,5 +1,5 @@
 import { useState, type FormEvent, type ChangeEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { AuthLayout } from './AuthLayout';
 import { OAuthButtons } from './OAuthButtons';
 import { Input } from '../../components/ui/Input';
@@ -8,13 +8,19 @@ import { useAuth } from '../../context/AuthContext';
 import { ApiError } from '../../lib/api';
 
 export function RegisterPage() {
-  const { register } = useAuth();
+  const { register, status, user } = useAuth();
   const navigate = useNavigate();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Same guard as WelcomePage/LoginPage: an already-signed-in user shouldn't
+  // be able to land on the registration form.
+  if (status === 'authenticated') {
+    return <Navigate to={user?.isEmailVerified ? '/dashboard' : '/verify-otp'} replace />;
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();

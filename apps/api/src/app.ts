@@ -61,7 +61,7 @@ export function createApp() {
           // evaluates the template literal, and only the evaluated bytes are
           // ever actually sent to the browser. See the recompute snippet in
           // previewInteractivity.ts's file header comment.
-          'script-src': ["'self'", "'sha256-HimNc2T2MPEJZmpJr3ziVZB05rT43BDW7DBWwT0xM48='"],
+          'script-src': ["'self'", "'sha256-Z82SP+lAk3I1MZ+8hwE18Sx73xwaTXTvnXtoholO8VI='"],
           // Resume profile photos are served from Cloudinary (see
           // domain/uploads/cloudinary.service.ts) -- the default CSP's
           // img-src is 'self' data: only, which silently blocks the

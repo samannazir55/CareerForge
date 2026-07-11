@@ -118,6 +118,7 @@ const SCRIPT = `
 
   document.addEventListener('mouseover', function (e) {
     if (editingEl) return; // don't fight the active edit
+    if (e.target === delBtn) return; // moving onto the button itself — keep it (and the highlight) exactly as-is
     var titleEl = e.target.closest('[' + CF_SECTION_TITLE + ']');
     var entryEl = e.target.closest('[' + CF_ENTRY_WRAP + ']');
     // Prefer whichever is closer to the cursor (deepest match wins);
@@ -141,8 +142,6 @@ const SCRIPT = `
       hideDeleteBtn();
     }
   });
-
-  document.addEventListener('mouseleave', function () { clearHover(); hideDeleteBtn(); }, true);
 
   delBtn.addEventListener('click', function (e) {
     e.preventDefault();

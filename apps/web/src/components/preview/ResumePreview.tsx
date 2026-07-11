@@ -41,11 +41,32 @@ export function ResumePreview({ resume, scale = 0.5, className = '', interactive
   // identical to a correctly-rendered one that just hadn't changed.
   const [renderState, setRenderState] = useState<'idle' | 'loading' | 'error'>('idle');
 
+  // Set right before onEdit() is called for a 'field-edit' message (see the
+  // message handler below) and consumed once by the render effect. A text
+  // edit's contenteditable already shows the new value inside the iframe —
+  // by the time onEdit() round-trips through the parent's setSections/
+  // setTitle and back down as new props, re-fetching a fresh render and
+  // replacing the entire iframe document via srcdoc is pure waste, and a
+  // full document replacement is a full reload: the iframe visibly blinks,
+  // and if this happens while the user is still mid-edit elsewhere (e.g. a
+  // second field, or this same field re-focused before the round trip
+  // finishes) the reload can appear to "revert" whatever hadn't been
+  // committed yet. Deletes are NOT suppressed here — removing a
+  // section/entry isn't reflected locally by the injected script (it relies
+  // entirely on the next render to actually drop the markup), so those must
+  // still go through the normal fetch-and-replace path.
+  const suppressNextRenderRef = useRef(false);
+
   useEffect(() => {
     // Wait for auth to resolve before trying to render. requestText also
     // retries once via the refresh cookie on a 401 mid-session, so this
     // guard only matters for the very first render before auth resolves.
     if (status !== 'authenticated') return;
+
+    if (suppressNextRenderRef.current) {
+      suppressNextRenderRef.current = false;
+      return;
+    }
 
     let cancelled = false;
     setRenderState('loading');
@@ -89,6 +110,7 @@ export function ResumePreview({ resume, scale = 0.5, className = '', interactive
       const data = event.data;
       if (!data || data.source !== 'careerforge-preview') return;
       if (data.type === 'field-edit' && typeof data.sectionId === 'string' && typeof data.entryId === 'string' && typeof data.field === 'string' && typeof data.value === 'string') {
+        suppressNextRenderRef.current = true;
         onEdit?.({ type: 'field-edit', sectionId: data.sectionId, entryId: data.entryId, field: data.field, value: data.value });
       } else if (data.type === 'delete-entry' && typeof data.sectionId === 'string' && typeof data.entryId === 'string') {
         onEdit?.({ type: 'delete-entry', sectionId: data.sectionId, entryId: data.entryId });
