@@ -54,10 +54,14 @@ export function createApp() {
           // Hash of the inline <script id="cf-interactive-script"> injected by
           // injectInteractivity() (see domain/resume/previewInteractivity.ts)
           // into the live editor's interactive preview iframe (srcdoc, which
-          // inherits this document's CSP). Recompute with the sha256sum-style
-          // snippet in that file's comments if the script's content ever
-          // changes — a stale hash here just silently breaks click-to-edit.
-          'script-src': ["'self'", "'sha256-wqQxuRRS3TXa8tRtZli/9DSIYn0yvC6xTd101Q/Q+rc='"],
+          // inherits this document's CSP). IMPORTANT: this must be computed
+          // from the EVALUATED runtime string, not the raw template-literal
+          // source — the source contains escaped backslashes (e.g. `\\u00D7`)
+          // that collapse to single backslashes (`\u00D7`) once the JS engine
+          // evaluates the template literal, and only the evaluated bytes are
+          // ever actually sent to the browser. See the recompute snippet in
+          // previewInteractivity.ts's file header comment.
+          'script-src': ["'self'", "'sha256-HimNc2T2MPEJZmpJr3ziVZB05rT43BDW7DBWwT0xM48='"],
           // Resume profile photos are served from Cloudinary (see
           // domain/uploads/cloudinary.service.ts) -- the default CSP's
           // img-src is 'self' data: only, which silently blocks the
