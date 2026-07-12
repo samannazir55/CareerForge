@@ -50,7 +50,7 @@ const ALLOWED_LOOP_TAGS = new Set([
 // Keep in sync with the `scalars` object in dynamicTemplateRenderer.ts —
 // these are the fields available at the top level, before any loop runs.
 const ALLOWED_CONDITIONAL_KEYS = new Set([
-  'name', 'jobTitle', 'email', 'phone', 'location', 'linkedin', 'website',
+  'name', 'firstName', 'lastName', 'jobTitle', 'email', 'phone', 'location', 'linkedin', 'website',
   'summary', 'accentColor', 'accentColorSoft', 'accentColorDark', 'photoUrl',
 ]);
 

@@ -22,6 +22,16 @@ section like a spec, because it is one.
 SCALARS — replaced with escaped plain text, safe to use anywhere:
   {{name}}       {{jobTitle}}   {{email}}      {{phone}}
   {{location}}   {{linkedin}}   {{website}}
+  {{firstName}}  {{lastName}}   — the same person's name, split into two
+                   parts, specifically so you can style each part
+                   differently (e.g. two different colors/weights in the
+                   header) — a real, deliberate design technique, not a
+                   trick. {{name}} is the same name pre-combined as one
+                   string, for when you don't need to style it in parts.
+                   Prefer {{firstName}}/{{lastName}} whenever the header
+                   design calls for any visual distinction between the two
+                   — fall back to {{name}} only when you genuinely want one
+                   uniform string.
   {{summary}}    — may contain simple inline HTML (already unescaped), treat
                    as a paragraph of prose, not a single line
   {{accentColor}}      the ONE accent color the user picked in their color
