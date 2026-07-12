@@ -98,6 +98,28 @@ export function ensureCanonicalSectionFields(sections: Section[]): Section[] {
 }
 
 /**
+ * Ensures the summary section — which doubles as the resume's contact-info
+ * "header" (see DEFAULT_SECTION_FIELDS.summary in resume.ts) — has at least
+ * one entry. SectionCard only renders an EntryCard (and therefore any field
+ * inputs) for entries that actually exist in `section.entries`; a summary
+ * section with zero entries renders no First Name / Last Name / Email /
+ * Phone inputs at all, just an empty card with an "Add entry" button. That
+ * affects every resume, not just old ones: `buildDefaultSections()` seeds
+ * a brand-new resume's summary section with `entries: []`, so even a resume
+ * created after the contact fields were added starts with nowhere to type
+ * them. Calling this on load (alongside ensureCanonicalSectionFields) fixes
+ * both new and pre-existing resumes without ever discarding real data —
+ * it only adds an empty entry when none exists.
+ */
+export function ensureSummaryEntry(sections: Section[]): Section[] {
+  return sections.map((s) =>
+    s.type === 'summary' && s.entries.length === 0
+      ? { ...s, entries: [{ id: crypto.randomUUID(), values: {} }] }
+      : s,
+  );
+}
+
+/**
  * One-time, non-destructive upgrade path for resumes saved before
  * firstName/lastName existed as their own fields (see DEFAULT_SECTION_FIELDS
  * .summary in resume.ts). Those resumes only ever had a single combined name

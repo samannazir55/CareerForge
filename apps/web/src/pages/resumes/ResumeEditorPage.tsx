@@ -3,7 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Plus, History, Download, FileType2, Sparkles, Lock } from 'lucide-react';
 import type { Resume, ResumeTheme, Section, SectionType } from '@careerforge/schema';
-import { createSection, createCustomSection, addSection, reorderSections, isDynamicTemplateId, DEFAULT_THEME, updateEntry, removeEntry, removeSection, ensureCanonicalSectionFields, inferNameFieldsFromTitle } from '@careerforge/schema';
+import { createSection, createCustomSection, addSection, reorderSections, isDynamicTemplateId, DEFAULT_THEME, updateEntry, removeEntry, removeSection, ensureCanonicalSectionFields, ensureSummaryEntry, inferNameFieldsFromTitle } from '@careerforge/schema';
 import { resumeApi, ApiError } from '../../lib/api';
 import { useAutosave } from '../../hooks/useAutosave';
 import { Button } from '../../components/ui/Button';
@@ -69,12 +69,18 @@ export function ResumeEditorPage() {
         setResume(data.resume);
         setTitle(data.resume.title);
         // Backfill any built-in fields the schema has gained since this resume
-        // was saved (e.g. contact fields), then — for resumes saved before
-        // firstName/lastName existed — split the single combined name into
-        // the two new fields so the header can be styled/edited per-part
-        // right away, without the person having to retype their name.
+        // was saved (e.g. contact fields), then make sure the summary section
+        // actually has an entry to hold them — a section with zero entries
+        // renders no field inputs at all, which is what made the contact
+        // fields (First Name, Last Name, Email, Phone, ...) invisible on both
+        // brand-new and pre-existing resumes. Finally, for resumes saved
+        // before firstName/lastName existed, split the single combined name
+        // into the two new fields so the header can be styled/edited
+        // per-part right away, without the person having to retype their
+        // name.
         const canonicalSections = ensureCanonicalSectionFields(data.resume.sections);
-        setSections(inferNameFieldsFromTitle(canonicalSections, data.resume.title));
+        const sectionsWithSummaryEntry = ensureSummaryEntry(canonicalSections);
+        setSections(inferNameFieldsFromTitle(sectionsWithSummaryEntry, data.resume.title));
         setTheme(data.resume.theme);
       })
       .catch(() => setLoadError('Could not load this resume — it may not exist, or may not belong to you.'));

@@ -10,7 +10,7 @@ import { SuggestionCapsules } from '../../components/ai/SuggestionCapsules';
 import { aiApi, resumeApi, templatesApi } from '../../lib/api';
 import { ApiError } from '../../lib/api';
 import type { Resume, Section, PublicTemplateListItem } from '@careerforge/schema';
-import { DEFAULT_THEME, CURRENT_SCHEMA_VERSION, mergeResumeSections, ensureCanonicalSectionFields, inferNameFieldsFromTitle } from '@careerforge/schema';
+import { DEFAULT_THEME, CURRENT_SCHEMA_VERSION, mergeResumeSections, ensureCanonicalSectionFields, ensureSummaryEntry, inferNameFieldsFromTitle } from '@careerforge/schema';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -243,9 +243,10 @@ export function AIChatBuilderPage() {
     if (!resumeId) return;
     resumeApi.get(resumeId).then(({ resume }) => {
       const canonicalSections = ensureCanonicalSectionFields(resume.sections);
+      const sectionsWithSummaryEntry = ensureSummaryEntry(canonicalSections);
       setPreviewResume({
         ...(resume as unknown as Resume),
-        sections: inferNameFieldsFromTitle(canonicalSections, resume.title),
+        sections: inferNameFieldsFromTitle(sectionsWithSummaryEntry, resume.title),
       });
       const saved = (resume as unknown as { chatMessages?: ChatMessage[] }).chatMessages;
       if (saved && saved.length > 0) setMessages(saved);
