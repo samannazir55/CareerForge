@@ -32,6 +32,8 @@ const PRINT_CSS = `
   .cf-page { display: grid; grid-template-columns: 68mm 1fr; min-height: 297mm; max-width: 210mm; margin: 0 auto; }
   .cf-sidebar { background: #1e1e2e; color: #e8e8f0; padding: 20pt 14pt; }
   .cf-sidebar h1 { font-size: 16pt; font-weight: 700; color: #fff; line-height: 1.2; margin-bottom: 3pt; }
+  .cf-sidebar h1 .cf-name-first { color: #fff; }
+  .cf-sidebar h1 .cf-name-last { color: var(--accent, #818cf8); margin-left: 0.28em; }
   .cf-sidebar .cf-job-title { font-size: 9pt; color: var(--accent, #818cf8); margin-bottom: 16pt; }
   .cf-sidebar-section { margin-bottom: 14pt; break-inside: avoid; }
   .cf-sidebar-section-title { font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 1pt; color: var(--accent, #818cf8); border-bottom: 1pt solid var(--accent, #818cf8); padding-bottom: 3pt; margin-bottom: 8pt; }
@@ -209,13 +211,19 @@ function renderHtml(resume: Resume): string {
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <title>${escapeHtml(info.fullName)}</title>
+  <title>${escapeHtml(info.fullName || `${info.firstName} ${info.lastName}`.trim())}</title>
   <style>${PRINT_CSS}</style>
 </head>
 <body style="${accentStyle}">
   <div class="cf-page">
     <div class="cf-sidebar">
-      <h1>${cfField(CF_TITLE_SECTION_ID, CF_TITLE_ENTRY_ID, CF_TITLE_FIELD_KEY, escapeHtml(info.fullName))}</h1>
+      <h1>${
+        info.firstName || info.lastName
+          ? `${wrapHeaderField('firstName', `<span class="cf-name-first">${escapeHtml(info.firstName)}</span>`)}${
+              info.lastName ? ' ' : ''
+            }${wrapHeaderField('lastName', `<span class="cf-name-last">${escapeHtml(info.lastName)}</span>`)}`
+          : cfField(CF_TITLE_SECTION_ID, CF_TITLE_ENTRY_ID, CF_TITLE_FIELD_KEY, escapeHtml(info.fullName))
+      }</h1>
       ${info.jobTitle ? `<div class="cf-job-title">${wrapHeaderField('jobTitle', escapeHtml(info.jobTitle))}</div>` : ''}
       ${sidebarHtml}
     </div>
@@ -238,7 +246,15 @@ async function buildDocx(resume: Resume): Promise<Buffer> {
   const summaryText = getSummaryText(resume);
 
   const children: Paragraph[] = [
-    new Paragraph({ children: [new TextRun({ text: info.fullName, bold: true, size: 44 })] }),
+    new Paragraph({
+      children:
+        info.firstName || info.lastName
+          ? [
+              new TextRun({ text: info.firstName, bold: true, size: 44 }),
+              ...(info.lastName ? [new TextRun({ text: ` ${info.lastName}`, bold: true, size: 44, color: '4F46E5' })] : []),
+            ]
+          : [new TextRun({ text: info.fullName, bold: true, size: 44 })],
+    }),
     ...(info.jobTitle ? [new Paragraph({ children: [new TextRun({ text: info.jobTitle, size: 22, color: '555555' })] })] : []),
     new Paragraph({
       children: [new TextRun({ text: [info.email, info.phone, info.location].filter(Boolean).join('  ·  '), size: 18, color: '777777' })],

@@ -216,7 +216,34 @@ export interface ResumeVersionDiff {
  * create it — the editor UI offers an "Add field" control in that case.
  */
 export const DEFAULT_SECTION_FIELDS: Record<Exclude<SectionType, 'custom'>, FieldDef[]> = {
-  summary: [{ key: 'text', label: 'Summary', kind: 'richtext', required: true }],
+  // The summary section doubles as the resume's "header": besides the
+  // summary paragraph itself, its first entry is where getPersonalInfo()
+  // (packages/templates/src/helpers.ts) reads firstName/lastName/jobTitle/
+  // email/phone/location/linkedin/website from — every template already
+  // renders these if present. They were missing from here entirely,
+  // though, which meant there was no input anywhere in the manual editor
+  // to set or edit them: EntryCard/FieldInput only ever render one input
+  // per entry in `section.fields`, so a key with no FieldDef had no UI at
+  // all, even though a value for it could still arrive via the AI chat
+  // builder or an import. firstName/lastName are stored separately (rather
+  // than as one `name` string) specifically so templates can style each
+  // independently (e.g. a different color per part) — see modern.ts /
+  // classic.ts's header rendering and helpers.ts's name-fallback logic for
+  // resumes saved before this existed. All contact fields are optional
+  // (required: false) since not every resume needs all of them, and the
+  // summary paragraph itself keeps its spot last so it still reads as the
+  // section's main "body" content.
+  summary: [
+    { key: 'firstName', label: 'First Name', kind: 'text', required: false },
+    { key: 'lastName', label: 'Last Name', kind: 'text', required: false },
+    { key: 'jobTitle', label: 'Job Title / Headline', kind: 'text', required: false },
+    { key: 'email', label: 'Email', kind: 'text', required: false },
+    { key: 'phone', label: 'Phone', kind: 'text', required: false },
+    { key: 'location', label: 'Location', kind: 'text', required: false },
+    { key: 'linkedin', label: 'LinkedIn', kind: 'url', required: false },
+    { key: 'website', label: 'Website', kind: 'url', required: false },
+    { key: 'text', label: 'Summary', kind: 'richtext', required: true },
+  ],
   experience: [
     { key: 'title', label: 'Job Title', kind: 'text', required: true },
     { key: 'company', label: 'Company', kind: 'text', required: true },

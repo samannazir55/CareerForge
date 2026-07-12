@@ -75,6 +75,65 @@ export function removeEntry(sections: Section[], sectionId: string, entryId: str
 
 /** Adds a field to a custom section's field list (built-in sections have a
  * fixed field list managed by DEFAULT_SECTION_FIELDS, not user-editable). */
+/**
+ * Backfills a built-in section's `fields` to the current
+ * DEFAULT_SECTION_FIELDS definition for its type.
+ *
+ * `fields` is persisted per-resume, not derived at render time — so a
+ * resume saved before a built-in section's canonical field list changed
+ * (e.g. summary gaining jobTitle/email/phone/location/linkedin/website)
+ * keeps whatever narrower `fields` array it was saved with forever, and
+ * EntryCard/FieldInput render one input per declared field, so a resume
+ * that predates that change would go on having no input for those values
+ * at all — not just missing them, but with no way to add them either.
+ * Calling this whenever a resume is loaded into the editor keeps every
+ * built-in section's fields in sync with the current schema.
+ *
+ * Only non-`custom` sections are touched: a custom section's fields are
+ * entirely user-defined (via the "Add field" control) and have no
+ * canonical definition to reconcile against.
+ */
+export function ensureCanonicalSectionFields(sections: Section[]): Section[] {
+  return sections.map((s) => (s.type === 'custom' ? s : { ...s, fields: DEFAULT_SECTION_FIELDS[s.type] }));
+}
+
+/**
+ * One-time, non-destructive upgrade path for resumes saved before
+ * firstName/lastName existed as their own fields (see DEFAULT_SECTION_FIELDS
+ * .summary in resume.ts). Those resumes only ever had a single combined name
+ * in `resume.title` — this splits that string into firstName (first word)
+ * and lastName (everything else) and writes it into the summary section's
+ * first entry, purely so templates can immediately start rendering/styling
+ * the two parts independently without the person having to retype their
+ * name. Never overwrites real firstName/lastName values that already
+ * exist — it only fills the gap for resumes that predate the split.
+ */
+export function inferNameFieldsFromTitle(sections: Section[], title: string): Section[] {
+  const summaryIndex = sections.findIndex((s) => s.type === 'summary');
+  if (summaryIndex === -1) return sections;
+
+  const summary = sections[summaryIndex];
+  const entry = summary.entries[0];
+  if (!entry) return sections;
+
+  const hasFirst = typeof entry.values.firstName === 'string' && entry.values.firstName.trim() !== '';
+  const hasLast = typeof entry.values.lastName === 'string' && entry.values.lastName.trim() !== '';
+  if (hasFirst || hasLast) return sections; // already migrated / real data present — don't clobber it
+
+  const trimmedTitle = title.trim();
+  if (!trimmedTitle) return sections;
+
+  const [firstName, ...rest] = trimmedTitle.split(/\s+/);
+  const lastName = rest.join(' ');
+
+  const updatedSections = sections.slice();
+  updatedSections[summaryIndex] = {
+    ...summary,
+    entries: summary.entries.map((e, i) => (i === 0 ? { ...e, values: { ...e.values, firstName, lastName } } : e)),
+  };
+  return updatedSections;
+}
+
 export function addCustomField(
   sections: Section[],
   sectionId: string,

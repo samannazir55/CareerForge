@@ -32,6 +32,8 @@ straight to doing it instead.
 
 When you have gathered enough information to update the resume (at least name and one section),
 append "RESUME_UPDATE:" followed by a JSON object with the resume data.
+Keep "title" consistent with "firstName"/"lastName" in the summary entry — "title" should
+read as "<firstName> <lastName>".
 The JSON should have this shape. Every value shown below in angle brackets is a
 placeholder describing what belongs there, not literal text — never output the
 placeholder itself; always substitute the user's real information. If you don't
@@ -54,6 +56,8 @@ reproduce them. Only include a real "fields" array for a "custom" section.
         {
           "id": "<uuid>",
           "values": {
+            "firstName": "<their first name>",
+            "lastName": "<their last name>",
             "jobTitle": "<their current job title>",
             "email": "<their email>",
             "phone": "<their phone>",

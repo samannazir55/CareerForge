@@ -33,6 +33,8 @@ const PRINT_CSS = `
   .cf-page { max-width: 210mm; margin: 0 auto; padding: 0; }
   .cf-header { background: var(--accent, #4f46e5); color: white; padding: 20pt 24pt 16pt; margin-bottom: 0; }
   .cf-header h1 { font-size: 22pt; font-weight: 700; letter-spacing: -0.3pt; margin-bottom: 2pt; }
+  .cf-header h1 .cf-name-first { color: inherit; }
+  .cf-header h1 .cf-name-last { color: inherit; opacity: 0.75; margin-left: 0.28em; }
   .cf-header .cf-job-title { font-size: 11pt; font-weight: 400; opacity: 0.9; margin-bottom: 10pt; }
   .cf-header .cf-contact { display: flex; flex-wrap: wrap; gap: 8pt; font-size: 8.5pt; opacity: 0.9; }
   .cf-header .cf-contact span::before { content: ''; }
@@ -218,7 +220,7 @@ function renderHtml(resume: Resume): string {
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>${escapeHtml(info.fullName)}</title>
+  <title>${escapeHtml(info.fullName || `${info.firstName} ${info.lastName}`.trim())}</title>
   <style>
     ${PRINT_CSS.replace(/var\(--accent, #4f46e5\)/g, accent).replace(/color: #4f46e5/g, `color: ${accent}`).replace(/background: #f0f0fa/g, `background: ${accent}18`)}
   </style>
@@ -226,7 +228,13 @@ function renderHtml(resume: Resume): string {
 <body>
   <div class="cf-page">
     <div class="cf-header">
-      <h1>${cfField(CF_TITLE_SECTION_ID, CF_TITLE_ENTRY_ID, CF_TITLE_FIELD_KEY, escapeHtml(info.fullName))}</h1>
+      <h1>${
+        info.firstName || info.lastName
+          ? `${wrapHeaderField('firstName', `<span class="cf-name-first">${escapeHtml(info.firstName)}</span>`)}${
+              info.lastName ? ' ' : ''
+            }${wrapHeaderField('lastName', `<span class="cf-name-last">${escapeHtml(info.lastName)}</span>`)}`
+          : cfField(CF_TITLE_SECTION_ID, CF_TITLE_ENTRY_ID, CF_TITLE_FIELD_KEY, escapeHtml(info.fullName))
+      }</h1>
       ${info.jobTitle ? `<div class="cf-job-title">${wrapHeaderField('jobTitle', escapeHtml(info.jobTitle))}</div>` : ''}
       ${contactParts.length ? `<div class="cf-contact">${contactParts.map((p) => `<span>${wrapHeaderField(p.key, escapeHtml(p.value))}</span>`).join('')}</div>` : ''}
     </div>
@@ -250,7 +258,15 @@ async function buildDocx(resume: Resume): Promise<Buffer> {
 
   const headerParagraphs = [
     new Paragraph({
-      children: [new TextRun({ text: info.fullName, bold: true, size: 44, color: 'FFFFFF' })],
+      children:
+        info.firstName || info.lastName
+          ? [
+              new TextRun({ text: info.firstName, bold: true, size: 44, color: 'FFFFFF' }),
+              ...(info.lastName
+                ? [new TextRun({ text: ` ${info.lastName}`, bold: true, size: 44, color: 'DDDDFF' })]
+                : []),
+            ]
+          : [new TextRun({ text: info.fullName, bold: true, size: 44, color: 'FFFFFF' })],
       shading: { type: ShadingType.SOLID, color: '4F46E5', fill: '4F46E5' },
     }),
     ...(info.jobTitle

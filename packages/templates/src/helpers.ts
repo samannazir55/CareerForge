@@ -63,6 +63,8 @@ export function getList(entry: Entry, key: string): string[] {
  * top-level header field). Used by templates to get name/contact/title. */
 export function getPersonalInfo(resume: Resume): {
   fullName: string;
+  firstName: string;
+  lastName: string;
   jobTitle: string;
   email: string;
   phone: string;
@@ -77,6 +79,14 @@ export function getPersonalInfo(resume: Resume): {
   const entry = summarySection?.entries[0];
   return {
     fullName: resume.title,
+    // firstName/lastName are newer, independently-stored fields (see
+    // DEFAULT_SECTION_FIELDS.summary) so templates can style each part
+    // differently. A resume saved before these existed simply won't have
+    // them set — callers that want a two-part name should check both are
+    // non-empty before using them, and fall back to `fullName` otherwise
+    // (see modern.ts/classic.ts's header rendering for that fallback).
+    firstName: entry ? getString({ id: '', values: entry.values }, 'firstName') : '',
+    lastName: entry ? getString({ id: '', values: entry.values }, 'lastName') : '',
     jobTitle: entry ? getString({ id: '', values: entry.values }, 'jobTitle') : '',
     email: entry ? getString({ id: '', values: entry.values }, 'email') : '',
     phone: entry ? getString({ id: '', values: entry.values }, 'phone') : '',
@@ -202,4 +212,3 @@ export function getSummaryRef(resume: Resume): { sectionId: string; entryId: str
 export const CF_TITLE_SECTION_ID = '__title__';
 export const CF_TITLE_ENTRY_ID = '__title__';
 export const CF_TITLE_FIELD_KEY = 'title';
-

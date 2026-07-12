@@ -9,8 +9,16 @@ import type { Resume } from '@careerforge/schema';
 // PLACEHOLDER SYNTAX
 // ──────────────────
 // Scalars (replaced with escaped text):
-//   {{name}}      {{jobTitle}}   {{email}}     {{phone}}
-//   {{location}}  {{linkedin}}   {{website}}   {{summary}}
+//   {{name}}      {{firstName}}  {{lastName}}  {{jobTitle}}
+//   {{email}}     {{phone}}      {{location}}  {{linkedin}}
+//   {{website}}   {{summary}}
+//   {{name}} is the resume's combined display name (kept for templates
+//   written before firstName/lastName existed). {{firstName}}/{{lastName}}
+//   are the same person split into two parts so a template can style each
+//   independently (e.g. two different colors in the header) — they may be
+//   empty for resumes saved before the split existed and never opened in
+//   the editor since, so a template using them should have a sensible
+//   fallback to {{name}} for that case.
 //   {{accentColor}}      user-chosen hex from the resume's color picker
 //   {{accentColorSoft}}  a light tint of accentColor (mixed toward white,
 //                        88%) — for background fills, tag backgrounds, etc.
@@ -410,6 +418,8 @@ export function renderDynamicTemplate(templateHtml: string, resume: Resume): str
 
   const scalars: Record<string, string> = {
     name:     resume.title ? wrapField(CF_TITLE_SECTION_ID, CF_TITLE_ENTRY_ID, CF_TITLE_FIELD_KEY, escHtml(resume.title)) : '',
+    firstName: field('firstName', sv.firstName ?? ''),
+    lastName:  field('lastName',  sv.lastName  ?? ''),
     jobTitle: field('jobTitle', sv.jobTitle ?? ''),
     email:    field('email',    sv.email    ?? ''),
     phone:    field('phone',    sv.phone    ?? ''),

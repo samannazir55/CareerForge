@@ -3,7 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Plus, History, Download, FileType2, Sparkles, Lock } from 'lucide-react';
 import type { Resume, ResumeTheme, Section, SectionType } from '@careerforge/schema';
-import { createSection, createCustomSection, addSection, reorderSections, isDynamicTemplateId, DEFAULT_THEME, updateEntry, removeEntry, removeSection } from '@careerforge/schema';
+import { createSection, createCustomSection, addSection, reorderSections, isDynamicTemplateId, DEFAULT_THEME, updateEntry, removeEntry, removeSection, ensureCanonicalSectionFields, inferNameFieldsFromTitle } from '@careerforge/schema';
 import { resumeApi, ApiError } from '../../lib/api';
 import { useAutosave } from '../../hooks/useAutosave';
 import { Button } from '../../components/ui/Button';
@@ -68,7 +68,13 @@ export function ResumeEditorPage() {
       .then((data) => {
         setResume(data.resume);
         setTitle(data.resume.title);
-        setSections(data.resume.sections);
+        // Backfill any built-in fields the schema has gained since this resume
+        // was saved (e.g. contact fields), then — for resumes saved before
+        // firstName/lastName existed — split the single combined name into
+        // the two new fields so the header can be styled/edited per-part
+        // right away, without the person having to retype their name.
+        const canonicalSections = ensureCanonicalSectionFields(data.resume.sections);
+        setSections(inferNameFieldsFromTitle(canonicalSections, data.resume.title));
         setTheme(data.resume.theme);
       })
       .catch(() => setLoadError('Could not load this resume — it may not exist, or may not belong to you.'));
@@ -112,6 +118,22 @@ export function ResumeEditorPage() {
     setTheme((t) => ({ ...t, photoUrl }));
   }
 
+  /** The resume's `title` field doubles as its display name in both the
+   * dashboard list and the resume's own header (for resumes that predate
+   * firstName/lastName — see helpers.ts's fallback). Now that name is
+   * really owned by firstName/lastName on the summary entry, keep `title`
+   * following along automatically whenever either changes, from *either*
+   * editing surface (the plain left-hand form or the interactive preview),
+   * so the dashboard list keeps showing an accurate name without asking
+   * the person to maintain two copies of it. */
+  function handleSectionsChange(next: Section[]) {
+    setSections(next);
+    const values = next.find((s) => s.type === 'summary')?.entries[0]?.values;
+    const firstName = typeof values?.firstName === 'string' ? values.firstName.trim() : '';
+    const lastName = typeof values?.lastName === 'string' ? values.lastName.trim() : '';
+    if (firstName || lastName) setTitle([firstName, lastName].filter(Boolean).join(' '));
+  }
+
   // The resume's full name (title) is the one editable field that isn't
   // stored in any section/entry (see CF_TITLE_* in dynamicTemplateRenderer.ts
   // and packages/templates/src/helpers.ts) — the preview's inline-editing
@@ -130,7 +152,7 @@ export function ResumeEditorPage() {
       return;
     }
     if (event.type === 'field-edit') {
-      setSections((s) => updateEntry(s, event.sectionId, event.entryId, { [event.field]: event.value }));
+      handleSectionsChange(updateEntry(sections, event.sectionId, event.entryId, { [event.field]: event.value }));
     } else if (event.type === 'delete-entry') {
       setSections((s) => removeEntry(s, event.sectionId, event.entryId));
     } else if (event.type === 'delete-section') {
@@ -348,7 +370,7 @@ export function ResumeEditorPage() {
                     <SectionCard
                       sections={sections}
                       sectionId={section.id}
-                      onSectionsChange={setSections}
+                      onSectionsChange={handleSectionsChange}
                       onMove={handleMoveSection}
                       isFirst={i === 0}
                       isLast={i === sections.length - 1}

@@ -23,6 +23,7 @@ export const SAMPLE_RESUME: Resume = {
     {
       id: 's1', type: 'summary', title: 'Summary', order: 0, fields: [], entries: [{
         id: 'e1', values: {
+          firstName: 'Alex', lastName: 'Morgan',
           jobTitle: 'Senior Software Engineer', email: 'alex.morgan@email.com',
           phone: '+1 (555) 234-5678', location: 'San Francisco, CA',
           linkedin: 'linkedin.com/in/alexmorgan', website: 'alexmorgan.dev',

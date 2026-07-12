@@ -10,7 +10,7 @@ import { SuggestionCapsules } from '../../components/ai/SuggestionCapsules';
 import { aiApi, resumeApi, templatesApi } from '../../lib/api';
 import { ApiError } from '../../lib/api';
 import type { Resume, Section, PublicTemplateListItem } from '@careerforge/schema';
-import { DEFAULT_THEME, CURRENT_SCHEMA_VERSION, mergeResumeSections } from '@careerforge/schema';
+import { DEFAULT_THEME, CURRENT_SCHEMA_VERSION, mergeResumeSections, ensureCanonicalSectionFields, inferNameFieldsFromTitle } from '@careerforge/schema';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -61,6 +61,8 @@ const SAMPLE_RESUME: Resume = {
           id: '00000000-0000-4000-8000-000000000002',
           values: {
             // contact / personal info — read by getPersonalInfo() in templates
+            firstName: 'Alex',
+            lastName: 'Morgan',
             jobTitle: 'Senior Software Engineer',
             email: 'alex.morgan@email.com',
             phone: '+1 (555) 234-5678',
@@ -240,7 +242,11 @@ export function AIChatBuilderPage() {
   useEffect(() => {
     if (!resumeId) return;
     resumeApi.get(resumeId).then(({ resume }) => {
-      setPreviewResume(resume as unknown as Resume);
+      const canonicalSections = ensureCanonicalSectionFields(resume.sections);
+      setPreviewResume({
+        ...(resume as unknown as Resume),
+        sections: inferNameFieldsFromTitle(canonicalSections, resume.title),
+      });
       const saved = (resume as unknown as { chatMessages?: ChatMessage[] }).chatMessages;
       if (saved && saved.length > 0) setMessages(saved);
     }).catch(() => undefined);
@@ -384,14 +390,14 @@ export function AIChatBuilderPage() {
         {/* Left: Chat Panel */}
         <div className="flex flex-col w-full lg:w-[420px] border-r border-border shrink-0">
           {/* Header */}
-          <div className="flex items-center justify-between gap-3 p-4 border-b border-border">
+          <div className="flex flex-col gap-3 p-4 border-b border-border sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3 min-w-0">
-              <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+              <Button variant="ghost" size="icon" className="shrink-0" onClick={() => navigate(-1)}>
                 <ArrowLeft size={18} />
               </Button>
               <div className="min-w-0">
-                <h2 className="font-semibold text-sm">AI Resume Builder</h2>
-                <p className="text-xs text-muted-foreground">
+                <h2 className="font-semibold text-sm truncate">AI Resume Builder</h2>
+                <p className="text-xs text-muted-foreground truncate">
                   Chat to build your resume
                   {!resumeId && (
                     <>
@@ -409,7 +415,7 @@ export function AIChatBuilderPage() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap sm:shrink-0">
               <Button
                 variant="outline"
                 size="sm"
