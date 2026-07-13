@@ -12,6 +12,7 @@ import {
   Moon,
   LogOut,
   ChevronDown,
+  ClipboardList,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useUIStore } from '../../store/ui.store';
@@ -25,6 +26,7 @@ interface AppShellProps {
 const NAV_ITEMS = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/resumes', label: 'Resumes', icon: FileText },
+  { path: '/jobs', label: 'Job Tracker', icon: ClipboardList },
   { path: '/marketplace', label: 'Templates', icon: Store },
 ];
 

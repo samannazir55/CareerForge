@@ -1,0 +1,36 @@
+### Login
+POST https://careerforge-hsmn.onrender.com/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "samannazir55@gmail.com",
+  "password": "Haroon55"
+}
+
+### Create job (paste the accessToken from the login response above)
+POST https://careerforge-hsmn.onrender.com/api/jobs
+Content-Type: application/json
+Authorization: Bearer PASTE_TOKEN_HERE
+
+{
+  "companyName": "Acme Corp",
+  "jobTitle": "Backend Engineer",
+  "status": "APPLIED"
+}
+
+### List jobs
+GET https://careerforge-hsmn.onrender.com/api/jobs
+Authorization: Bearer PASTE_TOKEN_HERE
+
+### Update job (replace JOB_ID)
+PATCH https://careerforge-hsmn.onrender.com/api/jobs/JOB_ID
+Content-Type: application/json
+Authorization: Bearer PASTE_TOKEN_HERE
+
+{
+  "status": "INTERVIEW"
+}
+
+### Delete job
+DELETE https://careerforge-hsmn.onrender.com/api/jobs/JOB_ID
+Authorization: Bearer PASTE_TOKEN_HERE

@@ -13,6 +13,10 @@ import type {
   UpdateResumeRequest,
   Section,
   PublicTemplateListItem,
+  JobApplication,
+  CreateJobApplicationRequest,
+  UpdateJobApplicationRequest,
+  JobApplicationStatus,
 } from '@careerforge/schema';
 
 let accessToken: string | null = null;
@@ -323,4 +327,11 @@ export const sharingApi = {
   enable: (resumeId: string) => request<{ slug: string; isEnabled: boolean }>(`/resumes/${resumeId}/share`, { method: 'POST' }),
   disable: (resumeId: string) => request<void>(`/resumes/${resumeId}/share`, { method: 'DELETE' }),
   publicUrl: (slug: string) => `/api/public/${slug}`,
+};
+
+export const jobsApi = {
+  list: (status?: JobApplicationStatus) => request<{ jobs: JobApplication[] }>(status ? `/jobs?status=${status}` : '/jobs'),
+  create: (input: CreateJobApplicationRequest) => request<{ job: JobApplication }>('/jobs', { method: 'POST', body: input }),
+  update: (id: string, input: UpdateJobApplicationRequest) => request<{ job: JobApplication }>(`/jobs/${id}`, { method: 'PATCH', body: input }),
+  remove: (id: string) => request<void>(`/jobs/${id}`, { method: 'DELETE' }),
 };

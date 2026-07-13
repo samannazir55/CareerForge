@@ -22,6 +22,7 @@ import { ResumeEditorPage } from './pages/resumes/ResumeEditorPage';
 import { VersionHistoryPage } from './pages/resumes/VersionHistoryPage';
 import { AIChatBuilderPage } from './pages/resumes/AIChatBuilderPage';
 import { MarketplacePage } from './pages/marketplace/MarketplacePage';
+import { JobTrackerPage } from './pages/jobs/JobTrackerPage';
 import { SettingsPage } from './pages/settings/SettingsPage';
 import { CareerProfilePage } from './pages/profile/CareerProfilePage';
 import { ProfileSetupWizard } from './pages/profile/ProfileSetupWizard';
@@ -61,6 +62,7 @@ export function App() {
             <Route path="/resumes/:resumeId/chat" element={<AIChatBuilderPage />} />
             <Route path="/resumes/:resumeId/versions" element={<VersionHistoryPage />} />
             <Route path="/marketplace" element={<MarketplacePage />} />
+            <Route path="/jobs" element={<JobTrackerPage />} />
             <Route path="/profile" element={<CareerProfilePage />} />
             <Route path="/profile/setup" element={<ProfileSetupWizard />} />
             <Route path="/settings" element={<SettingsPage />} />
