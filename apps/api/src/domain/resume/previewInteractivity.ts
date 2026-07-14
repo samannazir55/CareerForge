@@ -95,7 +95,7 @@ const SCRIPT = `
   var editingEl = null;
 
   function post(msg) {
-    try { window.parent.postMessage(Object.assign({ source: 'careerforge-preview' }, msg), '*'); }
+    try { window.parent.postMessage(Object.assign({ source: 'corvyx-preview' }, msg), '*'); }
     catch (e) { /* no-op — parent may not be listening yet */ }
   }
 

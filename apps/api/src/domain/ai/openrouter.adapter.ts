@@ -34,7 +34,7 @@ function getClient(): OpenAI {
     apiKey: env.OPENROUTER_API_KEY,
     baseURL: 'https://openrouter.ai/api/v1',
     defaultHeaders: {
-      'HTTP-Referer': env.FRONTEND_URL || 'https://careerforge.app',
+      'HTTP-Referer': env.FRONTEND_URL || 'https://corvyx.app',
       'X-Title': 'Corvyx',
     },
   });

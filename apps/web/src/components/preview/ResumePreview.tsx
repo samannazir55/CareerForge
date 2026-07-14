@@ -108,7 +108,7 @@ export function ResumePreview({ resume, scale = 0.5, className = '', interactive
     function handleMessage(event: MessageEvent) {
       if (event.source !== iframeRef.current?.contentWindow) return;
       const data = event.data;
-      if (!data || data.source !== 'careerforge-preview') return;
+      if (!data || data.source !== 'corvyx-preview') return;
       if (data.type === 'field-edit' && typeof data.sectionId === 'string' && typeof data.entryId === 'string' && typeof data.field === 'string' && typeof data.value === 'string') {
         suppressNextRenderRef.current = true;
         onEdit?.({ type: 'field-edit', sectionId: data.sectionId, entryId: data.entryId, field: data.field, value: data.value });

@@ -76,7 +76,7 @@ export function WelcomePage() {
       >
         <div className="max-w-6xl mx-auto flex items-center justify-between px-6 py-4">
           <span className="font-semibold text-lg tracking-tight">
-            Career<span className="text-gradient">Forge</span>
+            <span className="text-gradient">Corvyx</span>
           </span>
           <div className="flex items-center gap-3">
             <Link to="/login">
@@ -110,7 +110,7 @@ export function WelcomePage() {
             className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-white/70 mb-6"
           >
             <Sparkles size={12} className="text-indigo-300" />
-            Your career, forged by AI
+            Land it. Don't just apply.
           </motion.div>
 
           <motion.h1

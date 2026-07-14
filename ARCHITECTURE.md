@@ -3,7 +3,7 @@
 ## Project Identity
 **Name:** Corvyx *(formerly CareerForge)*  
 **Positioning:** AI Career Platform  
-**Tagline:** "Your career, forged by AI."
+**Tagline:** "Land it. Don't just apply."
 
 ---
 
