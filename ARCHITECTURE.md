@@ -1,7 +1,7 @@
-# CareerForge — Merge Report & Architecture Guide
+# Corvyx — Merge Report & Architecture Guide
 
 ## Project Identity
-**Name:** CareerForge  
+**Name:** Corvyx *(formerly CareerForge)*  
 **Positioning:** AI Career Platform  
 **Tagline:** "Your career, forged by AI."
 

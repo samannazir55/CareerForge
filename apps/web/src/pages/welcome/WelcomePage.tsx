@@ -130,7 +130,7 @@ export function WelcomePage() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="text-white/60 text-base sm:text-lg max-w-xl mx-auto mb-9"
           >
-            CareerForge is an AI career platform — chat your resume into existence, optimize it
+            Corvyx is an AI career platform — chat your resume into existence, optimize it
             against real job posts, and export it polished. One platform, your whole career.
           </motion.p>
 
@@ -210,7 +210,7 @@ export function WelcomePage() {
       </section>
 
       <footer className="border-t border-white/5 px-6 py-8 text-center text-xs text-white/30">
-        © {new Date().getFullYear()} CareerForge. Built for people building careers.
+        © {new Date().getFullYear()} Corvyx. Built for people building careers.
       </footer>
     </div>
   );

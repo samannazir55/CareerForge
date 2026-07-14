@@ -19,7 +19,7 @@ interface ChatMessage {
 
 const INITIAL_MESSAGE: ChatMessage = {
   role: 'assistant',
-  content: "Hi! I'm your CareerForge AI. Let's build your resume together. What's your full name?",
+  content: "Hi! I'm your Corvyx AI. Let's build your resume together. What's your full name?",
 };
 
 // ---------------------------------------------------------------------------

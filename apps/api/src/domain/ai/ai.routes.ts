@@ -18,7 +18,7 @@ const aiRateLimit = rateLimit({
   message: { error: { code: 'RATE_LIMITED', message: 'Too many AI requests. Please wait a moment.' } },
 });
 
-const RESUME_CHAT_SYSTEM_PROMPT = `You are CareerForge AI, a friendly resume-building assistant.
+const RESUME_CHAT_SYSTEM_PROMPT = `You are Corvyx AI, a friendly resume-building assistant.
 Your goal is to help users build a professional resume through conversation.
 Ask about their experience, education, skills, projects, and achievements one topic at a time.
 Keep responses concise and encouraging.

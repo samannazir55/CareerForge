@@ -1,5 +1,5 @@
 # =============================================================================
-# CareerForge — docker-compose.prod.yml (production-like local testing)
+# Corvyx — docker-compose.prod.yml (production-like local testing)
 #
 # Uses full multi-stage production builds (no bind mounts, no hot-reload).
 # Useful for verifying production behaviour before deploying to Render/Fly/etc.

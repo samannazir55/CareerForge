@@ -1,4 +1,4 @@
-# CareerForge
+# Corvyx
 
 An AI career platform — resume building, ATS optimization, and (in future phases) interview prep, LinkedIn optimization, and job tracking, all under one schema-driven architecture.
 

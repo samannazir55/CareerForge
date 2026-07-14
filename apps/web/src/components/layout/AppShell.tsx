@@ -70,7 +70,7 @@ export function AppShell({ children }: AppShellProps) {
               <Sparkles size={16} />
             </div>
             <span className="font-bold text-lg hidden sm:inline-block">
-              Career<span className="text-gradient">Forge</span>
+              <span className="text-gradient">Corvyx</span>
             </span>
           </Link>
 

@@ -27,7 +27,7 @@ async function main() {
     data: {
       email: env.SEED_ADMIN_EMAIL,
       passwordHash,
-      fullName: 'CareerForge Admin',
+      fullName: 'Corvyx Admin',
       role: 'ADMIN',
       isEmailVerified: true,
     },

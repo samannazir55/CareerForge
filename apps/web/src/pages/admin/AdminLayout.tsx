@@ -93,7 +93,7 @@ export function AdminLayout({ children }: { children?: ReactNode }) {
         </div>
         {!collapsed && (
           <div className="min-w-0">
-            <p className="font-bold text-sm leading-none">CareerForge</p>
+            <p className="font-bold text-sm leading-none">Corvyx</p>
             <p className="text-[11px] text-muted-foreground mt-0.5">Admin Panel</p>
           </div>
         )}
@@ -221,7 +221,7 @@ export function AdminLayout({ children }: { children?: ReactNode }) {
 
             {/* WP-style breadcrumb path */}
             <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">CareerForge</span>
+              <span className="font-medium text-foreground">Corvyx</span>
               <span>/</span>
               <span>
                 {NAV_GROUPS.flatMap((g) => g.items).find((i) => isActive(i.path))?.label ?? 'Admin'}

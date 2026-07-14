@@ -1,4 +1,4 @@
-# CareerForge — Deployment Guide
+# Corvyx — Deployment Guide
 
 ## Local development (without Docker)
 
@@ -40,7 +40,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build
 
 ## Production deployment (Render)
 
-CareerForge is designed to run as three separate services on Render (or equivalent):
+Corvyx is designed to run as three separate services on Render (or equivalent):
 
 ### 1. PostgreSQL
 Create a Render Postgres database. Copy the **Internal Database URL** — use this as `DATABASE_URL` in the API service (internal URLs don't incur egress costs).
@@ -64,7 +64,7 @@ API_PORT                  # 4000
 API_BASE_URL              # https://your-api.onrender.com
 FRONTEND_URL              # https://your-web.onrender.com
 RESEND_API_KEY            # from resend.com
-EMAIL_FROM                # CareerForge <noreply@yourdomain.com>
+EMAIL_FROM                # Corvyx <noreply@yourdomain.com>
 GOOGLE_CLIENT_ID          # from Google Cloud Console
 GOOGLE_CLIENT_SECRET      #
 GOOGLE_REDIRECT_URI       # https://your-api.onrender.com/api/auth/oauth/google/callback

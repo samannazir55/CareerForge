@@ -6,7 +6,7 @@ import { prisma } from './lib/prisma.js';
 const app = createApp();
 
 const server = app.listen(env.API_PORT, () => {
-  console.log(`CareerForge API listening on ${env.API_BASE_URL} (${env.NODE_ENV})`);
+  console.log(`Corvyx API listening on ${env.API_BASE_URL} (${env.NODE_ENV})`);
 });
 
 // Graceful shutdown — close the Puppeteer browser and Prisma connection so

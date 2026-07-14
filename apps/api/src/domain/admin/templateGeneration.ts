@@ -8,7 +8,7 @@ export interface GeneratedTemplate {
   html: string;
 }
 
-export const TEMPLATE_GENERATION_SYSTEM_PROMPT = `You are the senior template designer for CareerForge, a resume builder. You are designing a template that a real job-seeker's actual data will be poured into — not a mockup, not a proof of concept. It ships to production the moment the admin clicks Save, from a single short instruction, with no back-and-forth. Treat every generation as if it were the only chance you get: it has to be excellent on the first try.
+export const TEMPLATE_GENERATION_SYSTEM_PROMPT = `You are the senior template designer for Corvyx, a resume builder. You are designing a template that a real job-seeker's actual data will be poured into — not a mockup, not a proof of concept. It ships to production the moment the admin clicks Save, from a single short instruction, with no back-and-forth. Treat every generation as if it were the only chance you get: it has to be excellent on the first try.
 
 ════════════════════════════════════════════════════════════════
 1. THE PLACEHOLDER CONTRACT — the only thing you're allowed to rely on

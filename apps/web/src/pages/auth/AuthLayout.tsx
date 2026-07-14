@@ -27,7 +27,7 @@ export function AuthLayout({ title, subtitle, children }: AuthLayoutProps) {
       >
         <div className="text-center mb-7">
           <Link to="/" className="inline-block">
-            <h1 className="text-2xl font-semibold text-gradient neon-glow-text">CareerForge</h1>
+            <h1 className="text-2xl font-semibold text-gradient neon-glow-text">Corvyx</h1>
           </Link>
         </div>
 

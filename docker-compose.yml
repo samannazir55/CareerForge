@@ -1,5 +1,5 @@
 # =============================================================================
-# CareerForge — docker-compose.yml (local development)
+# Corvyx — docker-compose.yml (local development)
 #
 # Starts: postgres, api (tsx watch hot-reload), web (Vite HMR)
 #
@@ -24,15 +24,15 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: careerforge
-      POSTGRES_PASSWORD: careerforge
-      POSTGRES_DB: careerforge
+      POSTGRES_USER: corvyx
+      POSTGRES_PASSWORD: corvyx
+      POSTGRES_DB: corvyx
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U careerforge"]
+      test: ["CMD-SHELL", "pg_isready -U corvyx"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -57,7 +57,7 @@ services:
     ports:
       - "4000:4000"
     environment:
-      DATABASE_URL: postgresql://careerforge:careerforge@postgres:5432/careerforge
+      DATABASE_URL: postgresql://corvyx:corvyx@postgres:5432/corvyx
       NODE_ENV: development
       # Remaining secrets come from .env — Docker Compose auto-loads it
     env_file:

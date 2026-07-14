@@ -29,7 +29,7 @@ export class ResendEmailProvider implements EmailProvider {
     const client = this.getClient();
     const greeting = params.fullName ? `Hi ${params.fullName},` : 'Hi,';
     const subject =
-      params.purpose === 'verify' ? 'Verify your CareerForge email' : 'Reset your CareerForge password';
+      params.purpose === 'verify' ? 'Verify your Corvyx email' : 'Reset your Corvyx password';
     const intro =
       params.purpose === 'verify'
         ? 'Use the code below to verify your email address.'
@@ -63,8 +63,8 @@ export class ResendEmailProvider implements EmailProvider {
     const { error } = await client.emails.send({
       from: env.EMAIL_FROM,
       to: params.to,
-      subject: 'Welcome to CareerForge',
-      html: `<div style="font-family: sans-serif;"><p>${greeting}</p><p>Your email is verified — welcome to CareerForge. Let's build your resume.</p></div>`,
+      subject: 'Welcome to Corvyx',
+      html: `<div style="font-family: sans-serif;"><p>${greeting}</p><p>Your email is verified — welcome to Corvyx. Let's build your resume.</p></div>`,
     });
 
     if (error) {

@@ -57,7 +57,7 @@ export class GitHubOAuthProvider implements OAuthProvider {
 
     const authHeaders = {
       Authorization: `Bearer ${tokenData.access_token}`,
-      'User-Agent': 'CareerForge',
+      'User-Agent': 'Corvyx',
       Accept: 'application/vnd.github+json',
     };
 

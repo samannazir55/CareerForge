@@ -41,7 +41,7 @@ const EnvSchema = z.object({
   // (see resend.adapter.ts) rather than silently pretending to succeed.
   EMAIL_PROVIDER: z.enum(['resend']).default('resend'),
   RESEND_API_KEY: z.string().optional().default(''),
-  EMAIL_FROM: z.string().default('CareerForge <noreply@example.com>'),
+  EMAIL_FROM: z.string().default('Corvyx <noreply@example.com>'),
 
   // Optional — only used by prisma/seed.ts to create an initial admin user.
   SEED_ADMIN_EMAIL: z.string().optional().default(''),
