@@ -1,5 +1,6 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { BrandLoader } from '../components/ui/BrandLoader';
 
 /**
  * Single place that enforces "verification required before access" — any
@@ -12,7 +13,7 @@ export function ProtectedRoute() {
   if (status === 'loading') {
     return (
       <div className="min-h-screen w-full flex items-center justify-center">
-        <p className="text-muted-foreground">Loading…</p>
+        <BrandLoader label="Signing you in" />
       </div>
     );
   }

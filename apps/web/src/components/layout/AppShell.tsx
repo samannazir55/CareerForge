@@ -2,7 +2,6 @@ import { type ReactNode, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Sparkles,
   LayoutDashboard,
   FileText,
   Store,
@@ -18,6 +17,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useUIStore } from '../../store/ui.store';
 import { pointsApi } from '../../lib/api';
 import { cn } from '../../lib/utils';
+import { LogoMark } from '../ui/LogoMark';
 
 interface AppShellProps {
   children: ReactNode;
@@ -67,7 +67,7 @@ export function AppShell({ children }: AppShellProps) {
           {/* Logo */}
           <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
-              <Sparkles size={16} />
+              <LogoMark size={18} className="text-white" />
             </div>
             <span className="font-bold text-lg hidden sm:inline-block">
               <span className="text-gradient">Corvyx</span>
