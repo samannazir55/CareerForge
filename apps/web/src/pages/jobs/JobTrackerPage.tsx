@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
@@ -63,12 +64,42 @@ function toDateInputValue(iso: string | null | undefined): string {
   return iso ? iso.slice(0, 10) : '';
 }
 
+/** Shape of the router `location.state` FindJobsPage hands off when the
+ * person clicks "Add to Tracker" on a search result — opens this page with
+ * the Add-Job panel already open and pre-filled, so they still confirm
+ * (and can edit) before it's actually saved. */
+export interface JobTrackerPrefillState {
+  prefill: {
+    companyName: string;
+    jobTitle: string;
+    jobUrl?: string;
+  };
+}
+
 export function JobTrackerPage() {
   const [jobs, setJobs] = useState<JobApplication[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [rejectedOpen, setRejectedOpen] = useState(false);
   // null = closed, 'new' = create form, JobApplication = editing that job
   const [panelTarget, setPanelTarget] = useState<JobApplication | 'new' | null>(null);
+  const [prefill, setPrefill] = useState<JobTrackerPrefillState['prefill'] | null>(null);
+
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Arriving from FindJobsPage's "Add to Tracker" button: open the panel
+  // pre-filled instead of requiring the person to retype the listing.
+  // Consume + clear the state via `replace` so refreshing or navigating
+  // back here later doesn't reopen the same pre-filled panel.
+  useEffect(() => {
+    const state = location.state as JobTrackerPrefillState | null;
+    if (state?.prefill) {
+      setPrefill(state.prefill);
+      setPanelTarget('new');
+      navigate(location.pathname, { replace: true, state: null });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     jobsApi
@@ -200,7 +231,11 @@ export function JobTrackerPage() {
 
       <JobPanel
         target={panelTarget}
-        onClose={() => setPanelTarget(null)}
+        prefill={prefill}
+        onClose={() => {
+          setPanelTarget(null);
+          setPrefill(null);
+        }}
         onSaved={upsertJob}
         onDelete={handleDelete}
         onError={setError}
@@ -278,12 +313,14 @@ function formFromJob(job: JobApplication): JobFormState {
 
 function JobPanel({
   target,
+  prefill,
   onClose,
   onSaved,
   onDelete,
   onError,
 }: {
   target: JobApplication | 'new' | null;
+  prefill?: JobTrackerPrefillState['prefill'] | null;
   onClose: () => void;
   onSaved: (job: JobApplication) => void;
   onDelete: (id: string) => void;
@@ -295,12 +332,15 @@ function JobPanel({
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Reset the form whenever a different job (or "new") is opened.
+  // Reset the form whenever a different job (or "new") is opened. A "new"
+  // panel opened from FindJobsPage arrives with `prefill` set — merge it
+  // over the blank defaults so company/title/URL are already filled in,
+  // status stays SAVED, and the person just reviews and confirms.
   useEffect(() => {
-    if (target === 'new') setForm(emptyForm());
+    if (target === 'new') setForm(prefill ? { ...emptyForm(), ...prefill } : emptyForm());
     else if (target) setForm(formFromJob(target));
     setFormError(null);
-  }, [target]);
+  }, [target, prefill]);
 
   // Editing an existing job: changing status alone should save + move the
   // card immediately, without requiring the person to hit "Save changes".

@@ -10,3 +10,4 @@ export * from './conversation.js';
 export * from './admin.js';
 export * from './templates.js';
 export * from './jobtracker.js';
+export * from './jobsearch.js';

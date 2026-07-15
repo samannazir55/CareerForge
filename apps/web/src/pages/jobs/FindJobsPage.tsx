@@ -1,0 +1,281 @@
+import { useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Search,
+  MapPin,
+  Building2,
+  ExternalLink,
+  Plus,
+  ChevronLeft,
+  ChevronRight,
+  Briefcase,
+  Loader2,
+} from 'lucide-react';
+import type { JobSearchCountry, JobSearchListing } from '@careerforge/schema';
+import { jobSearchApi, ApiError } from '../../lib/api';
+import { AppShell } from '../../components/layout/AppShell';
+import { GlassCard } from '../../components/ui/GlassCard';
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
+import type { JobTrackerPrefillState } from './JobTrackerPage';
+
+const COUNTRIES: { code: JobSearchCountry; label: string }[] = [
+  { code: 'us', label: 'United States' },
+  { code: 'gb', label: 'United Kingdom' },
+  { code: 'au', label: 'Australia' },
+  { code: 'ca', label: 'Canada' },
+  { code: 'de', label: 'Germany' },
+  { code: 'fr', label: 'France' },
+  { code: 'in', label: 'India' },
+  { code: 'nl', label: 'Netherlands' },
+  { code: 'nz', label: 'New Zealand' },
+  { code: 'pl', label: 'Poland' },
+  { code: 'ru', label: 'Russia' },
+  { code: 'sg', label: 'Singapore' },
+  { code: 'za', label: 'South Africa' },
+];
+
+const RESULTS_PER_PAGE = 20;
+
+function timeAgoLabel(postedAt: string): string | null {
+  if (!postedAt) return null;
+  const days = Math.floor((Date.now() - new Date(postedAt).getTime()) / 86_400_000);
+  if (Number.isNaN(days)) return null;
+  if (days <= 0) return 'Posted today';
+  if (days === 1) return 'Posted 1 day ago';
+  return `Posted ${days} days ago`;
+}
+
+export function FindJobsPage() {
+  const navigate = useNavigate();
+
+  const [q, setQ] = useState('');
+  const [location, setLocationInput] = useState('');
+  const [country, setCountry] = useState<JobSearchCountry>('us');
+  const [page, setPage] = useState(1);
+
+  const [results, setResults] = useState<JobSearchListing[] | null>(null);
+  const [totalResults, setTotalResults] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
+
+  async function runSearch(targetPage: number) {
+    if (!q.trim()) {
+      setError('Enter a keyword to search — e.g. a job title or skill.');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await jobSearchApi.search({
+        q: q.trim(),
+        location: location.trim() || undefined,
+        country,
+        page: targetPage,
+      });
+      setResults(data.results);
+      setTotalResults(data.totalResults);
+      setPage(data.page);
+      setHasSearched(true);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not search jobs right now. Please try again.');
+      setResults(null);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    runSearch(1);
+  }
+
+  function handleAddToTracker(job: JobSearchListing) {
+    const state: JobTrackerPrefillState = {
+      prefill: {
+        companyName: job.company,
+        jobTitle: job.title,
+        jobUrl: job.url || undefined,
+      },
+    };
+    navigate('/jobs', { state });
+  }
+
+  const totalPages = Math.max(1, Math.ceil(totalResults / RESULTS_PER_PAGE));
+
+  return (
+    <AppShell>
+      <div className="p-4 sm:p-8 max-w-6xl mx-auto">
+        <div className="mb-6">
+          <h1 className="text-2xl font-semibold flex items-center gap-2">
+            <Search size={22} className="text-indigo-400" />
+            Find Jobs
+          </h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Search live listings and save the ones you like straight to your Job Tracker.
+          </p>
+        </div>
+
+        <GlassCard className="mb-6 !p-4 sm:!p-5">
+          <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 sm:items-end">
+            <div className="flex-1">
+              <Input
+                label="Keyword"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="e.g. Software Engineer"
+              />
+            </div>
+            <div className="flex-1">
+              <Input
+                label="Location"
+                value={location}
+                onChange={(e) => setLocationInput(e.target.value)}
+                placeholder="e.g. London"
+              />
+            </div>
+            <div className="w-full sm:w-48">
+              <label className="text-sm font-medium text-foreground mb-1.5 block">Country</label>
+              <select
+                value={country}
+                onChange={(e) => setCountry(e.target.value as JobSearchCountry)}
+                className="h-11 w-full rounded-xl border border-input bg-background px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {COUNTRIES.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <Button type="submit" disabled={loading} className="sm:w-auto">
+              {loading ? <Loader2 size={16} className="animate-spin mr-1.5" /> : <Search size={16} className="mr-1.5" />}
+              Search
+            </Button>
+          </form>
+        </GlassCard>
+
+        {error && <p className="text-sm text-destructive mb-4">{error}</p>}
+
+        {!hasSearched && !loading && (
+          <GlassCard className="text-center">
+            <Briefcase size={28} className="text-indigo-400 mx-auto mb-3" />
+            <p className="text-muted-foreground mb-1">Search thousands of live listings.</p>
+            <p className="text-sm text-muted-foreground">Try a job title, a skill, or a company name to get started.</p>
+          </GlassCard>
+        )}
+
+        {loading && (
+          <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
+            <Loader2 size={18} className="animate-spin" /> Searching…
+          </div>
+        )}
+
+        {!loading && hasSearched && results?.length === 0 && (
+          <GlassCard className="text-center">
+            <p className="text-muted-foreground mb-1">No results for that search.</p>
+            <p className="text-sm text-muted-foreground">Try a broader keyword or a different location.</p>
+          </GlassCard>
+        )}
+
+        {!loading && results && results.length > 0 && (
+          <>
+            <p className="text-xs text-muted-foreground mb-3 tabular-nums">
+              {totalResults.toLocaleString()} result{totalResults === 1 ? '' : 's'} · page {page} of {totalPages}
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <AnimatePresence initial={false}>
+                {results.map((job) => (
+                  <JobResultCard key={job.id} job={job} onAdd={() => handleAddToTracker(job)} />
+                ))}
+              </AnimatePresence>
+            </div>
+
+            <div className="flex items-center justify-center gap-3 mt-8">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page <= 1 || loading}
+                onClick={() => runSearch(page - 1)}
+              >
+                <ChevronLeft size={14} className="mr-1" /> Previous
+              </Button>
+              <span className="text-sm text-muted-foreground tabular-nums">
+                Page {page} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= totalPages || loading}
+                onClick={() => runSearch(page + 1)}
+              >
+                Next <ChevronRight size={14} className="ml-1" />
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+    </AppShell>
+  );
+}
+
+function JobResultCard({ job, onAdd }: { job: JobSearchListing; onAdd: () => void }) {
+  const posted = timeAgoLabel(job.postedAt);
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 8, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.96 }}
+      transition={{ type: 'spring', stiffness: 380, damping: 28 }}
+      className="glass-panel rounded-xl p-5 border border-border/50 flex flex-col"
+    >
+      <div className="flex items-start gap-3">
+        <div className="h-9 w-9 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0">
+          <Building2 size={16} className="text-indigo-400" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="font-medium text-sm leading-snug">{job.title}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{job.company}</p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 text-xs text-muted-foreground">
+        {job.location && (
+          <span className="inline-flex items-center gap-1">
+            <MapPin size={12} /> {job.location}
+          </span>
+        )}
+        {job.salary && <span className="text-emerald-400 font-medium">{job.salary}</span>}
+        {posted && <span>{posted}</span>}
+      </div>
+
+      {job.description && (
+        <p className="text-xs text-muted-foreground mt-3 leading-relaxed line-clamp-3">
+          {job.description}
+          {job.description.length >= 300 ? '…' : ''}
+        </p>
+      )}
+
+      <div className="mt-4 pt-3 border-t border-border/50 flex items-center justify-between gap-2">
+        {job.url ? (
+          <a
+            href={job.url}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+          >
+            <ExternalLink size={13} /> View listing
+          </a>
+        ) : (
+          <span />
+        )}
+        <Button size="sm" variant="secondary" onClick={onAdd}>
+          <Plus size={13} className="mr-1.5" /> Add to Tracker
+        </Button>
+      </div>
+    </motion.div>
+  );
+}

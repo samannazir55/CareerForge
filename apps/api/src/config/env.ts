@@ -80,6 +80,13 @@ const EnvSchema = z.object({
   CLOUDINARY_API_KEY: z.string().optional().default(''),
   CLOUDINARY_API_SECRET: z.string().optional().default(''),
 
+  // Adzuna job search API (developer.adzuna.com) — powers the "Find Jobs"
+  // page (see domain/jobsearch/jobsearch.routes.ts). No fallback/mock mode:
+  // if these aren't set, the route fails loudly with a clear config error
+  // rather than silently returning empty results.
+  ADZUNA_APP_ID: z.string().optional().default(''),
+  ADZUNA_APP_KEY: z.string().optional().default(''),
+
   // Feature flags — set to 'true' to enable; false by default so future
   // modules can be deployed behind flags without affecting current users
   FEATURE_INTERVIEW_PREP: z.string().default('false'),

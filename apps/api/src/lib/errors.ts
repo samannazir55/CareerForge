@@ -57,3 +57,9 @@ export class ConfigurationError extends AppError {
     super(500, 'CONFIGURATION_ERROR', message);
   }
 }
+
+export class BadGatewayError extends AppError {
+  constructor(message = 'Upstream provider error', code = 'BAD_GATEWAY') {
+    super(502, code, message);
+  }
+}

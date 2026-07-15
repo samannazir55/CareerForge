@@ -17,6 +17,8 @@ import type {
   CreateJobApplicationRequest,
   UpdateJobApplicationRequest,
   JobApplicationStatus,
+  JobSearchResponse,
+  JobSearchCountry,
 } from '@careerforge/schema';
 
 let accessToken: string | null = null;
@@ -334,4 +336,16 @@ export const jobsApi = {
   create: (input: CreateJobApplicationRequest) => request<{ job: JobApplication }>('/jobs', { method: 'POST', body: input }),
   update: (id: string, input: UpdateJobApplicationRequest) => request<{ job: JobApplication }>(`/jobs/${id}`, { method: 'PATCH', body: input }),
   remove: (id: string) => request<void>(`/jobs/${id}`, { method: 'DELETE' }),
+};
+
+export const jobSearchApi = {
+  search: (params: { q: string; location?: string; country?: JobSearchCountry; page?: number }) => {
+    const qs = new URLSearchParams({
+      q: params.q,
+      ...(params.location ? { location: params.location } : {}),
+      ...(params.country ? { country: params.country } : {}),
+      page: String(params.page ?? 1),
+    });
+    return request<JobSearchResponse>(`/job-search?${qs}`);
+  },
 };

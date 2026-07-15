@@ -12,6 +12,7 @@ import {
   LogOut,
   ChevronDown,
   ClipboardList,
+  Search,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useUIStore } from '../../store/ui.store';
@@ -26,6 +27,7 @@ interface AppShellProps {
 const NAV_ITEMS = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/resumes', label: 'Resumes', icon: FileText },
+  { path: '/find-jobs', label: 'Find Jobs', icon: Search },
   { path: '/jobs', label: 'Job Tracker', icon: ClipboardList },
   { path: '/marketplace', label: 'Templates', icon: Store },
 ];
