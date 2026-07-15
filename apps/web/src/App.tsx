@@ -8,6 +8,9 @@ import { trackPageview } from './lib/analytics';
 
 // Public
 import { WelcomePage } from './pages/welcome/WelcomePage';
+import { PrivacyPolicyPage } from './pages/legal/PrivacyPolicyPage';
+import { TermsOfServicePage } from './pages/legal/TermsOfServicePage';
+import { RefundPolicyPage } from './pages/legal/RefundPolicyPage';
 
 // Auth pages
 import { LoginPage } from './pages/auth/LoginPage';
@@ -59,6 +62,11 @@ export function App() {
           <Routes>
           {/* Public marketing/landing page */}
           <Route path="/" element={<WelcomePage />} />
+
+          {/* Public legal pages — no auth, linked from footer + Stripe checkout */}
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms" element={<TermsOfServicePage />} />
+          <Route path="/refund-policy" element={<RefundPolicyPage />} />
 
           {/* Public auth routes */}
           <Route path="/login" element={<LoginPage />} />

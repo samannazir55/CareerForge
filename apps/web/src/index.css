@@ -96,6 +96,27 @@
 }
 
 /* ---------------------------------------------------------------------------
+   Legal pages (privacy/terms/refund) — no typography plugin installed, so
+   this scopes plain semantic h2/p/ul/li/a markup to look intentional
+   without repeating Tailwind classes on every element in three long pages.
+---------------------------------------------------------------------------- */
+.prose-legal h2 {
+  @apply text-lg font-semibold text-foreground mt-8 mb-2 first:mt-0;
+}
+.prose-legal p {
+  @apply mb-3;
+}
+.prose-legal ul {
+  @apply list-disc pl-5 space-y-1 mb-3;
+}
+.prose-legal a {
+  @apply text-indigo-500 hover:underline;
+}
+.prose-legal strong {
+  @apply text-foreground font-semibold;
+}
+
+/* ---------------------------------------------------------------------------
    Welcome page — neon/floating-square hero treatment.
    Scoped under .welcome-page so it never bleeds into the rest of the app's
    (mostly light, glassmorphism-on-white) design language.

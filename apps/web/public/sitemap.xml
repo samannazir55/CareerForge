@@ -1,17 +1,32 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Only the marketing homepage is listed here on purpose. Every other route
-  in the app (dashboard, resumes, jobs, settings, admin, etc.) sits behind
-  auth — Google can't index a page it gets redirected away from, and listing
-  those routes anyway just wastes crawl budget and can look spammy. Add new
-  <url> entries here only as genuinely public, unauthenticated content pages
-  are built (e.g. a blog, a public template gallery, individual shared-resume
-  pages if those become indexable).
+  Homepage + the three public legal pages (privacy/terms/refund) are listed
+  here. Every other route in the app (dashboard, resumes, jobs, settings,
+  admin, etc.) sits behind auth — Google can't index a page it gets
+  redirected away from, and listing those routes anyway just wastes crawl
+  budget and can look spammy. Add new <url> entries here only as genuinely
+  public, unauthenticated content pages are built (e.g. a blog, a public
+  template gallery).
 -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://corvyx.app/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://corvyx.app/privacy</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://corvyx.app/terms</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://corvyx.app/refund-policy</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
   </url>
 </urlset>

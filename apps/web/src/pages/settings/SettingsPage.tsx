@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { User, CreditCard, Zap, CheckCircle2, Star } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
@@ -232,6 +233,13 @@ export function SettingsPage() {
             );
           })}
         </div>
+
+        <p className="text-xs text-muted-foreground text-center mb-6">
+          By subscribing you agree to our{' '}
+          <Link to="/terms" className="text-indigo-500 hover:underline">Terms</Link>,{' '}
+          <Link to="/privacy" className="text-indigo-500 hover:underline">Privacy Policy</Link>, and{' '}
+          <Link to="/refund-policy" className="text-indigo-500 hover:underline">Refund Policy</Link>.
+        </p>
 
         {/* Billing portal */}
         {(isPro || isPremium) && (

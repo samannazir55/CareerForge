@@ -210,6 +210,11 @@ export function WelcomePage() {
       </section>
 
       <footer className="border-t border-white/5 px-6 py-8 text-center text-xs text-white/30">
+        <div className="flex items-center justify-center gap-4 mb-3">
+          <Link to="/privacy" className="hover:text-white/60">Privacy</Link>
+          <Link to="/terms" className="hover:text-white/60">Terms</Link>
+          <Link to="/refund-policy" className="hover:text-white/60">Refunds</Link>
+        </div>
         © {new Date().getFullYear()} Corvyx. Built for people building careers.
       </footer>
     </div>

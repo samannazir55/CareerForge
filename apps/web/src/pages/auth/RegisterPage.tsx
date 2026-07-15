@@ -74,6 +74,11 @@ export function RegisterPage() {
         <Button type="submit" disabled={isSubmitting} className="w-full mt-2">
           {isSubmitting ? 'Creating account…' : 'Create account'}
         </Button>
+        <p className="text-xs text-muted-foreground text-center">
+          By creating an account you agree to our{' '}
+          <Link to="/terms" className="text-indigo-500 hover:underline">Terms</Link> and{' '}
+          <Link to="/privacy" className="text-indigo-500 hover:underline">Privacy Policy</Link>.
+        </p>
       </form>
 
       <div className="flex items-center gap-3 my-6">
