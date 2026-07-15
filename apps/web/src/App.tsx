@@ -1,8 +1,10 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import { AdminRoute } from './routes/AdminRoute';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { trackPageview } from './lib/analytics';
 
 // Public
 import { WelcomePage } from './pages/welcome/WelcomePage';
@@ -35,12 +37,25 @@ import { AdminTemplatesPage } from './pages/admin/AdminTemplatesPage';
 import { AdminPlansPage } from './pages/admin/AdminPlansPage';
 import { AdminPointsPage } from './pages/admin/AdminPointsPage';
 import { AdminAuditPage } from './pages/admin/AdminAuditPage';
+import { AdminSeoPage } from './pages/admin/AdminSeoPage';
+
+/** Sends a GA4 pageview on every client-side route change (SPA navigation
+ * doesn't trigger a real page load, so GA's automatic pageview only ever
+ * fires once without this). No-ops if analytics isn't configured. */
+function RouteChangeTracker() {
+  const location = useLocation();
+  useEffect(() => {
+    trackPageview(location.pathname + location.search);
+  }, [location.pathname, location.search]);
+  return null;
+}
 
 export function App() {
   return (
     <ErrorBoundary>
       <BrowserRouter>
         <AuthProvider>
+          <RouteChangeTracker />
           <Routes>
           {/* Public marketing/landing page */}
           <Route path="/" element={<WelcomePage />} />
@@ -77,6 +92,7 @@ export function App() {
                 <Route path="plans" element={<AdminPlansPage />} />
                 <Route path="points" element={<AdminPointsPage />} />
                 <Route path="audit" element={<AdminAuditPage />} />
+                <Route path="seo" element={<AdminSeoPage />} />
               </Route>
             </Route>
           </Route>

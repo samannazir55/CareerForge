@@ -8,9 +8,9 @@ import {
   Users,
   Coins,
   ScrollText,
+  Search,
   ChevronLeft,
   ChevronRight,
-  Sparkles,
   ExternalLink,
   Sun,
   Moon,
@@ -18,6 +18,7 @@ import {
   Menu,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { LogoMark } from '../../components/ui/LogoMark';
 import { useUIStore } from '../../store/ui.store';
 import { cn } from '../../lib/utils';
 
@@ -51,6 +52,12 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { path: '/admin/users', label: 'All Users', icon: Users },
       { path: '/admin/points', label: 'Points Economy', icon: Coins },
+    ],
+  },
+  {
+    label: 'Growth',
+    items: [
+      { path: '/admin/seo', label: 'SEO', icon: Search },
     ],
   },
   {
@@ -89,7 +96,7 @@ export function AdminLayout({ children }: { children?: ReactNode }) {
         collapsed && 'justify-center px-3',
       )}>
         <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 shrink-0">
-          <Sparkles size={16} />
+          <LogoMark size={18} className="text-white" />
         </div>
         {!collapsed && (
           <div className="min-w-0">

@@ -35,6 +35,22 @@ export interface GeneratedTemplate {
   html:     string;
 }
 
+export interface PageSpeedResult {
+  strategy: 'mobile' | 'desktop';
+  scores: {
+    performance: number | null;
+    accessibility: number | null;
+    bestPractices: number | null;
+    seo: number | null;
+  };
+  coreWebVitals: {
+    largestContentfulPaint: string | null;
+    cumulativeLayoutShift: string | null;
+    totalBlockingTime: string | null;
+  };
+  fetchedAt: string;
+}
+
 export const adminApi = {
   // Dashboard
   getDashboardStats: () =>
@@ -105,4 +121,8 @@ export const adminApi = {
     const query = limit ? `?limit=${limit}` : '';
     return request<{ entries: AdminAuditLogEntry[] }>(`/admin/audit-log${query}`);
   },
+
+  // SEO
+  getPageSpeed: (url: string, strategy: 'mobile' | 'desktop') =>
+    request<PageSpeedResult>(`/admin/seo/pagespeed?url=${encodeURIComponent(url)}&strategy=${strategy}`),
 };

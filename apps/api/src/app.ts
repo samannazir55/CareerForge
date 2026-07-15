@@ -62,7 +62,17 @@ export function createApp() {
           // evaluates the template literal, and only the evaluated bytes are
           // ever actually sent to the browser. See the recompute snippet in
           // previewInteractivity.ts's file header comment.
-          'script-src': ["'self'", "'sha256-Z82SP+lAk3I1MZ+8hwE18Sx73xwaTXTvnXtoholO8VI='"],
+          'script-src': [
+            "'self'",
+            "'sha256-Z82SP+lAk3I1MZ+8hwE18Sx73xwaTXTvnXtoholO8VI='",
+            // GA4 loader (see apps/web/src/lib/analytics.ts) — no-ops with
+            // no measurement ID set, but the CSP allowance is static either
+            // way. Harmless if this Express app isn't the one actually
+            // serving the SPA in production (see docs/deployment.md Option
+            // A vs B) — an unused allowance, not a risk.
+            'https://www.googletagmanager.com',
+          ],
+          'connect-src': ["'self'", 'https://www.google-analytics.com', 'https://*.google-analytics.com', 'https://*.analytics.google.com'],
           // Resume profile photos are served from Cloudinary (see
           // domain/uploads/cloudinary.service.ts) -- the default CSP's
           // img-src is 'self' data: only, which silently blocks the

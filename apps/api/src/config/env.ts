@@ -58,6 +58,10 @@ const EnvSchema = z.object({
   STRIPE_PRICE_PROFESSIONAL: z.string().optional().default(''),
   STRIPE_PRICE_PREMIUM: z.string().optional().default(''),
 
+  // PageSpeed Insights API key (Google Cloud Console -> APIs & Services ->
+  // Credentials). Free tier, no OAuth needed. Admin SEO dashboard only.
+  PAGESPEED_API_KEY: z.string().optional().default(''),
+
   // AI provider
   AI_PROVIDER: z.enum(['anthropic', 'openai', 'groq', 'openrouter']).default('openrouter'),
   ANTHROPIC_API_KEY: z.string().optional().default(''),

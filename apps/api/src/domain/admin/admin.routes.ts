@@ -20,6 +20,8 @@ import { dynamicTemplatesService } from './dynamicTemplates.service.js';
 import { aiProvider } from '../ai/index.js';
 import { generateTemplateViaProvider } from './templateGeneration.js';
 import { SAMPLE_RESUME } from './sampleResume.js';
+import { runPageSpeed } from './seo.service.js';
+import { env } from '../../config/env.js';
 
 export const adminRouter = Router();
 
@@ -280,5 +282,24 @@ adminRouter.get(
     const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(rawLimit, 1), 1000) : 200;
     const entries = await adminAuditService.list(limit);
     res.status(200).json({ entries });
+  }),
+);
+
+// ---------------------------------------------------------------------------
+// SEO — PageSpeed Insights
+// ---------------------------------------------------------------------------
+
+adminRouter.get(
+  '/seo/pagespeed',
+  asyncHandler(async (req, res) => {
+    const url = typeof req.query.url === 'string' ? req.query.url : env.FRONTEND_URL;
+    const strategy = req.query.strategy === 'desktop' ? 'desktop' : 'mobile';
+    try {
+      new URL(url);
+    } catch {
+      throw new BadRequestError('url must be a valid absolute URL, e.g. https://corvyx.app');
+    }
+    const result = await runPageSpeed(url, strategy);
+    res.status(200).json(result);
   }),
 );
