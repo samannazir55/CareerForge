@@ -1,4 +1,5 @@
-import type { Resume } from '@careerforge/schema';
+import type { Resume, Section } from '@careerforge/schema';
+import { SectionSchema } from '@careerforge/schema';
 
 export interface ParsedChatResponse {
   reply: string;
@@ -298,4 +299,79 @@ export function parseChatResponse(rawText: string): ParsedChatResponse {
   }
 
   return { reply: text.trim(), resumeUpdate, suggestions, degraded };
+}
+
+/**
+ * Same balanced-scan approach as extractBalancedJson, but for a top-level
+ * JSON array (`[...]`) instead of an object — used by tailorResume, whose
+ * prompt asks for "ONLY a JSON array of sections" rather than an object.
+ * Anchoring to the matching closing bracket (bracket-depth balanced, string-
+ * aware) avoids the same greedy-regex failure mode described on
+ * extractBalancedJson: a reasoning model mentioning an example array before
+ * the real payload would otherwise corrupt a naive `/\[[\s\S]*\]/` match.
+ */
+export function extractBalancedJsonArray(text: string, fromIdx: number): { value: unknown; endIdx: number } | null {
+  const start = text.indexOf('[', fromIdx);
+  if (start === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (ch === '\\') {
+        escaped = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (ch === '"') {
+      inString = true;
+    } else if (ch === '[') {
+      depth++;
+    } else if (ch === ']') {
+      depth--;
+      if (depth === 0) {
+        const candidate = text.slice(start, i + 1);
+        try {
+          return { value: JSON.parse(candidate), endIdx: i + 1 };
+        } catch {
+          return null;
+        }
+      }
+    }
+  }
+
+  return null; // brackets never closed — truncated response
+}
+
+/**
+ * Scans `rawText` for the first balanced JSON array that validates as a
+ * real `Section[]` (via the same SectionSchema the rest of the app uses to
+ * persist resumes), skipping over any array that doesn't validate rather
+ * than accepting the first `[...]` found — the same "keep scanning past
+ * implausible candidates" strategy extractResumeJson uses for objects.
+ * Returns undefined (never a lossy `[]`) if nothing valid is found, so
+ * callers can tell "the model's output didn't parse" apart from "the model
+ * legitimately returned zero sections" and react accordingly (currently:
+ * treat both as a failure, since a tailored resume with zero sections is
+ * never a useful result).
+ */
+export function extractTailoredSections(rawText: string): Section[] | undefined {
+  let searchFrom = 0;
+  while (searchFrom < rawText.length) {
+    const extracted = extractBalancedJsonArray(rawText, searchFrom);
+    if (!extracted) return undefined;
+    const parsed = SectionSchema.array().safeParse(extracted.value);
+    if (parsed.success && parsed.data.length > 0) return parsed.data;
+    searchFrom = extracted.endIdx;
+  }
+  return undefined;
 }

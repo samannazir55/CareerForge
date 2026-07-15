@@ -1,9 +1,10 @@
 import OpenAI from 'openai';
 import type { AIProvider, ChatMessage, ATSResult, JobMatchResult } from './ai.provider.js';
-import type { Resume } from '@careerforge/schema';
+import type { Resume, Section } from '@careerforge/schema';
 import { env } from '../../config/env.js';
-import { ConfigurationError } from '../../lib/errors.js';
-import { parseChatResponse, extractResumeJson } from './chatResponseParser.js';
+import { ConfigurationError, BadGatewayError } from '../../lib/errors.js';
+import { parseChatResponse, extractResumeJson, extractTailoredSections } from './chatResponseParser.js';
+import { TAILOR_RESUME_SYSTEM_PROMPT } from './tailorPrompt.js';
 
 /**
  * OpenRouter adapter. OpenRouter exposes an OpenAI-compatible API so we
@@ -164,6 +165,29 @@ export class OpenRouterProvider implements AIProvider {
     });
 
     return response.choices[0]?.message?.content ?? '';
+  }
+
+  async tailorResume(resume: Resume, jobDescription: string): Promise<Section[]> {
+    const client = getClient();
+
+    const response = await client.chat.completions.create({
+      model: this.model,
+      messages: [
+        { role: 'system', content: TAILOR_RESUME_SYSTEM_PROMPT },
+        {
+          role: 'user',
+          content: `Candidate's resume sections (JSON):\n${JSON.stringify(resume.sections)}\n\nJOB DESCRIPTION:\n${jobDescription}\n\nReturn the rewritten sections array now.`,
+        },
+      ],
+      max_tokens: 4096,
+    });
+
+    const text = response.choices[0]?.message?.content ?? '';
+    const sections = extractTailoredSections(text);
+    if (!sections) {
+      throw new BadGatewayError('The AI did not return a usable tailored resume. Please try again.');
+    }
+    return sections;
   }
 
   async extractResumeFromText(rawText: string): Promise<Partial<Pick<Resume, 'title' | 'sections'>>> {

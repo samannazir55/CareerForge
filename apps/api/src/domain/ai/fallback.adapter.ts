@@ -1,5 +1,5 @@
 import type { AIProvider, ChatMessage, ATSResult, JobMatchResult } from './ai.provider.js';
-import type { Resume } from '@careerforge/schema';
+import type { Resume, Section } from '@careerforge/schema';
 
 /**
  * Wraps an ordered list of AIProvider instances and tries them in order,
@@ -118,6 +118,10 @@ export class FallbackAIProvider implements AIProvider {
 
   generateCoverLetter(resume: Resume, jobDescription: string, tone?: string): Promise<string> {
     return this.tryInOrder((p) => p.generateCoverLetter(resume, jobDescription, tone), 'generateCoverLetter');
+  }
+
+  tailorResume(resume: Resume, jobDescription: string): Promise<Section[]> {
+    return this.tryInOrder((p) => p.tailorResume(resume, jobDescription), 'tailorResume');
   }
 
   extractResumeFromText(rawText: string): Promise<Partial<Pick<Resume, 'title' | 'sections'>>> {

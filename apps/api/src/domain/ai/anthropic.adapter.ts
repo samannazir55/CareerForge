@@ -1,9 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { AIProvider, ChatMessage, ATSResult, JobMatchResult } from './ai.provider.js';
-import type { Resume } from '@careerforge/schema';
+import type { Resume, Section } from '@careerforge/schema';
 import { env } from '../../config/env.js';
-import { ConfigurationError } from '../../lib/errors.js';
-import { parseChatResponse, extractResumeJson } from './chatResponseParser.js';
+import { ConfigurationError, BadGatewayError } from '../../lib/errors.js';
+import { parseChatResponse, extractResumeJson, extractTailoredSections } from './chatResponseParser.js';
+import { TAILOR_RESUME_SYSTEM_PROMPT } from './tailorPrompt.js';
 
 const MODEL = 'claude-sonnet-4-6';
 
@@ -141,6 +142,33 @@ matchScore is 0-100. Arrays contain strings.`,
       .filter((b) => b.type === 'text')
       .map((b) => (b as { type: 'text'; text: string }).text)
       .join('');
+  }
+
+  async tailorResume(resume: Resume, jobDescription: string): Promise<Section[]> {
+    const client = getClient();
+
+    const response = await client.messages.create({
+      model: MODEL,
+      max_tokens: 4096,
+      system: TAILOR_RESUME_SYSTEM_PROMPT,
+      messages: [
+        {
+          role: 'user',
+          content: `Candidate's resume sections (JSON):\n${JSON.stringify(resume.sections)}\n\nJOB DESCRIPTION:\n${jobDescription}\n\nReturn the rewritten sections array now.`,
+        },
+      ],
+    });
+
+    const text = response.content
+      .filter((b) => b.type === 'text')
+      .map((b) => (b as { type: 'text'; text: string }).text)
+      .join('');
+
+    const sections = extractTailoredSections(text);
+    if (!sections) {
+      throw new BadGatewayError('The AI did not return a usable tailored resume. Please try again.');
+    }
+    return sections;
   }
 
   async extractResumeFromText(rawText: string): Promise<Partial<Pick<Resume, 'title' | 'sections'>>> {

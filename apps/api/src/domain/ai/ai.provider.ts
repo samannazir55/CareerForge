@@ -1,4 +1,4 @@
-import type { Resume } from '@careerforge/schema';
+import type { Resume, Section } from '@careerforge/schema';
 
 /**
  * AI provider abstraction. All LLM-specific code lives in the adapters.
@@ -60,6 +60,19 @@ export interface AIProvider {
    * Generate a cover letter from resume data and a job description.
    */
   generateCoverLetter(resume: Resume, jobDescription: string, tone?: string): Promise<string>;
+
+  /**
+   * Rewrite a resume's sections to better match a specific job description
+   * — sharpening the summary and experience bullet points to surface
+   * relevant keywords/skills already present in the candidate's real
+   * experience. Must not invent employers, titles, dates, or skills the
+   * candidate doesn't already have; only emphasis/wording changes.
+   * Returns the full replacement `sections` array (same ids/order/fields
+   * as the input — only entry `values` text changes) — the caller decides
+   * what to do with it (here: persist as a new resume, never overwriting
+   * the original).
+   */
+  tailorResume(resume: Resume, jobDescription: string): Promise<Section[]>;
 
   /**
    * Extract structured resume data from raw text (PDF/DOCX import path).

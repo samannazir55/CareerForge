@@ -3,7 +3,7 @@ import { requireAuth, requireVerifiedEmail } from '../../middleware/authGuard.js
 import { asyncHandler } from '../../lib/asyncHandler.js';
 import { aiProvider } from './index.js';
 import { prisma } from '../../lib/prisma.js';
-import { runMigrations, mergeResumeSections, type Section } from '@careerforge/schema';
+import { runMigrations, mergeResumeSections, CURRENT_SCHEMA_VERSION, type Section } from '@careerforge/schema';
 import { NotFoundError, BadRequestError } from '../../lib/errors.js';
 import rateLimit from 'express-rate-limit';
 
@@ -273,6 +273,58 @@ aiRouter.post(
 
     const coverLetter = await aiProvider.generateCoverLetter(resume as any, jobDescription, tone);
     res.status(200).json({ coverLetter });
+  }),
+);
+
+aiRouter.post(
+  '/tailor-resume',
+  requireAuth,
+  requireVerifiedEmail,
+  aiRateLimit,
+  asyncHandler(async (req, res) => {
+    const { resumeId, jobDescription } = req.body as { resumeId?: string; jobDescription?: string };
+    if (!resumeId) throw new BadRequestError('resumeId is required.');
+    if (!jobDescription?.trim()) throw new BadRequestError('jobDescription is required.');
+
+    const row = await prisma.resume.findUnique({ where: { id: resumeId } });
+    if (!row || row.ownerId !== req.user!.id) throw new NotFoundError('Resume not found.');
+
+    const { payload: resume } = runMigrations({
+      schemaVersion: row.schemaVersion,
+      migrationVersion: row.migrationVersion,
+      payload: { id: row.id, ownerId: row.ownerId, title: row.title, theme: row.theme, sections: row.sections, schemaVersion: row.schemaVersion, migrationVersion: row.migrationVersion, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() },
+    });
+
+    // Run both calls concurrently — they're independent reads of the same
+    // resume/job description, not a pipeline, so there's no reason to pay
+    // for two round trips back-to-back.
+    const [matchResult, tailoredSections] = await Promise.all([
+      aiProvider.matchJobDescription(resume as any, jobDescription),
+      aiProvider.tailorResume(resume as any, jobDescription),
+    ]);
+
+    const toJson = (v: unknown) => v as any;
+
+    // A NEW resume row, never an overwrite of the original — the whole
+    // point of this endpoint is that the user's existing resume (and its
+    // own version history) is untouched; the tailored version is a fork
+    // they can compare against the original, keep, or discard.
+    const newResume = await prisma.resume.create({
+      data: {
+        ownerId: req.user!.id,
+        title: `${row.title} — Tailored`,
+        theme: toJson(row.theme),
+        sections: toJson(tailoredSections),
+        schemaVersion: CURRENT_SCHEMA_VERSION,
+        migrationVersion: CURRENT_SCHEMA_VERSION,
+      },
+    });
+
+    res.status(200).json({
+      resumeId: newResume.id,
+      matchScore: matchResult.matchScore,
+      suggestions: matchResult.suggestions,
+    });
   }),
 );
 

@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Briefcase,
   Loader2,
+  Sparkles,
 } from 'lucide-react';
 import type { JobSearchCountry, JobSearchListing } from '@careerforge/schema';
 import { jobSearchApi, ApiError } from '../../lib/api';
@@ -18,6 +19,7 @@ import { AppShell } from '../../components/layout/AppShell';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { TailorResumeModal } from '../../components/jobs/TailorResumeModal';
 import type { JobTrackerPrefillState } from './JobTrackerPage';
 
 const COUNTRIES: { code: JobSearchCountry; label: string }[] = [
@@ -60,6 +62,7 @@ export function FindJobsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const [tailorTarget, setTailorTarget] = useState<JobSearchListing | null>(null);
 
   async function runSearch(targetPage: number) {
     if (!q.trim()) {
@@ -188,7 +191,12 @@ export function FindJobsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <AnimatePresence initial={false}>
                 {results.map((job) => (
-                  <JobResultCard key={job.id} job={job} onAdd={() => handleAddToTracker(job)} />
+                  <JobResultCard
+                    key={job.id}
+                    job={job}
+                    onAdd={() => handleAddToTracker(job)}
+                    onTailor={() => setTailorTarget(job)}
+                  />
                 ))}
               </AnimatePresence>
             </div>
@@ -217,11 +225,18 @@ export function FindJobsPage() {
           </>
         )}
       </div>
+
+      <TailorResumeModal
+        open={tailorTarget !== null}
+        onClose={() => setTailorTarget(null)}
+        initialJobDescription={tailorTarget?.description ?? ''}
+        jobContext={tailorTarget ? `${tailorTarget.title} at ${tailorTarget.company}` : undefined}
+      />
     </AppShell>
   );
 }
 
-function JobResultCard({ job, onAdd }: { job: JobSearchListing; onAdd: () => void }) {
+function JobResultCard({ job, onAdd, onTailor }: { job: JobSearchListing; onAdd: () => void; onTailor: () => void }) {
   const posted = timeAgoLabel(job.postedAt);
   return (
     <motion.div
@@ -259,22 +274,25 @@ function JobResultCard({ job, onAdd }: { job: JobSearchListing; onAdd: () => voi
         </p>
       )}
 
-      <div className="mt-4 pt-3 border-t border-border/50 flex items-center justify-between gap-2">
-        {job.url ? (
+      <div className="mt-4 pt-3 border-t border-border/50 flex flex-col gap-3">
+        {job.url && (
           <a
             href={job.url}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition-colors self-start"
           >
             <ExternalLink size={13} /> View listing
           </a>
-        ) : (
-          <span />
         )}
-        <Button size="sm" variant="secondary" onClick={onAdd}>
-          <Plus size={13} className="mr-1.5" /> Add to Tracker
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" variant="secondary" onClick={onTailor}>
+            <Sparkles size={13} className="mr-1.5" /> Tailor Resume
+          </Button>
+          <Button size="sm" variant="secondary" onClick={onAdd}>
+            <Plus size={13} className="mr-1.5" /> Add to Tracker
+          </Button>
+        </div>
       </div>
     </motion.div>
   );

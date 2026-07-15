@@ -1,9 +1,10 @@
 import OpenAI from 'openai';
 import type { AIProvider, ChatMessage, ATSResult, JobMatchResult } from './ai.provider.js';
-import type { Resume } from '@careerforge/schema';
+import type { Resume, Section } from '@careerforge/schema';
 import { env } from '../../config/env.js';
-import { ConfigurationError } from '../../lib/errors.js';
-import { parseChatResponse, extractResumeJson } from './chatResponseParser.js';
+import { ConfigurationError, BadGatewayError } from '../../lib/errors.js';
+import { parseChatResponse, extractResumeJson, extractTailoredSections } from './chatResponseParser.js';
+import { TAILOR_RESUME_SYSTEM_PROMPT } from './tailorPrompt.js';
 
 /**
  * Groq adapter. Groq exposes an OpenAI-compatible API (LPU-accelerated
@@ -189,6 +190,35 @@ export class GroqProvider implements AIProvider {
     });
 
     return response.choices[0]?.message?.content ?? '';
+  }
+
+  async tailorResume(resume: Resume, jobDescription: string): Promise<Section[]> {
+    const client = getClient();
+
+    const response = (await client.chat.completions.create({
+      model: this.model,
+      messages: [
+        { role: 'system', content: TAILOR_RESUME_SYSTEM_PROMPT },
+        {
+          role: 'user',
+          content: `Candidate's resume sections (JSON):\n${JSON.stringify(resume.sections)}\n\nJOB DESCRIPTION:\n${jobDescription}\n\nReturn the rewritten sections array now.`,
+        },
+      ],
+      max_tokens: 4096,
+      // Same reasoning-suppression as this adapter's other calls — a
+      // "return ONLY a JSON array" instruction doesn't stop a reasoning
+      // model from prefacing it with analysis text, and extractTailoredSections
+      // would otherwise have to scan past that preamble.
+      include_reasoning: false,
+      reasoning_effort: 'low',
+    } as any)) as OpenAI.Chat.Completions.ChatCompletion;
+
+    const text = response.choices[0]?.message?.content ?? '';
+    const sections = extractTailoredSections(text);
+    if (!sections) {
+      throw new BadGatewayError('The AI did not return a usable tailored resume. Please try again.');
+    }
+    return sections;
   }
 
   async extractResumeFromText(rawText: string): Promise<Partial<Pick<Resume, 'title' | 'sections'>>> {
