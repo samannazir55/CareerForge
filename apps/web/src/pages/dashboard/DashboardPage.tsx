@@ -18,6 +18,8 @@ import { dashboardApi, pointsApi, paymentsApi, plansApi, type PublicPlan, ApiErr
 import { ProfileCompletionRing } from '../../components/profile/ProfileCompletionRing';
 import { useProfileStore } from '../../store/profile.store';
 import { fetchProfile } from '../../lib/profileApi';
+import { useAuth } from '../../context/AuthContext';
+import { OnboardingModal } from '../../components/onboarding/OnboardingModal';
 
 interface DashboardData {
   user: { fullName: string | null; email: string; subscriptionTier: string };
@@ -53,6 +55,8 @@ export function DashboardPage() {
 
   const navigate = useNavigate();
   const { profile, setProfile } = useProfileStore();
+  const { user } = useAuth();
+  const showOnboarding = user && !user.hasCompletedOnboarding;
 
   useEffect(() => {
     if (!profile) {
@@ -94,6 +98,7 @@ export function DashboardPage() {
 
   return (
     <AppShell>
+      {showOnboarding && <OnboardingModal />}
       <div className="p-4 sm:p-8 max-w-6xl mx-auto space-y-6 sm:space-y-8">
         {/* Header */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

@@ -71,6 +71,15 @@ authRouter.get(
   }),
 );
 
+authRouter.post(
+  '/complete-onboarding',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const user = await authService.completeOnboarding(req.user!.id);
+    res.status(200).json({ user: toPublicUser(user) });
+  }),
+);
+
 // --- Email verification (OTP) ------------------------------------------------
 
 authRouter.post(

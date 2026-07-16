@@ -22,6 +22,7 @@ export const UserPublicSchema = z.object({
   role: RoleSchema,
   subscriptionTier: SubscriptionTierSchema,
   pointsBalance: z.number().int(),
+  hasCompletedOnboarding: z.boolean(),
   createdAt: z.string().datetime(),
 });
 export type UserPublic = z.infer<typeof UserPublicSchema>;

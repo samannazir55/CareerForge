@@ -18,6 +18,7 @@ export function toPublicUser(user: User): UserPublic {
     role: user.role,
     subscriptionTier: user.subscriptionTier,
     pointsBalance: user.pointsBalance,
+    hasCompletedOnboarding: user.hasCompletedOnboarding,
     createdAt: user.createdAt.toISOString(),
   };
 }
@@ -103,6 +104,12 @@ export async function verifyEmail(userId: string, code: string): Promise<User> {
     console.error('Failed to send welcome email:', err);
   });
   return user;
+}
+
+/** Marks the first-time onboarding flow as done for this account. Idempotent —
+ * safe to call even if it's already true (e.g. a retried request). */
+export async function completeOnboarding(userId: string): Promise<User> {
+  return prisma.user.update({ where: { id: userId }, data: { hasCompletedOnboarding: true } });
 }
 
 export async function forgotPassword(email: string): Promise<void> {

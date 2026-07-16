@@ -47,6 +47,7 @@ model User {
   role             Role             @default(USER)
   subscriptionTier SubscriptionTier @default(FREE)
   pointsBalance    Int              @default(0)
+  hasCompletedOnboarding Boolean    @default(false)
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @default(now()) @updatedAt
 

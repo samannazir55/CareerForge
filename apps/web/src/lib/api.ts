@@ -244,6 +244,7 @@ export const authApi = {
   resendOtp: () => request<{ message: string }>('/auth/otp/resend', { method: 'POST' }),
   forgotPassword: (email: string) => request<{ message: string }>('/auth/forgot-password', { method: 'POST', body: { email } }),
   resetPassword: (input: ResetPasswordRequest) => request<{ message: string }>('/auth/reset-password', { method: 'POST', body: input }),
+  completeOnboarding: () => request<{ user: UserPublic }>('/auth/complete-onboarding', { method: 'POST' }),
   oauthStartUrl: (provider: 'google' | 'github') => `/api/auth/oauth/${provider}`,
 };
 
