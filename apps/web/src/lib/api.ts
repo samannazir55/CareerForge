@@ -382,6 +382,43 @@ export const linkedinApi = {
     }),
 };
 
+export interface CareerCoachContext {
+  resumeSummary?: string;
+  currentRole?: string;
+  targetRole?: string;
+  yearsExperience?: number;
+}
+
+export interface ActionItem {
+  priority: 'high' | 'medium' | 'low';
+  title: string;
+  description: string;
+  timeframe: string;
+}
+
+export interface CareerGrowthAnalysis {
+  currentLevel: string;
+  targetLevel: string;
+  skillGaps: Array<{ skill: string; importance: 'critical' | 'important' | 'nice-to-have'; howToLearn: string }>;
+  estimatedTimeToTransition: string;
+  salaryRange: { current: string; target: string };
+  roadmap: Array<{ phase: string; duration: string; goals: string[] }>;
+  topRecommendations: string[];
+}
+
+export const coachApi = {
+  chat: (messages: Array<{ role: 'user' | 'assistant'; content: string }>, context: CareerCoachContext) =>
+    request<{ reply: string; suggestions?: string[]; actionItems?: ActionItem[] }>('/coach/chat', {
+      method: 'POST',
+      body: { messages, context },
+    }),
+  analyse: (resumeId: string, targetRole: string) =>
+    request<{ analysis: CareerGrowthAnalysis }>('/coach/analyse', {
+      method: 'POST',
+      body: { resumeId, targetRole },
+    }),
+};
+
 export const templatesApi = {
   list: () => request<{ templates: PublicTemplateListItem[] }>('/templates'),
   preview: (id: string) => requestText(`/templates/${id}/preview`),

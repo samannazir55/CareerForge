@@ -66,4 +66,15 @@ export function createAIProvider(): AIProvider {
 }
 
 export const aiProvider = createAIProvider();
-export type { AIProvider, ChatMessage, ATSResult, JobMatchResult, InterviewQuestion, AnswerEvaluation, LinkedInOptimization } from './ai.provider.js';
+export type {
+  AIProvider,
+  ChatMessage,
+  ATSResult,
+  JobMatchResult,
+  InterviewQuestion,
+  AnswerEvaluation,
+  LinkedInOptimization,
+  CareerCoachContext,
+  ActionItem,
+  CareerGrowthAnalysis,
+} from './ai.provider.js';

@@ -1,5 +1,16 @@
 import Anthropic from '@anthropic-ai/sdk';
-import type { AIProvider, ChatMessage, ATSResult, JobMatchResult, InterviewQuestion, AnswerEvaluation, LinkedInOptimization } from './ai.provider.js';
+import type {
+  AIProvider,
+  ChatMessage,
+  ATSResult,
+  JobMatchResult,
+  InterviewQuestion,
+  AnswerEvaluation,
+  LinkedInOptimization,
+  CareerCoachContext,
+  ActionItem,
+  CareerGrowthAnalysis,
+} from './ai.provider.js';
 import type { Resume, Section } from '@careerforge/schema';
 import { env } from '../../config/env.js';
 import { ConfigurationError, BadGatewayError } from '../../lib/errors.js';
@@ -46,6 +57,76 @@ function safeJsonParseArray<T>(text: string, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+// See openrouter.adapter.ts for the full rationale — same balanced-bracket
+// scan, duplicated here since this file keeps its own local
+// safeJsonParse/safeJsonParseArray rather than sharing chatResponseParser's.
+function extractBalancedArray(text: string, fromIdx: number): { value: unknown; endIdx: number } | null {
+  const start = text.indexOf('[', fromIdx);
+  if (start === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === '[') depth++;
+    else if (ch === ']') {
+      depth--;
+      if (depth === 0) {
+        const candidate = text.slice(start, i + 1);
+        try {
+          return { value: JSON.parse(candidate), endIdx: i + 1 };
+        } catch {
+          return null;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+function extractCoachMarkers(rawText: string): { reply: string; suggestions?: string[]; actionItems?: ActionItem[] } {
+  let text = rawText;
+  let suggestions: string[] | undefined;
+  let actionItems: ActionItem[] | undefined;
+
+  const suggestionsMarker = text.match(/SUGGESTIONS\s*:?/i);
+  if (suggestionsMarker) {
+    const markerStart = suggestionsMarker.index!;
+    const afterMarker = markerStart + suggestionsMarker[0].length;
+    const extracted = extractBalancedArray(text, afterMarker);
+    if (extracted && Array.isArray(extracted.value)) {
+      suggestions = extracted.value.filter((s): s is string => typeof s === 'string');
+      text = (text.slice(0, markerStart) + text.slice(extracted.endIdx)).trim();
+    } else {
+      text = (text.slice(0, markerStart) + text.slice(afterMarker)).trim();
+    }
+  }
+
+  const actionItemsMarker = text.match(/ACTION_ITEMS\s*:?/i);
+  if (actionItemsMarker) {
+    const markerStart = actionItemsMarker.index!;
+    const afterMarker = markerStart + actionItemsMarker[0].length;
+    const extracted = extractBalancedArray(text, afterMarker);
+    if (extracted && Array.isArray(extracted.value)) {
+      actionItems = extracted.value as ActionItem[];
+      text = (text.slice(0, markerStart) + text.slice(extracted.endIdx)).trim();
+    } else {
+      text = (text.slice(0, markerStart) + text.slice(afterMarker)).trim();
+    }
+  }
+
+  return { reply: text.trim(), suggestions, actionItems };
 }
 
 export class AnthropicProvider implements AIProvider {
@@ -309,6 +390,74 @@ headline is max 220 characters. summary (the About section) is max 2600 characte
           fix: 'Please try again in a moment.',
         },
       ],
+    });
+  }
+
+  async coachChat(
+    messages: ChatMessage[],
+    context: CareerCoachContext,
+  ): Promise<{ reply: string; suggestions?: string[]; actionItems?: ActionItem[] }> {
+    const client = getClient();
+
+    const contextLines: string[] = [];
+    if (context.currentRole) contextLines.push(`Current role: ${context.currentRole}`);
+    if (context.targetRole) contextLines.push(`Target role: ${context.targetRole}`);
+    if (context.yearsExperience !== undefined) contextLines.push(`Years of experience: ${context.yearsExperience}`);
+    if (context.resumeSummary) contextLines.push(`Resume summary: ${context.resumeSummary}`);
+
+    const systemPrompt = `You are an expert career coach with 20 years of experience. You give direct, actionable, personalized advice. Keep replies concise.${
+      contextLines.length ? `\n\nWhat you know about this person:\n${contextLines.join('\n')}` : ''
+    }
+
+After your reply, append a new line starting with SUGGESTIONS: followed by a JSON array of 3 relevant follow-up questions the person could ask next, e.g. SUGGESTIONS:["...","...","..."]
+If your reply includes specific, concrete tasks for the person to do, also append a new line starting with ACTION_ITEMS: followed by a JSON array matching this shape: [{"priority":"high","title":"...","description":"...","timeframe":"..."}]. priority is "high", "medium", or "low". timeframe is short, e.g. "This week", "Next 30 days", "3-6 months". Only include ACTION_ITEMS when there's a genuinely actionable task — most replies won't need one.`;
+
+    const response = await client.messages.create({
+      model: MODEL,
+      max_tokens: 2048,
+      system: systemPrompt,
+      messages: messages.map((m) => ({ role: m.role, content: m.content })),
+    });
+
+    const text = response.content
+      .filter((b) => b.type === 'text')
+      .map((b) => (b as { type: 'text'; text: string }).text)
+      .join('');
+
+    return extractCoachMarkers(text);
+  }
+
+  async analyseCareerGrowth(resume: Resume, targetRole: string): Promise<CareerGrowthAnalysis> {
+    const client = getClient();
+    const resumeText = resumeToText(resume);
+
+    const response = await client.messages.create({
+      model: MODEL,
+      max_tokens: 4096,
+      system: `You are a career strategist. Analyze the gap between this person's current experience (from their resume) and their target role. Return ONLY valid JSON matching this exact shape, nothing else:
+{"currentLevel":"","targetLevel":"","skillGaps":[{"skill":"","importance":"critical","howToLearn":""}],"estimatedTimeToTransition":"","salaryRange":{"current":"","target":""},"roadmap":[{"phase":"","duration":"","goals":["",""]}],"topRecommendations":["",""]}
+importance is "critical", "important", or "nice-to-have". Be realistic about timelines and salary ranges based on the industry — don't inflate or sugarcoat either.`,
+      messages: [
+        {
+          role: 'user',
+          content: `RESUME:\n${resumeText}\n\nTARGET ROLE:\n${targetRole}\n\nAnalyze the career growth path now.`,
+        },
+      ],
+    });
+
+    const text = response.content
+      .filter((b) => b.type === 'text')
+      .map((b) => (b as { type: 'text'; text: string }).text)
+      .join('');
+
+    return safeJsonParse<CareerGrowthAnalysis>(text, {
+      currentLevel: 'Unknown',
+      targetLevel: targetRole,
+      skillGaps: [],
+      estimatedTimeToTransition: 'Unable to estimate right now.',
+      salaryRange: { current: '', target: '' },
+      roadmap: [],
+      topRecommendations: ['Unable to analyze this right now. Please try again.'],
     });
   }
 }

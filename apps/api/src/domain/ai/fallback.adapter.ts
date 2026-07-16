@@ -1,4 +1,15 @@
-import type { AIProvider, ChatMessage, ATSResult, JobMatchResult, InterviewQuestion, AnswerEvaluation, LinkedInOptimization } from './ai.provider.js';
+import type {
+  AIProvider,
+  ChatMessage,
+  ATSResult,
+  JobMatchResult,
+  InterviewQuestion,
+  AnswerEvaluation,
+  LinkedInOptimization,
+  CareerCoachContext,
+  ActionItem,
+  CareerGrowthAnalysis,
+} from './ai.provider.js';
 import type { Resume, Section } from '@careerforge/schema';
 
 /**
@@ -191,5 +202,22 @@ export class FallbackAIProvider implements AIProvider {
     // fallback never throws, so a single attempt per provider is what
     // actually reaches the next provider on a bad/empty completion.
     return this.tryInOrder((p) => p.optimizeLinkedIn(resume, targetRole), 'optimizeLinkedIn');
+  }
+
+  coachChat(
+    messages: ChatMessage[],
+    context: CareerCoachContext,
+  ): Promise<{ reply: string; suggestions?: string[]; actionItems?: ActionItem[] }> {
+    // Deliberately NOT the chat()-style degraded-aware retry above: unlike
+    // parseChatResponse, extractCoachMarkers has no resumeUpdate-shaped
+    // payload whose loss would corrupt persisted state — a coachChat reply
+    // with a missing/empty suggestions or actionItems array is still a
+    // perfectly usable reply on its own, not a soft failure worth treating
+    // like tailorResume/chat's stricter retry tier.
+    return this.tryInOrder((p) => p.coachChat(messages, context), 'coachChat');
+  }
+
+  analyseCareerGrowth(resume: Resume, targetRole: string): Promise<CareerGrowthAnalysis> {
+    return this.tryInOrder((p) => p.analyseCareerGrowth(resume, targetRole), 'analyseCareerGrowth');
   }
 }

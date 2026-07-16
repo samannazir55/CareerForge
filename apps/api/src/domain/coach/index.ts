@@ -1,7 +1,6 @@
 /**
- * coach module — scaffolded for future implementation.
- * Enable via the corresponding FEATURE_* flag in env.ts.
- * Implementation follows the same three-layer pattern as other domains:
- * routes → service → (AI abstraction / external provider).
+ * coach module — implementation lives in coach.routes.ts, mounted at
+ * /api/coach in app.ts. This file is kept as the module's barrel entry
+ * point in case shared helpers need a home later.
  */
 export {};

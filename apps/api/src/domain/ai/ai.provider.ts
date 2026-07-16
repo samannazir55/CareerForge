@@ -56,6 +56,30 @@ export interface LinkedInOptimization {
   }>;
 }
 
+export interface CareerCoachContext {
+  resumeSummary?: string; // brief text summary of user's experience level
+  currentRole?: string;
+  targetRole?: string;
+  yearsExperience?: number;
+}
+
+export interface ActionItem {
+  priority: 'high' | 'medium' | 'low';
+  title: string;
+  description: string;
+  timeframe: string; // e.g. "This week", "Next 30 days", "3-6 months"
+}
+
+export interface CareerGrowthAnalysis {
+  currentLevel: string;
+  targetLevel: string;
+  skillGaps: Array<{ skill: string; importance: 'critical' | 'important' | 'nice-to-have'; howToLearn: string }>;
+  estimatedTimeToTransition: string;
+  salaryRange: { current: string; target: string };
+  roadmap: Array<{ phase: string; duration: string; goals: string[] }>;
+  topRecommendations: string[];
+}
+
 export interface AIProvider {
   /**
    * Send a message in an ongoing resume-building conversation.
@@ -141,4 +165,25 @@ export interface AIProvider {
    * candidate is searching for rather than their current title.
    */
   optimizeLinkedIn(resume: Resume, targetRole?: string): Promise<LinkedInOptimization>;
+
+  /**
+   * A free-form career coaching chat turn. Unlike the resume-builder chat(),
+   * this never extracts a resumeUpdate — the two markers it looks for
+   * instead are SUGGESTIONS (contextual follow-up questions) and, only when
+   * the reply contains a genuinely actionable task, ACTION_ITEMS. context
+   * carries whatever the caller knows about the person (current/target
+   * role, years of experience, a short resume summary) so advice is
+   * personalized without re-sending the full resume on every turn.
+   */
+  coachChat(
+    messages: ChatMessage[],
+    context: CareerCoachContext,
+  ): Promise<{ reply: string; suggestions?: string[]; actionItems?: ActionItem[] }>;
+
+  /**
+   * Analyzes the gap between a candidate's current resume and a target
+   * role: skill gaps, a realistic timeline and salary comparison, and a
+   * phased roadmap to close the gap.
+   */
+  analyseCareerGrowth(resume: Resume, targetRole: string): Promise<CareerGrowthAnalysis>;
 }
