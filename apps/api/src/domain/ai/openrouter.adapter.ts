@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import type { AIProvider, ChatMessage, ATSResult, JobMatchResult } from './ai.provider.js';
+import type { AIProvider, ChatMessage, ATSResult, JobMatchResult, InterviewQuestion, AnswerEvaluation } from './ai.provider.js';
 import type { Resume, Section } from '@careerforge/schema';
 import { env } from '../../config/env.js';
 import { ConfigurationError, BadGatewayError } from '../../lib/errors.js';
@@ -56,6 +56,15 @@ function resumeToText(resume: Resume): string {
 function safeJsonParse<T>(text: string, fallback: T): T {
   try {
     const match = text.match(/\{[\s\S]*\}/);
+    return match ? (JSON.parse(match[0]) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function safeJsonParseArray<T>(text: string, fallback: T): T {
+  try {
+    const match = text.match(/\[[\s\S]*\]/);
     return match ? (JSON.parse(match[0]) as T) : fallback;
   } catch {
     return fallback;
@@ -248,5 +257,57 @@ For skills: key name. Use simple IDs like s1, s2, e1, e2.`,
       text += chunk.choices[0]?.delta?.content ?? '';
     }
     return text;
+  }
+
+  async generateInterviewQuestions(resume: Resume, jobDescription: string, count = 10): Promise<InterviewQuestion[]> {
+    const client = getClient();
+    const resumeText = resumeToText(resume);
+
+    const response = await client.chat.completions.create({
+      model: this.model,
+      messages: [
+        {
+          role: 'system',
+          content: `You are an expert interview coach. Generate exactly ${count} realistic interview questions tailored to the candidate's resume and the target job description. Use a mix of categories (behavioural, technical, situational, culture) and difficulties (easy, medium, hard). For each question include a short one-line tip the candidate should read before answering. Return ONLY a valid JSON array matching this shape, nothing else:
+[{"id":"q1","question":"...","category":"behavioural","difficulty":"medium","tip":"..."}]`,
+        },
+        {
+          role: 'user',
+          content: `RESUME:\n${resumeText}\n\nJOB DESCRIPTION:\n${jobDescription}\n\nGenerate ${count} interview questions now.`,
+        },
+      ],
+      max_tokens: 4096,
+    });
+
+    const text = response.choices[0]?.message?.content ?? '';
+    return safeJsonParseArray<InterviewQuestion[]>(text, []);
+  }
+
+  async evaluateAnswer(question: string, answer: string, jobDescription: string): Promise<AnswerEvaluation> {
+    const client = getClient();
+
+    const response = await client.chat.completions.create({
+      model: this.model,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are an expert interview coach evaluating a candidate\'s answer against the job context. Return ONLY valid JSON: {"score":0,"strengths":[],"improvements":[],"idealAnswer":""}. score is 0-100. strengths and improvements are short bullet-point strings. idealAnswer is a short paragraph describing what a great answer would cover.',
+        },
+        {
+          role: 'user',
+          content: `JOB DESCRIPTION:\n${jobDescription}\n\nQUESTION:\n${question}\n\nCANDIDATE'S ANSWER:\n${answer}`,
+        },
+      ],
+      max_tokens: 1024,
+    });
+
+    const text = response.choices[0]?.message?.content ?? '';
+    return safeJsonParse<AnswerEvaluation>(text, {
+      score: 0,
+      strengths: [],
+      improvements: [],
+      idealAnswer: 'Unable to evaluate this answer right now. Please try again.',
+    });
   }
 }

@@ -25,6 +25,21 @@ export interface JobMatchResult {
   suggestions: string[];
 }
 
+export interface InterviewQuestion {
+  id: string;
+  question: string;
+  category: 'behavioural' | 'technical' | 'situational' | 'culture';
+  difficulty: 'easy' | 'medium' | 'hard';
+  tip: string; // one-line hint before answering
+}
+
+export interface AnswerEvaluation {
+  score: number; // 0-100
+  strengths: string[];
+  improvements: string[];
+  idealAnswer: string; // what a great answer would cover
+}
+
 export interface AIProvider {
   /**
    * Send a message in an ongoing resume-building conversation.
@@ -87,4 +102,18 @@ export interface AIProvider {
    * generator) rather than one of the resume-specific operations above.
    */
   completeRaw(systemPrompt: string, userMessage: string, maxTokens?: number): Promise<string>;
+
+  /**
+   * Generate a set of mock interview questions tailored to the candidate's
+   * resume and a target job description — a mix of categories/difficulties
+   * so a practice session doesn't feel one-note.
+   */
+  generateInterviewQuestions(resume: Resume, jobDescription: string, count?: number): Promise<InterviewQuestion[]>;
+
+  /**
+   * Evaluate a candidate's spoken/written answer to a single interview
+   * question against the job context, returning a score plus concrete
+   * feedback the candidate can act on before the next question.
+   */
+  evaluateAnswer(question: string, answer: string, jobDescription: string): Promise<AnswerEvaluation>;
 }

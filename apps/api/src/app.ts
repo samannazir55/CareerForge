@@ -19,6 +19,7 @@ import { plansRouter } from './domain/plans/plans.routes.js';
 import { templatesRouter } from './domain/templates/templates.routes.js';
 import { jobTrackerRouter } from './domain/jobtracker/jobtracker.routes.js';
 import { jobSearchRouter } from './domain/jobsearch/jobsearch.routes.js';
+import { interviewRouter } from './domain/interview/interview.routes.js';
 
 export function createApp() {
   const app = express();
@@ -109,6 +110,7 @@ export function createApp() {
   app.use('/api/templates', templatesRouter);
   app.use('/api/jobs', jobTrackerRouter);
   app.use('/api/job-search', jobSearchRouter);
+  app.use('/api/interview', interviewRouter);
 
   // Serve the React SPA in production.
   // The Dockerfile builds apps/web and copies its dist here so the API and

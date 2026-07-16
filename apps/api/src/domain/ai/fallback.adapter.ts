@@ -1,4 +1,4 @@
-import type { AIProvider, ChatMessage, ATSResult, JobMatchResult } from './ai.provider.js';
+import type { AIProvider, ChatMessage, ATSResult, JobMatchResult, InterviewQuestion, AnswerEvaluation } from './ai.provider.js';
 import type { Resume, Section } from '@careerforge/schema';
 
 /**
@@ -171,5 +171,18 @@ export class FallbackAIProvider implements AIProvider {
 
   completeRaw(systemPrompt: string, userMessage: string, maxTokens?: number): Promise<string> {
     return this.tryInOrder((p) => p.completeRaw(systemPrompt, userMessage, maxTokens), 'completeRaw');
+  }
+
+  generateInterviewQuestions(resume: Resume, jobDescription: string, count?: number): Promise<InterviewQuestion[]> {
+    // Same tier as scoreATS/matchJobDescription: safeJsonParse fallbacks
+    // never throw on a bad completion (they resolve to an empty array
+    // instead), so a single attempt per provider — not the
+    // retry-same-provider variant — is what actually reaches the next
+    // provider when one comes back empty/degraded.
+    return this.tryInOrder((p) => p.generateInterviewQuestions(resume, jobDescription, count), 'generateInterviewQuestions');
+  }
+
+  evaluateAnswer(question: string, answer: string, jobDescription: string): Promise<AnswerEvaluation> {
+    return this.tryInOrder((p) => p.evaluateAnswer(question, answer, jobDescription), 'evaluateAnswer');
   }
 }

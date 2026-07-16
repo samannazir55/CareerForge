@@ -325,6 +325,39 @@ export const aiApi = {
     }),
 };
 
+export interface InterviewQuestion {
+  id: string;
+  question: string;
+  category: 'behavioural' | 'technical' | 'situational' | 'culture';
+  difficulty: 'easy' | 'medium' | 'hard';
+  tip: string;
+}
+
+export interface AnswerEvaluation {
+  score: number;
+  strengths: string[];
+  improvements: string[];
+  idealAnswer: string;
+}
+
+export const interviewApi = {
+  generateQuestions: (resumeId: string, jobDescription: string, count?: number) =>
+    request<{ questions: InterviewQuestion[] }>('/interview/questions', {
+      method: 'POST',
+      body: { resumeId, jobDescription, count },
+    }),
+  evaluateAnswer: (question: string, answer: string, jobDescription: string) =>
+    request<{ evaluation: AnswerEvaluation }>('/interview/evaluate', {
+      method: 'POST',
+      body: { question, answer, jobDescription },
+    }),
+  saveSession: (body: { resumeId: string; jobDescription: string; questions: InterviewQuestion[]; answers: Record<string, string> }) =>
+    request<{ sessionId: string; overallScore: number; summary: string }>('/interview/session', {
+      method: 'POST',
+      body,
+    }),
+};
+
 export const templatesApi = {
   list: () => request<{ templates: PublicTemplateListItem[] }>('/templates'),
   preview: (id: string) => requestText(`/templates/${id}/preview`),
