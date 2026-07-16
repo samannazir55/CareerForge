@@ -409,7 +409,10 @@ headline is max 220 characters. summary (the About section) is max 2600 characte
       contextLines.length ? `\n\nWhat you know about this person:\n${contextLines.join('\n')}` : ''
     }
 
-After your reply, append a new line starting with SUGGESTIONS: followed by a JSON array of 3 relevant follow-up questions the person could ask next, e.g. SUGGESTIONS:["...","...","..."]
+After your reply, append a new line starting with SUGGESTIONS: followed by a JSON array of 3 short replies the person could literally tap and send as their next message — concrete answers or reactions to what you just said, grounded in their situation. They are never questions or instructions directed back at the person, and never generic category labels for what's missing. Keep each under 8 words.
+  Good (you just asked what's holding them back from applying): ["Not sure my resume is strong enough","Worried I lack enough experience","Don't know where to start"]
+  Bad: ["What's holding you back?","Tell me your concerns","Share more details"]
+Append them as: SUGGESTIONS:["...","...","..."]
 If your reply includes specific, concrete tasks for the person to do, also append a new line starting with ACTION_ITEMS: followed by a JSON array matching this shape: [{"priority":"high","title":"...","description":"...","timeframe":"..."}]. priority is "high", "medium", or "low". timeframe is short, e.g. "This week", "Next 30 days", "3-6 months". Only include ACTION_ITEMS when there's a genuinely actionable task — most replies won't need one.`;
 
     const response = await client.messages.create({

@@ -169,7 +169,9 @@ export interface AIProvider {
   /**
    * A free-form career coaching chat turn. Unlike the resume-builder chat(),
    * this never extracts a resumeUpdate — the two markers it looks for
-   * instead are SUGGESTIONS (contextual follow-up questions) and, only when
+   * instead are SUGGESTIONS (short, tappable replies the person could send
+   * next — concrete answers/reactions to what the coach just said, never
+   * more questions aimed back at them) and, only when
    * the reply contains a genuinely actionable task, ACTION_ITEMS. context
    * carries whatever the caller knows about the person (current/target
    * role, years of experience, a short resume summary) so advice is
