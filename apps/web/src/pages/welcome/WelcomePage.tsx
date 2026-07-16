@@ -38,10 +38,10 @@ const FEATURES: FeatureItem[] = [
   { icon: Coins, title: 'Points & Rewards', description: 'Earn points for profile completion and activity, spend them on premium templates.', status: 'live', accent: 'purple' },
   { icon: UserCircle, title: 'Career Profile', description: 'A living knowledge base of your career facts that powers every AI feature.', status: 'live', accent: 'pink' },
   { icon: KeyRound, title: 'Google & GitHub Sign-In', description: 'One-click auth, plus email/password with OTP verification.', status: 'live', accent: 'cyan' },
-  { icon: MessagesSquare, title: 'Interview Preparation', description: 'AI mock interviews tailored to your target role, with feedback.', status: 'soon', accent: 'indigo' },
-  { icon: Linkedin, title: 'LinkedIn Optimizer', description: 'Turn your resume into a profile that actually gets recruiter attention.', status: 'soon', accent: 'purple' },
-  { icon: ClipboardList, title: 'Job Application Tracker', description: 'Track every application, status, and follow-up in one board.', status: 'soon', accent: 'pink' },
-  { icon: Compass, title: 'AI Career Coach', description: 'Ongoing guidance on your career path, skills gaps, and next moves.', status: 'soon', accent: 'cyan' },
+  { icon: MessagesSquare, title: 'Interview Preparation', description: 'AI mock interviews tailored to your target role, with feedback.', status: 'live', accent: 'indigo' },
+  { icon: Linkedin, title: 'LinkedIn Optimizer', description: 'Turn your resume into a profile that actually gets recruiter attention.', status: 'live', accent: 'purple' },
+  { icon: ClipboardList, title: 'Job Application Tracker', description: 'Track every application, status, and follow-up in one board.', status: 'live', accent: 'pink' },
+  { icon: Compass, title: 'AI Career Coach', description: 'Ongoing guidance on your career path, skills gaps, and next moves.', status: 'live', accent: 'cyan' },
 ];
 
 export function WelcomePage() {

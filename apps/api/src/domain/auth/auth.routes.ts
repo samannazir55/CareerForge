@@ -14,7 +14,7 @@ import { setRefreshCookie, clearRefreshCookie, REFRESH_COOKIE_NAME } from '../..
 import { requireAuth } from '../../middleware/authGuard.js';
 import { otpRateLimit, authRateLimit } from '../../middleware/rateLimit.js';
 import { BadRequestError, UnauthorizedError } from '../../lib/errors.js';
-import { env } from '../../config/env.js';
+import { env, isProd } from '../../config/env.js';
 
 export const authRouter = Router();
 
@@ -145,7 +145,23 @@ authRouter.get(
     const state = randomBytes(16).toString('hex');
     // `state` is set as a short-lived cookie and re-checked on callback to
     // guard against CSRF on the OAuth redirect — a real check, not a no-op.
-    res.cookie('cf_oauth_state', state, { httpOnly: true, sameSite: 'lax', maxAge: 5 * 60 * 1000, path: '/api/auth/oauth' });
+    //
+    // no-store is critical here: this route has a side effect (setting a
+    // fresh, single-use state cookie) on every hit, then 302s to Google
+    // with that same state baked into the URL. Without an explicit
+    // Cache-Control header, a CDN/proxy/browser is free to cache this GET
+    // and later replay the cached 302 (with a stale `state`) WITHOUT
+    // resending the Set-Cookie — so the browser's cookie jar and the
+    // state Google is handed fall out of sync, and the very next real
+    // attempt fails with INVALID_STATE even though nothing was misclicked.
+    res.set('Cache-Control', 'no-store');
+    res.cookie('cf_oauth_state', state, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'lax',
+      maxAge: 5 * 60 * 1000,
+      path: '/api/auth/oauth',
+    });
     const url = await authService.startOAuth(provider, state);
     res.redirect(url);
   }),
@@ -154,6 +170,7 @@ authRouter.get(
 authRouter.get(
   '/oauth/:provider/callback',
   asyncHandler(async (req, res) => {
+    res.set('Cache-Control', 'no-store');
     const provider = parseProviderSlug(req.params.provider);
     const { code, state } = req.query as { code?: string; state?: string };
     const expectedState = req.cookies?.cf_oauth_state;
