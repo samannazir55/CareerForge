@@ -309,7 +309,7 @@ interface ChatResumeUpdate {
 
 export const aiApi = {
   chat: (messages: Array<{ role: 'user' | 'assistant'; content: string }>, resumeId?: string) =>
-    request<{ reply: string; resumeUpdate?: ChatResumeUpdate; suggestions?: string[] }>('/ai/chat', { method: 'POST', body: { messages, resumeId } }),
+    request<{ reply: string; resumeUpdate?: ChatResumeUpdate; suggestions?: string[]; degraded?: boolean }>('/ai/chat', { method: 'POST', body: { messages, resumeId } }),
   scoreATS: (resumeId: string, jobDescription?: string) =>
     request<{ score: number; missingKeywords: string[]; missingSections: string[]; suggestions: string[] }>('/ai/ats-score', { method: 'POST', body: { resumeId, jobDescription } }),
   matchJob: (resumeId: string, jobDescription: string) =>

@@ -43,6 +43,47 @@ export class FallbackAIProvider implements AIProvider {
     throw new Error('FallbackAIProvider: no provider available');
   }
 
+  /**
+   * Same idea as tryInOrder, but retries the SAME provider a couple of
+   * times on failure before moving on — for operations where a single bad
+   * completion (e.g. malformed/truncated JSON the model was asked to
+   * produce) is often just bad luck for that one attempt rather than a
+   * persistent property of the provider, and where — unlike chat(), which
+   * always returns a 200-shaped result even on a bad parse — the operation
+   * throws outright on a bad parse, so tryInOrder's catch-and-move-on would
+   * otherwise burn through every configured provider on the very first
+   * hiccup instead of giving the primary (usually cheapest/free) one a
+   * second try.
+   */
+  private async tryInOrderWithRetry<T>(
+    fn: (p: AIProvider) => Promise<T>,
+    opName: string,
+    retriesPerProvider = 2,
+  ): Promise<T> {
+    for (let i = 0; i < this.providers.length; i++) {
+      const isLastProvider = i === this.providers.length - 1;
+      for (let attempt = 1; attempt <= retriesPerProvider; attempt++) {
+        try {
+          const result = await fn(this.providers[i]);
+          if (attempt > 1) console.log(`[ai] ${opName} succeeded on ${this.labels[i]} (retry ${attempt - 1})`);
+          return result;
+        } catch (err) {
+          const isLastAttempt = attempt === retriesPerProvider;
+          const message = err instanceof Error ? err.message : String(err);
+          if (isLastAttempt && isLastProvider) throw err;
+          if (isLastAttempt) {
+            console.warn(
+              `[ai] ${this.labels[i]} failed on ${opName} after ${retriesPerProvider} attempts, falling back to ${this.labels[i + 1]}: ${message}`,
+            );
+          } else {
+            console.warn(`[ai] ${this.labels[i]} failed on ${opName} (attempt ${attempt}), retrying: ${message}`);
+          }
+        }
+      }
+    }
+    throw new Error(`FallbackAIProvider: no provider available for ${opName}`);
+  }
+
   async chat(messages: ChatMessage[], systemPrompt: string) {
     // chat() is special-cased: parseChatResponse never throws, even when it
     // fails to extract a usable RESUME_UPDATE (truncated/malformed JSON,
@@ -121,7 +162,7 @@ export class FallbackAIProvider implements AIProvider {
   }
 
   tailorResume(resume: Resume, jobDescription: string): Promise<Section[]> {
-    return this.tryInOrder((p) => p.tailorResume(resume, jobDescription), 'tailorResume');
+    return this.tryInOrderWithRetry((p) => p.tailorResume(resume, jobDescription), 'tailorResume');
   }
 
   extractResumeFromText(rawText: string): Promise<Partial<Pick<Resume, 'title' | 'sections'>>> {

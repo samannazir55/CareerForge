@@ -275,7 +275,14 @@ export function AIChatBuilderPage() {
       setSuggestions(result.suggestions ?? []);
 
       const resumeUpdate = result.resumeUpdate;
-      if (resumeUpdate) {
+      // Same reasoning as the backend's /chat handler: a degraded result
+      // means the raw completion didn't parse cleanly, so any resumeUpdate
+      // that did get extracted from it is unreliable and shouldn't be
+      // merged into the live preview — otherwise the preview could show
+      // (and briefly "lose") data that was never actually persisted, since
+      // the backend already skips saving it. Keeping client and server in
+      // sync here means the preview never disagrees with what's saved.
+      if (resumeUpdate && !result.degraded) {
         setPreviewResume((prev) => {
           const next = { ...prev };
 

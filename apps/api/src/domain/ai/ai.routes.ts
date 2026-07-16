@@ -177,7 +177,20 @@ aiRouter.post(
         // by-type merge policy the client uses for its live preview state,
         // so a section the model doesn't re-state this turn is left alone
         // instead of being wiped.
-        const mergedSections = result.resumeUpdate?.sections
+        //
+        // `!result.degraded` gate: a degraded result means the raw
+        // completion didn't parse cleanly (narration leakage, a truncated
+        // RESUME_UPDATE JSON, etc — see chatResponseParser). Whatever
+        // resumeUpdate DID happen to extract from a degraded response is
+        // unreliable — it may be missing entries the model actually meant
+        // to include, or reflect a mid-truncation partial section — and
+        // mergeResumeSections' whole-section-per-type replacement would
+        // apply that partial data on top of good previously-saved data,
+        // silently losing entries. Safer to skip the merge entirely and
+        // let the person just retry the message; the transcript itself
+        // (including the honest "please try again" reply) is still saved
+        // either way, so nothing about the conversation itself is lost.
+        const mergedSections = !result.degraded && result.resumeUpdate?.sections
           ? mergeResumeSections(row.sections as unknown as Section[], result.resumeUpdate.sections)
           : undefined;
 
@@ -189,7 +202,7 @@ aiRouter.post(
         await prisma.resume.update({
           where: { id: resumeId },
           data: {
-            ...(result.resumeUpdate?.title ? { title: result.resumeUpdate.title } : {}),
+            ...(!result.degraded && result.resumeUpdate?.title ? { title: result.resumeUpdate.title } : {}),
             ...(mergedSections ? { sections: toJson(mergedSections) } : {}),
             chatMessages: toJson(fullTranscript),
           },
@@ -305,6 +318,14 @@ aiRouter.post(
 
     const toJson = (v: unknown) => v as any;
 
+    // tailorResume now only returns the sections it actually rewrote
+    // (typically summary + experience) — see tailorPrompt.ts for why. Merge
+    // that onto the ORIGINAL full sections list (by type, same policy the
+    // chat builder uses) rather than treating it as the complete resume:
+    // using it as-is would silently drop every section the model didn't
+    // touch (education, skills, projects, ...) from the new copy.
+    const mergedSections = mergeResumeSections(resume.sections, tailoredSections);
+
     // A NEW resume row, never an overwrite of the original — the whole
     // point of this endpoint is that the user's existing resume (and its
     // own version history) is untouched; the tailored version is a fork
@@ -314,7 +335,7 @@ aiRouter.post(
         ownerId: req.user!.id,
         title: `${row.title} — Tailored`,
         theme: toJson(row.theme),
-        sections: toJson(tailoredSections),
+        sections: toJson(mergedSections),
         schemaVersion: CURRENT_SCHEMA_VERSION,
         migrationVersion: CURRENT_SCHEMA_VERSION,
       },
