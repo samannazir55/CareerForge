@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState, type ComponentType } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
-import { ArrowLeft, ArrowRight, Compass, PenLine, Sparkles, Target, Upload } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Compass, PenLine, Sparkles, Target, Upload, type LucideIcon } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { LogoMark } from '../ui/LogoMark';
 import { useAuth } from '../../context/AuthContext';
@@ -16,7 +16,7 @@ type BuildOptionId = 'ai' | 'import' | 'scratch';
 
 interface BuildOption {
   id: BuildOptionId;
-  icon: ComponentType<{ size?: number; className?: string }>;
+  icon: LucideIcon;
   title: string;
   subtitle: string;
   /** Static route to send the user to. The "scratch" option has none —
