@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import type { AIProvider, ChatMessage, ATSResult, JobMatchResult, InterviewQuestion, AnswerEvaluation } from './ai.provider.js';
+import type { AIProvider, ChatMessage, ATSResult, JobMatchResult, InterviewQuestion, AnswerEvaluation, LinkedInOptimization } from './ai.provider.js';
 import type { Resume, Section } from '@careerforge/schema';
 import { env } from '../../config/env.js';
 import { ConfigurationError, BadGatewayError } from '../../lib/errors.js';
@@ -345,6 +345,47 @@ For skills: key name. Use simple IDs like s1, s2, e1, e2.`,
       strengths: [],
       improvements: [],
       idealAnswer: 'Unable to evaluate this answer right now. Please try again.',
+    });
+  }
+
+  async optimizeLinkedIn(resume: Resume, targetRole?: string): Promise<LinkedInOptimization> {
+    const client = getClient();
+    const resumeText = resumeToText(resume);
+
+    const response = (await client.chat.completions.create({
+      model: this.model,
+      messages: [
+        {
+          role: 'system',
+          content: `You are a LinkedIn profile expert. Given this resume${targetRole ? ' and target role' : ''}, generate an optimized LinkedIn profile. Prioritize keyword density for recruiter searches, achievement-focused language, and first-person voice for the summary. Return ONLY valid JSON matching this exact shape, nothing else:
+{"headline":"","summary":"","experienceBlurbs":[{"title":"","company":"","bullets":["",""]}],"skills":["",""],"recommendations":[{"section":"","issue":"","fix":""}]}
+headline is max 220 characters. summary (the About section) is max 2600 characters, written in first person. experienceBlurbs has 3-5 achievement-focused bullets per role. skills lists the top 15 skills to add to the profile. recommendations is a short audit of gaps in the candidate's likely current profile (section names like "Headline", "About", "Skills", "Experience").`,
+        },
+        {
+          role: 'user',
+          content: `RESUME:\n${resumeText}${targetRole ? `\n\nTARGET ROLE:\n${targetRole}` : ''}\n\nGenerate the optimized LinkedIn profile now.`,
+        },
+      ],
+      max_tokens: 4096,
+      // Same reasoning-suppression as this adapter's other JSON-returning
+      // calls — see chat() for the full explanation.
+      include_reasoning: false,
+      reasoning_effort: 'low',
+    } as any)) as OpenAI.Chat.Completions.ChatCompletion;
+
+    const text = response.choices[0]?.message?.content ?? '';
+    return safeJsonParse<LinkedInOptimization>(text, {
+      headline: '',
+      summary: '',
+      experienceBlurbs: [],
+      skills: [],
+      recommendations: [
+        {
+          section: 'General',
+          issue: 'Unable to generate LinkedIn suggestions right now.',
+          fix: 'Please try again in a moment.',
+        },
+      ],
     });
   }
 }

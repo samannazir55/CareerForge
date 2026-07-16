@@ -30,6 +30,7 @@ import { MarketplacePage } from './pages/marketplace/MarketplacePage';
 import { JobTrackerPage } from './pages/jobs/JobTrackerPage';
 import { FindJobsPage } from './pages/jobs/FindJobsPage';
 import { InterviewPrepPage } from './pages/interview/InterviewPrepPage';
+import { LinkedInOptimizerPage } from './pages/linkedin/LinkedInOptimizerPage';
 import { SettingsPage } from './pages/settings/SettingsPage';
 import { CareerProfilePage } from './pages/profile/CareerProfilePage';
 import { ProfileSetupWizard } from './pages/profile/ProfileSetupWizard';
@@ -90,6 +91,7 @@ export function App() {
             <Route path="/jobs" element={<JobTrackerPage />} />
             <Route path="/find-jobs" element={<FindJobsPage />} />
             <Route path="/interview" element={<InterviewPrepPage />} />
+            <Route path="/linkedin" element={<LinkedInOptimizerPage />} />
             <Route path="/profile" element={<CareerProfilePage />} />
             <Route path="/profile/setup" element={<ProfileSetupWizard />} />
             <Route path="/settings" element={<SettingsPage />} />

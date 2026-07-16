@@ -40,6 +40,22 @@ export interface AnswerEvaluation {
   idealAnswer: string; // what a great answer would cover
 }
 
+export interface LinkedInOptimization {
+  headline: string; // optimized LinkedIn headline (220 chars max)
+  summary: string; // About section (2600 chars max, first person)
+  experienceBlurbs: Array<{
+    title: string;
+    company: string;
+    bullets: string[]; // 3-5 achievement-focused bullet points
+  }>;
+  skills: string[]; // top 15 skills to add to profile
+  recommendations: Array<{
+    section: string; // e.g. "Headline", "About", "Skills"
+    issue: string;
+    fix: string;
+  }>;
+}
+
 export interface AIProvider {
   /**
    * Send a message in an ongoing resume-building conversation.
@@ -116,4 +132,13 @@ export interface AIProvider {
    * feedback the candidate can act on before the next question.
    */
   evaluateAnswer(question: string, answer: string, jobDescription: string): Promise<AnswerEvaluation>;
+
+  /**
+   * Generate an optimized LinkedIn profile draft from a resume — headline,
+   * About section, per-role achievement bullets, a keyword-dense skills
+   * list, and a short audit of gaps in the profile as it likely stands
+   * today. Optional targetRole steers keyword choices toward the role the
+   * candidate is searching for rather than their current title.
+   */
+  optimizeLinkedIn(resume: Resume, targetRole?: string): Promise<LinkedInOptimization>;
 }

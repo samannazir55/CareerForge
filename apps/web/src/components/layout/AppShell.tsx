@@ -14,6 +14,7 @@ import {
   ClipboardList,
   Search,
   MessageSquare,
+  Linkedin,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useUIStore } from '../../store/ui.store';
@@ -31,6 +32,7 @@ const NAV_ITEMS = [
   { path: '/find-jobs', label: 'Find Jobs', icon: Search },
   { path: '/jobs', label: 'Job Tracker', icon: ClipboardList },
   { path: '/interview', label: 'Interview Prep', icon: MessageSquare },
+  { path: '/linkedin', label: 'LinkedIn', icon: Linkedin },
   { path: '/marketplace', label: 'Templates', icon: Store },
 ];
 

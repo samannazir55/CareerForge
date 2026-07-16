@@ -1,4 +1,4 @@
-import type { AIProvider, ChatMessage, ATSResult, JobMatchResult, InterviewQuestion, AnswerEvaluation } from './ai.provider.js';
+import type { AIProvider, ChatMessage, ATSResult, JobMatchResult, InterviewQuestion, AnswerEvaluation, LinkedInOptimization } from './ai.provider.js';
 import type { Resume, Section } from '@careerforge/schema';
 
 /**
@@ -184,5 +184,12 @@ export class FallbackAIProvider implements AIProvider {
 
   evaluateAnswer(question: string, answer: string, jobDescription: string): Promise<AnswerEvaluation> {
     return this.tryInOrder((p) => p.evaluateAnswer(question, answer, jobDescription), 'evaluateAnswer');
+  }
+
+  optimizeLinkedIn(resume: Resume, targetRole?: string): Promise<LinkedInOptimization> {
+    // Same tier as scoreATS/generateInterviewQuestions: safeJsonParse's
+    // fallback never throws, so a single attempt per provider is what
+    // actually reaches the next provider on a bad/empty completion.
+    return this.tryInOrder((p) => p.optimizeLinkedIn(resume, targetRole), 'optimizeLinkedIn');
   }
 }

@@ -358,6 +358,30 @@ export const interviewApi = {
     }),
 };
 
+export interface LinkedInOptimization {
+  headline: string;
+  summary: string;
+  experienceBlurbs: Array<{
+    title: string;
+    company: string;
+    bullets: string[];
+  }>;
+  skills: string[];
+  recommendations: Array<{
+    section: string;
+    issue: string;
+    fix: string;
+  }>;
+}
+
+export const linkedinApi = {
+  optimize: (resumeId: string, targetRole?: string) =>
+    request<{ optimization: LinkedInOptimization }>('/linkedin/optimize', {
+      method: 'POST',
+      body: { resumeId, targetRole },
+    }),
+};
+
 export const templatesApi = {
   list: () => request<{ templates: PublicTemplateListItem[] }>('/templates'),
   preview: (id: string) => requestText(`/templates/${id}/preview`),

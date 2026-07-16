@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import type { AIProvider, ChatMessage, ATSResult, JobMatchResult, InterviewQuestion, AnswerEvaluation } from './ai.provider.js';
+import type { AIProvider, ChatMessage, ATSResult, JobMatchResult, InterviewQuestion, AnswerEvaluation, LinkedInOptimization } from './ai.provider.js';
 import type { Resume, Section } from '@careerforge/schema';
 import { env } from '../../config/env.js';
 import { ConfigurationError, BadGatewayError } from '../../lib/errors.js';
@@ -271,6 +271,44 @@ For skills use key: name. Generate UUIDs as simple incrementing strings like "s1
       strengths: [],
       improvements: [],
       idealAnswer: 'Unable to evaluate this answer right now. Please try again.',
+    });
+  }
+
+  async optimizeLinkedIn(resume: Resume, targetRole?: string): Promise<LinkedInOptimization> {
+    const client = getClient();
+    const resumeText = resumeToText(resume);
+
+    const response = await client.messages.create({
+      model: MODEL,
+      max_tokens: 4096,
+      system: `You are a LinkedIn profile expert. Given this resume${targetRole ? ' and target role' : ''}, generate an optimized LinkedIn profile. Prioritize keyword density for recruiter searches, achievement-focused language, and first-person voice for the summary. Return ONLY valid JSON matching this exact shape, nothing else:
+{"headline":"","summary":"","experienceBlurbs":[{"title":"","company":"","bullets":["",""]}],"skills":["",""],"recommendations":[{"section":"","issue":"","fix":""}]}
+headline is max 220 characters. summary (the About section) is max 2600 characters, written in first person. experienceBlurbs has 3-5 achievement-focused bullets per role. skills lists the top 15 skills to add to the profile. recommendations is a short audit of gaps in the candidate's likely current profile (section names like "Headline", "About", "Skills", "Experience").`,
+      messages: [
+        {
+          role: 'user',
+          content: `RESUME:\n${resumeText}${targetRole ? `\n\nTARGET ROLE:\n${targetRole}` : ''}\n\nGenerate the optimized LinkedIn profile now.`,
+        },
+      ],
+    });
+
+    const text = response.content
+      .filter((b) => b.type === 'text')
+      .map((b) => (b as { type: 'text'; text: string }).text)
+      .join('');
+
+    return safeJsonParse<LinkedInOptimization>(text, {
+      headline: '',
+      summary: '',
+      experienceBlurbs: [],
+      skills: [],
+      recommendations: [
+        {
+          section: 'General',
+          issue: 'Unable to generate LinkedIn suggestions right now.',
+          fix: 'Please try again in a moment.',
+        },
+      ],
     });
   }
 }
