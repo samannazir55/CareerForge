@@ -7,7 +7,6 @@ import { recordAuditLog } from '../admin/auditLog.js';
 import type {
   CreatePromoCodeRequest,
   UpdatePromoCodeRequest,
-  PromoAudience,
   SendPromoCampaignRequest,
   SendPromoCampaignResponse,
 } from '@careerforge/schema';
@@ -177,7 +176,7 @@ export const promoCodeService = {
     const promo = await prisma.promoCode.findUnique({ where: { id: promoCodeId } });
     if (!promo) throw new NotFoundError('Promo code not found.');
 
-    const where = input.audience === 'ALL' ? {} : { subscriptionTier: input.audience as PromoAudience };
+    const where = input.audience === 'ALL' ? {} : { subscriptionTier: input.audience };
     const recipients = await prisma.user.findMany({
       where: { ...where, isEmailVerified: true },
       select: { id: true, email: true, fullName: true },
