@@ -110,4 +110,19 @@ export class ResendEmailProvider implements EmailProvider {
       throw new Error(`Failed to send email via Resend: ${error.message}`);
     }
   }
+
+  async sendRawEmail(params: { to: string; subject: string; html: string }): Promise<void> {
+    const client = this.getClient();
+
+    const { error } = await client.emails.send({
+      from: env.EMAIL_FROM,
+      to: params.to,
+      subject: params.subject,
+      html: params.html,
+    });
+
+    if (error) {
+      throw new Error(`Failed to send email via Resend: ${error.message}`);
+    }
+  }
 }

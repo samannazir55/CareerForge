@@ -16,4 +16,12 @@ export interface EmailProvider {
     pointsValue: number;
     expiresAt: string | null;
   }): Promise<void>;
+  /**
+   * Generic escape hatch for callers that build their own full HTML body
+   * (digest emails, reminders) rather than a fixed template baked into the
+   * provider itself — used by domain/email/digest.service.ts so adding a
+   * new email type there never requires touching this interface or its
+   * adapters again.
+   */
+  sendRawEmail(params: { to: string; subject: string; html: string }): Promise<void>;
 }

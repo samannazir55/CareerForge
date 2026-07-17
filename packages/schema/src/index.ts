@@ -12,3 +12,4 @@ export * from './templates.js';
 export * from './jobtracker.js';
 export * from './jobsearch.js';
 export * from './promo.js';
+export * from './emailPreferences.js';

@@ -2,7 +2,9 @@ import { Router } from 'express';
 import { requireAuth } from '../../middleware/authGuard.js';
 import { asyncHandler } from '../../lib/asyncHandler.js';
 import { prisma } from '../../lib/prisma.js';
-import { NotFoundError } from '../../lib/errors.js';
+import { NotFoundError, BadRequestError } from '../../lib/errors.js';
+import { UpdateEmailPreferenceRequestSchema } from '@careerforge/schema';
+import { getOrCreateEmailPreference } from '../email/digest.service.js';
 
 export const notificationsRouter = Router();
 
@@ -71,6 +73,43 @@ notificationsRouter.patch(
       data: { isRead: true },
     });
     res.status(200).json({ message: 'All notifications marked as read.' });
+  }),
+);
+
+/**
+ * GET /api/notifications/preferences
+ * Returns the caller's EmailPreference, creating one with schema defaults
+ * on first access (see getOrCreateEmailPreference in digest.service.ts).
+ */
+notificationsRouter.get(
+  '/preferences',
+  asyncHandler(async (req, res) => {
+    const preference = await getOrCreateEmailPreference(req.user!.id);
+    res.status(200).json({ preference });
+  }),
+);
+
+/**
+ * PATCH /api/notifications/preferences
+ * Body: Partial<{ weeklyDigest, resumeViewAlerts, jobApplicationReminders,
+ * interviewReminders, marketingEmails }>
+ * Upserts rather than update-only, so a user whose row hasn't been lazily
+ * created yet (e.g. flipping a toggle as their very first preferences
+ * interaction) doesn't 404 against a row that doesn't exist yet.
+ */
+notificationsRouter.patch(
+  '/preferences',
+  asyncHandler(async (req, res) => {
+    const parsed = UpdateEmailPreferenceRequestSchema.safeParse(req.body);
+    if (!parsed.success) throw new BadRequestError(parsed.error.errors[0]?.message ?? 'Invalid input.');
+
+    const preference = await prisma.emailPreference.upsert({
+      where: { userId: req.user!.id },
+      create: { userId: req.user!.id, ...parsed.data },
+      update: parsed.data,
+    });
+
+    res.status(200).json({ preference });
   }),
 );
 

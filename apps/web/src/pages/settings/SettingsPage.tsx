@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { User, CreditCard, Zap, CheckCircle2, Star, Gift } from 'lucide-react';
+import { User, CreditCard, Zap, CheckCircle2, Star, Gift, Bell } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
-import { paymentsApi, pointsApi, plansApi, type PublicPlan } from '../../lib/api';
+import { Switch } from '../../components/ui/Switch';
+import { paymentsApi, pointsApi, plansApi, notificationsApi, type PublicPlan, type EmailPreference, type UpdateEmailPreferenceRequest } from '../../lib/api';
 import { ApiError } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -43,6 +44,11 @@ export function SettingsPage() {
   const [redeemError, setRedeemError] = useState<string | null>(null);
   const [redeemSuccess, setRedeemSuccess] = useState<string | null>(null);
 
+  const [preference, setPreference] = useState<EmailPreference | null>(null);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savedBannerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   async function handleRedeem() {
     if (!redeemCode.trim()) return;
     setIsRedeeming(true);
@@ -61,6 +67,45 @@ export function SettingsPage() {
     }
   }
 
+  function handlePreferenceToggle(key: keyof UpdateEmailPreferenceRequest, value: boolean) {
+    if (!preference) return;
+    const updated = { ...preference, [key]: value };
+    setPreference(updated);
+
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    if (savedBannerTimeoutRef.current) clearTimeout(savedBannerTimeoutRef.current);
+
+    saveTimeoutRef.current = setTimeout(async () => {
+      setSaveStatus('saving');
+      try {
+        const { preference: saved } = await notificationsApi.updatePreferences({ [key]: value });
+        setPreference(saved);
+        setSaveStatus('saved');
+        savedBannerTimeoutRef.current = setTimeout(() => setSaveStatus('idle'), 2000);
+      } catch {
+        // Revert the optimistic toggle if the save actually failed, rather
+        // than leaving the UI showing a state the server never persisted.
+        setPreference((prev) => (prev ? { ...prev, [key]: !value } : prev));
+        setSaveStatus('idle');
+      }
+    }, 500);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      if (savedBannerTimeoutRef.current) clearTimeout(savedBannerTimeoutRef.current);
+    };
+  }, []);
+
+  const EMAIL_PREFERENCE_ITEMS: Array<{ key: keyof UpdateEmailPreferenceRequest; label: string; hint: string }> = [
+    { key: 'weeklyDigest', label: 'Weekly activity digest', hint: 'A Monday summary of views, points, and applications.' },
+    { key: 'resumeViewAlerts', label: 'Resume view alerts', hint: 'Get notified when someone views your shared resume.' },
+    { key: 'jobApplicationReminders', label: 'Job application reminders', hint: 'Nudges to follow up on applications gone quiet.' },
+    { key: 'interviewReminders', label: 'Interview reminders', hint: 'Reminders to keep up your interview practice.' },
+    { key: 'marketingEmails', label: 'Marketing emails', hint: 'Product news, tips, and occasional offers.' },
+  ];
+
   useEffect(() => {
     pointsApi.get().then((d) => {
       setBalance(d.balance);
@@ -68,6 +113,8 @@ export function SettingsPage() {
     }).catch(() => undefined);
 
     plansApi.list().then((d) => setPlans(d.plans)).catch(() => undefined);
+
+    notificationsApi.getPreferences().then((d) => setPreference(d.preference)).catch(() => undefined);
 
     const params = new URLSearchParams(window.location.search);
     if (params.get('success') === 'true') {
@@ -302,6 +349,44 @@ export function SettingsPage() {
             </div>
           </GlassCard>
         )}
+
+        {/* Email preferences */}
+        <GlassCard className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-lg bg-sky-500/15 flex items-center justify-center">
+                <Bell size={15} className="text-sky-400" />
+              </div>
+              <div>
+                <h2 className="font-semibold">Email Preferences</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">Choose which proactive emails you want to receive.</p>
+              </div>
+            </div>
+            <span
+              className={`text-xs text-emerald-400 flex items-center gap-1 transition-opacity duration-500 ${
+                saveStatus === 'saved' ? 'opacity-100' : 'opacity-0'
+              }`}
+            >
+              <CheckCircle2 size={12} /> Saved
+            </span>
+          </div>
+          <div className="space-y-0 divide-y divide-border">
+            {EMAIL_PREFERENCE_ITEMS.map(({ key, label, hint }) => (
+              <div key={key} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
+                <div>
+                  <p className="text-sm font-medium">{label}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{hint}</p>
+                </div>
+                <Switch
+                  checked={preference ? preference[key] : false}
+                  onChange={(value) => handlePreferenceToggle(key, value)}
+                  disabled={!preference}
+                  label={label}
+                />
+              </div>
+            ))}
+          </div>
+        </GlassCard>
 
         {/* Points history */}
         {transactions.length > 0 && (

@@ -65,6 +65,7 @@ model User {
   notifications        Notification[]
   promoCodesCreated    PromoCode[]           @relation("PromoCodeCreatedBy")
   promoCodeRedemptions PromoCodeRedemption[]
+  emailPreference      EmailPreference?
 
   @@map("users")
 }
@@ -350,6 +351,28 @@ model PromoCodeRedemption {
 
   @@index([promoCodeId, userId])
   @@map("promo_code_redemptions")
+}
+
+// ---------------------------------------------------------------------------
+// Email preferences — per-user opt in/out for each category of proactive
+// email (weekly digest, resume view alerts, job/interview reminders,
+// marketing). One row per user, created lazily on first read/write rather
+// than at signup, so existing users who predate this feature still get
+// sane defaults instead of a missing row breaking the scheduler's queries.
+// ---------------------------------------------------------------------------
+
+model EmailPreference {
+  id                      String   @id @default(uuid())
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId                  String   @unique
+  weeklyDigest            Boolean  @default(true)
+  resumeViewAlerts        Boolean  @default(true)
+  jobApplicationReminders Boolean  @default(true)
+  interviewReminders      Boolean  @default(true)
+  marketingEmails         Boolean  @default(false)
+  updatedAt               DateTime @default(now()) @updatedAt
+
+  @@map("email_preferences")
 }
 // ---------------------------------------------------------------------------
 // NEW ENUMS — Phase 6: Career Knowledge Base

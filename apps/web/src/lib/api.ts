@@ -463,6 +463,24 @@ export interface AppNotification {
   createdAt: string;
 }
 
+export interface EmailPreference {
+  id: string;
+  userId: string;
+  weeklyDigest: boolean;
+  resumeViewAlerts: boolean;
+  jobApplicationReminders: boolean;
+  interviewReminders: boolean;
+  marketingEmails: boolean;
+  updatedAt: string;
+}
+
+export type UpdateEmailPreferenceRequest = Partial<
+  Pick<
+    EmailPreference,
+    'weeklyDigest' | 'resumeViewAlerts' | 'jobApplicationReminders' | 'interviewReminders' | 'marketingEmails'
+  >
+>;
+
 export const notificationsApi = {
   list: (unreadOnly = false) =>
     request<{ notifications: AppNotification[]; unreadCount: number }>(
@@ -471,6 +489,9 @@ export const notificationsApi = {
   markRead: (id: string) => request<void>(`/notifications/${id}/read`, { method: 'PATCH' }),
   markAllRead: () => request<void>('/notifications/read-all', { method: 'PATCH' }),
   remove: (id: string) => request<void>(`/notifications/${id}`, { method: 'DELETE' }),
+  getPreferences: () => request<{ preference: EmailPreference }>('/notifications/preferences'),
+  updatePreferences: (body: UpdateEmailPreferenceRequest) =>
+    request<{ preference: EmailPreference }>('/notifications/preferences', { method: 'PATCH', body }),
 };
 
 export interface ResumeAnalytics {

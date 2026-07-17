@@ -5,6 +5,7 @@ import { asyncHandler } from '../../lib/asyncHandler.js';
 import { prisma } from '../../lib/prisma.js';
 import { NotFoundError } from '../../lib/errors.js';
 import { notify } from '../../lib/notify.js';
+import { sendResumeViewAlert } from '../email/digest.service.js';
 import { runMigrations } from '@careerforge/schema';
 import { resolveTemplate } from '../templates/templateResolver.js';
 
@@ -178,6 +179,14 @@ sharingRouter.get(
         'Someone viewed your resume',
         `${link.resume.title} was just viewed`,
         { resumeId: link.resume.id, slug: link.slug },
+      );
+
+      // Same cooldown-gated, fire-and-forget treatment as the notification
+      // above — an email alert per page refresh would be far more
+      // annoying than a repeated in-dashboard notification, so it rides
+      // the same 15-minute throttle rather than firing on every hit.
+      sendResumeViewAlert(link.resume.ownerId, link.resume.title).catch((err) =>
+        console.error('[sharing] failed to send resume view alert email:', err),
       );
     }
 
