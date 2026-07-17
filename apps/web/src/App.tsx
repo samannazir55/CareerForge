@@ -43,6 +43,7 @@ import { AdminUsersPage } from './pages/admin/AdminUsersPage';
 import { AdminTemplatesPage } from './pages/admin/AdminTemplatesPage';
 import { AdminPlansPage } from './pages/admin/AdminPlansPage';
 import { AdminPointsPage } from './pages/admin/AdminPointsPage';
+import { ResumeAnalyticsPage } from './pages/resumes/ResumeAnalyticsPage';
 import { AdminPromoCodesPage } from './pages/admin/AdminPromoCodesPage';
 import { AdminAuditPage } from './pages/admin/AdminAuditPage';
 import { AdminSeoPage } from './pages/admin/AdminSeoPage';
@@ -87,6 +88,7 @@ export function App() {
             <Route path="/resumes" element={<ResumesListPage />} />
             <Route path="/resumes/new/chat" element={<AIChatBuilderPage />} />
             <Route path="/resumes/:id" element={<ResumeEditorPage />} />
+            <Route path="/resumes/:id/analytics" element={<ResumeAnalyticsPage />} />
             <Route path="/resumes/:resumeId/chat" element={<AIChatBuilderPage />} />
             <Route path="/resumes/:resumeId/versions" element={<VersionHistoryPage />} />
             <Route path="/marketplace" element={<MarketplacePage />} />

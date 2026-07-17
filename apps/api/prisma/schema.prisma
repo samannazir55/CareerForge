@@ -162,6 +162,7 @@ model Resume {
 
   versions       ResumeVersion[]
   shareableLink  ShareableLink?
+  views          ResumeView[]
 
   @@index([ownerId])
   @@map("resumes")
@@ -277,6 +278,22 @@ model ShareableLink {
   updatedAt  DateTime @default(now()) @updatedAt
 
   @@map("shareable_links")
+}
+
+model ResumeView {
+  id         String   @id @default(uuid())
+  resume     Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  resumeId   String
+  viewerIp   String?
+  userAgent  String?
+  country    String?
+  city       String?
+  referrer   String?
+  duration   Int?     // seconds spent viewing, updated on leave via sendBeacon
+  createdAt  DateTime @default(now())
+
+  @@index([resumeId, createdAt])
+  @@map("resume_views")
 }
 
 // ---------------------------------------------------------------------------

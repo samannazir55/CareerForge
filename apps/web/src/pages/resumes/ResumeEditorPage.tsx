@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Plus, History, Download, FileType2, Sparkles, Lock } from 'lucide-react';
+import { Plus, History, Download, FileType2, Sparkles, Lock, BarChart3 } from 'lucide-react';
 import type { Resume, ResumeTheme, Section, SectionType } from '@careerforge/schema';
 import { createSection, createCustomSection, addSection, reorderSections, isDynamicTemplateId, DEFAULT_THEME, updateEntry, removeEntry, removeSection, ensureCanonicalSectionFields, ensureSummaryEntry, inferNameFieldsFromTitle } from '@careerforge/schema';
 import { resumeApi, ApiError } from '../../lib/api';
@@ -263,6 +263,9 @@ export function ResumeEditorPage() {
             </Button>
             <Button variant="ghost" size="sm" onClick={() => navigate(`/resumes/${id}/versions`)}>
               <History size={14} className="sm:mr-1.5" /> <span className="hidden sm:inline">History</span>
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => navigate(`/resumes/${id}/analytics`)}>
+              <BarChart3 size={14} className="sm:mr-1.5" /> <span className="hidden sm:inline">Analytics</span>
             </Button>
             <Button
               size="sm"

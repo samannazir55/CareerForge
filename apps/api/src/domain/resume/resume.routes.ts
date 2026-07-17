@@ -104,6 +104,21 @@ resumeRouter.delete(
   }),
 );
 
+// --- Sharing analytics ---------------------------------------------------------
+
+resumeRouter.get(
+  '/:id/analytics',
+  asyncHandler(async (req, res) => {
+    // getResume both loads the row and throws NotFoundError if this user
+    // doesn't own it — same ownership guard every other :id route here uses,
+    // so a stranger can't pull view analytics for someone else's resume by
+    // guessing an id.
+    await resumeService.getResume(req.params.id, req.user!.id);
+    const analytics = await resumeService.getResumeAnalytics(req.params.id);
+    res.status(200).json(analytics);
+  }),
+);
+
 // --- Version history ---------------------------------------------------------
 
 resumeRouter.post(

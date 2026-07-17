@@ -429,6 +429,7 @@ export const templatesApi = {
 export const sharingApi = {
   enable: (resumeId: string) => request<{ slug: string; isEnabled: boolean }>(`/resumes/${resumeId}/share`, { method: 'POST' }),
   disable: (resumeId: string) => request<void>(`/resumes/${resumeId}/share`, { method: 'DELETE' }),
+  getStatus: (resumeId: string) => request<{ slug: string | null; isEnabled: boolean }>(`/resumes/${resumeId}/share`),
   publicUrl: (slug: string) => `/api/public/${slug}`,
 };
 
@@ -470,4 +471,19 @@ export const notificationsApi = {
   markRead: (id: string) => request<void>(`/notifications/${id}/read`, { method: 'PATCH' }),
   markAllRead: () => request<void>('/notifications/read-all', { method: 'PATCH' }),
   remove: (id: string) => request<void>(`/notifications/${id}`, { method: 'DELETE' }),
+};
+
+export interface ResumeAnalytics {
+  totalViews: number;
+  uniqueViews: number;
+  viewsThisWeek: number;
+  viewsThisMonth: number;
+  avgDuration: number | null;
+  topReferrers: Array<{ referrer: string; count: number }>;
+  viewsByDay: Array<{ date: string; count: number }>;
+  recentViews: Array<{ viewerIp: string; country: string | null; createdAt: string; duration: number | null }>;
+}
+
+export const analyticsApi = {
+  getResumeAnalytics: (resumeId: string) => request<ResumeAnalytics>(`/resumes/${resumeId}/analytics`),
 };

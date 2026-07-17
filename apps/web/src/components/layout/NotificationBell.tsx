@@ -2,25 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, CheckCheck, Inbox } from 'lucide-react';
 import { notificationsApi, type AppNotification } from '../../lib/api';
-import { cn } from '../../lib/utils';
+import { cn, formatRelativeTime } from '../../lib/utils';
 
 const POLL_INTERVAL_MS = 60_000;
 const PANEL_ITEM_COUNT = 10;
 
-/** "2 minutes ago", "3 hours ago", "just now", falling back to a short date
- * once something is old enough that a relative phrase stops being useful. */
-function formatRelativeTime(iso: string): string {
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const diffSec = Math.max(0, Math.round(diffMs / 1000));
-  if (diffSec < 45) return 'just now';
-  const diffMin = Math.round(diffSec / 60);
-  if (diffMin < 60) return `${diffMin} minute${diffMin === 1 ? '' : 's'} ago`;
-  const diffHr = Math.round(diffMin / 60);
-  if (diffHr < 24) return `${diffHr} hour${diffHr === 1 ? '' : 's'} ago`;
-  const diffDay = Math.round(diffHr / 24);
-  if (diffDay < 7) return `${diffDay} day${diffDay === 1 ? '' : 's'} ago`;
-  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
 
 /**
  * Notification bell for the top nav. Fetches on mount, polls every 60s for

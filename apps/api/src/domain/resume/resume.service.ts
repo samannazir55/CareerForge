@@ -250,3 +250,107 @@ export async function compareVersions(resumeId: string, versionAId: string, vers
   const migratedB = migrateVersionInMemory(b);
   return diffSections(migratedA.sections, migratedB.sections);
 }
+
+// --- Sharing analytics ---------------------------------------------------------
+
+export interface ResumeAnalytics {
+  totalViews: number;
+  uniqueViews: number;
+  viewsThisWeek: number;
+  viewsThisMonth: number;
+  avgDuration: number | null;
+  topReferrers: Array<{ referrer: string; count: number }>;
+  viewsByDay: Array<{ date: string; count: number }>;
+  recentViews: Array<{ viewerIp: string; country: string | null; createdAt: string; duration: number | null }>;
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const VIEWS_BY_DAY_WINDOW_DAYS = 30;
+const RECENT_VIEWS_LIMIT = 20;
+const TOP_REFERRERS_LIMIT = 5;
+
+/** YYYY-MM-DD in UTC — used purely as a stable bucket key, not for display. */
+function dayKey(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+/**
+ * Caller (resume.routes.ts) already verified ownership via getResume before
+ * calling this — deliberately not re-checking here so this stays a plain
+ * aggregation function, not another place that has to know about auth.
+ *
+ * viewsByDay is bucketed in application code rather than a SQL date-trunc
+ * groupBy: Prisma's query builder has no portable "group by day" primitive,
+ * and at the per-resume-view volumes this feature deals with, pulling 30
+ * days of {createdAt} rows and reducing them in JS is simpler than reaching
+ * for a raw query and just as fast in practice.
+ */
+export async function getResumeAnalytics(resumeId: string): Promise<ResumeAnalytics> {
+  const now = new Date();
+  const weekAgo = new Date(now.getTime() - 7 * DAY_MS);
+  const monthAgo = new Date(now.getTime() - 30 * DAY_MS);
+  const windowStart = new Date(now.getTime() - (VIEWS_BY_DAY_WINDOW_DAYS - 1) * DAY_MS);
+
+  const [totalViews, viewsThisWeek, viewsThisMonth, uniqueIps, durationAgg, referrerGroups, windowViews, recentRows] =
+    await Promise.all([
+      prisma.resumeView.count({ where: { resumeId } }),
+      prisma.resumeView.count({ where: { resumeId, createdAt: { gte: weekAgo } } }),
+      prisma.resumeView.count({ where: { resumeId, createdAt: { gte: monthAgo } } }),
+      prisma.resumeView.groupBy({ by: ['viewerIp'], where: { resumeId, viewerIp: { not: null } } }),
+      prisma.resumeView.aggregate({ where: { resumeId, duration: { not: null } }, _avg: { duration: true } }),
+      prisma.resumeView.groupBy({
+        by: ['referrer'],
+        where: { resumeId },
+        _count: { _all: true },
+      }),
+      prisma.resumeView.findMany({
+        where: { resumeId, createdAt: { gte: windowStart } },
+        select: { createdAt: true },
+      }),
+      prisma.resumeView.findMany({
+        where: { resumeId },
+        orderBy: { createdAt: 'desc' },
+        take: RECENT_VIEWS_LIMIT,
+        select: { viewerIp: true, country: true, createdAt: true, duration: true },
+      }),
+    ]);
+
+  const topReferrers = referrerGroups
+    .map((g) => ({ referrer: g.referrer && g.referrer.trim() ? g.referrer : 'Direct', count: g._count._all }))
+    .reduce<Array<{ referrer: string; count: number }>>((acc, curr) => {
+      // Multiple raw referrer URLs can normalize to the same "Direct" bucket
+      // once nulls/empties collapse together — merge those before sorting.
+      const existing = acc.find((r) => r.referrer === curr.referrer);
+      if (existing) existing.count += curr.count;
+      else acc.push({ ...curr });
+      return acc;
+    }, [])
+    .sort((a, b) => b.count - a.count)
+    .slice(0, TOP_REFERRERS_LIMIT);
+
+  const byDay = new Map<string, number>();
+  for (let i = 0; i < VIEWS_BY_DAY_WINDOW_DAYS; i++) {
+    byDay.set(dayKey(new Date(windowStart.getTime() + i * DAY_MS)), 0);
+  }
+  for (const v of windowViews) {
+    const key = dayKey(v.createdAt);
+    byDay.set(key, (byDay.get(key) ?? 0) + 1);
+  }
+  const viewsByDay = Array.from(byDay.entries()).map(([date, count]) => ({ date, count }));
+
+  return {
+    totalViews,
+    uniqueViews: uniqueIps.length,
+    viewsThisWeek,
+    viewsThisMonth,
+    avgDuration: durationAgg._avg.duration != null ? Math.round(durationAgg._avg.duration) : null,
+    topReferrers,
+    viewsByDay,
+    recentViews: recentRows.map((r) => ({
+      viewerIp: r.viewerIp ?? 'unknown',
+      country: r.country,
+      createdAt: r.createdAt.toISOString(),
+      duration: r.duration,
+    })),
+  };
+}
