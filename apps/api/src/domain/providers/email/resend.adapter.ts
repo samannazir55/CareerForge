@@ -71,4 +71,43 @@ export class ResendEmailProvider implements EmailProvider {
       throw new Error(`Failed to send email via Resend: ${error.message}`);
     }
   }
+
+  async sendPromoCodeEmail(params: {
+    to: string;
+    fullName: string | null;
+    subject: string;
+    message: string;
+    code: string;
+    pointsValue: number;
+    expiresAt: string | null;
+  }): Promise<void> {
+    const client = this.getClient();
+    const greeting = params.fullName ? `Hi ${params.fullName},` : 'Hi,';
+    const expiryLine = params.expiresAt
+      ? `<p style="font-size: 13px; color: #888;">This code expires on ${new Date(params.expiresAt).toLocaleDateString()}.</p>`
+      : '';
+
+    const { error } = await client.emails.send({
+      from: env.EMAIL_FROM,
+      to: params.to,
+      subject: params.subject,
+      html: `
+        <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+          <p>${greeting}</p>
+          <p>${params.message}</p>
+          <div style="text-align: center; margin: 24px 0;">
+            <span style="display: inline-block; font-size: 24px; font-weight: bold; letter-spacing: 3px; padding: 12px 24px; border: 2px dashed #6366f1; border-radius: 12px;">
+              ${params.code}
+            </span>
+          </div>
+          <p style="text-align: center; color: #555;">Redeem this code in your dashboard for <strong>${params.pointsValue} points</strong>.</p>
+          ${expiryLine}
+        </div>
+      `,
+    });
+
+    if (error) {
+      throw new Error(`Failed to send email via Resend: ${error.message}`);
+    }
+  }
 }

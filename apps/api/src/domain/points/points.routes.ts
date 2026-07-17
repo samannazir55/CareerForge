@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { requireAuth, requireVerifiedEmail } from '../../middleware/authGuard.js';
 import { asyncHandler } from '../../lib/asyncHandler.js';
 import { pointsService } from './points.service.js';
+import { promoCodeService } from '../promo/promo.service.js';
+import { RedeemPromoCodeRequestSchema } from '@careerforge/schema';
 import { getAllTemplateMetadata, isPremiumTemplate } from '@careerforge/templates';
 import { prisma } from '../../lib/prisma.js';
 import { BadRequestError } from '../../lib/errors.js';
@@ -28,6 +30,20 @@ pointsRouter.get(
       pointsService.getTransactions(req.user!.id),
     ]);
     res.status(200).json({ balance, transactions });
+  }),
+);
+
+pointsRouter.post(
+  '/redeem',
+  requireAuth,
+  requireVerifiedEmail,
+  asyncHandler(async (req, res) => {
+    const parsed = RedeemPromoCodeRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      throw new BadRequestError(parsed.error.errors[0]?.message ?? 'Invalid input.');
+    }
+    const result = await promoCodeService.redeem(req.user!.id, parsed.data.code);
+    res.status(200).json(result);
   }),
 );
 

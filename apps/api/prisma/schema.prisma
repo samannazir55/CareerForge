@@ -63,6 +63,8 @@ model User {
   jobApplications      JobApplication[]
   adminAuditLogs       AdminAuditLog[]      @relation("AdminAuditLogAdmin")
   notifications        Notification[]
+  promoCodesCreated    PromoCode[]           @relation("PromoCodeCreatedBy")
+  promoCodeRedemptions PromoCodeRedemption[]
 
   @@map("users")
 }
@@ -198,6 +200,7 @@ enum PointsEarnReason {
   DAILY_USAGE
   REFERRAL
   ADMIN_GRANT
+  PROMO_CODE
 }
 
 enum PointsSpendReason {
@@ -293,6 +296,43 @@ model Notification {
 
   @@index([userId, isRead, createdAt])
   @@map("notifications")
+}
+
+// ---------------------------------------------------------------------------
+// Promo codes — admin-issued codes redeemable by users for bonus points
+// (e.g. a "New Year" campaign). Redemptions are logged separately from the
+// code itself so a single code can be capped globally (maxRedemptions) and
+// per-user (perUserLimit) without ever mutating the code row on redeem.
+// ---------------------------------------------------------------------------
+
+model PromoCode {
+  id             String    @id @default(uuid())
+  code           String    @unique
+  pointsValue    Int
+  description    String?
+  maxRedemptions Int?      // total redemptions allowed across all users; null = unlimited
+  perUserLimit   Int       @default(1)
+  expiresAt      DateTime?
+  isActive       Boolean   @default(true)
+  createdBy      String
+  creator        User      @relation("PromoCodeCreatedBy", fields: [createdBy], references: [id])
+  redemptions    PromoCodeRedemption[]
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @default(now()) @updatedAt
+
+  @@map("promo_codes")
+}
+
+model PromoCodeRedemption {
+  id          String    @id @default(uuid())
+  promoCode   PromoCode @relation(fields: [promoCodeId], references: [id], onDelete: Cascade)
+  promoCodeId String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  createdAt   DateTime  @default(now())
+
+  @@index([promoCodeId, userId])
+  @@map("promo_code_redemptions")
 }
 // ---------------------------------------------------------------------------
 // NEW ENUMS — Phase 6: Career Knowledge Base

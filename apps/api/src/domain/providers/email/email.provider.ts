@@ -7,4 +7,13 @@
 export interface EmailProvider {
   sendOtpEmail(params: { to: string; fullName: string | null; code: string; purpose: 'verify' | 'reset' }): Promise<void>;
   sendWelcomeEmail(params: { to: string; fullName: string | null }): Promise<void>;
+  sendPromoCodeEmail(params: {
+    to: string;
+    fullName: string | null;
+    subject: string;
+    message: string;
+    code: string;
+    pointsValue: number;
+    expiresAt: string | null;
+  }): Promise<void>;
 }

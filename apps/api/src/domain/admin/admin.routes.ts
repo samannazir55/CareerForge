@@ -8,6 +8,9 @@ import {
   UpsertSubscriptionPlanRequestSchema,
   GrantPointsRequestSchema,
   UpdateUserRoleRequestSchema,
+  CreatePromoCodeRequestSchema,
+  UpdatePromoCodeRequestSchema,
+  SendPromoCampaignRequestSchema,
   TEMPLATE_FAMILIES,
   TemplateFamilySchema,
 } from '@careerforge/schema';
@@ -17,6 +20,7 @@ import { adminUsersService } from './users.service.js';
 import { adminDashboardService } from './dashboard.service.js';
 import { adminAuditService } from './audit.service.js';
 import { dynamicTemplatesService } from './dynamicTemplates.service.js';
+import { promoCodeService } from '../promo/promo.service.js';
 import { aiProvider } from '../ai/index.js';
 import { generateTemplateViaProvider } from './templateGeneration.js';
 import { SAMPLE_RESUME } from './sampleResume.js';
@@ -268,6 +272,58 @@ adminRouter.get(
         createdAt:   t.createdAt.toISOString(),
       })),
     });
+  }),
+);
+
+// ---------------------------------------------------------------------------
+// Promo codes
+// ---------------------------------------------------------------------------
+
+adminRouter.get(
+  '/promo-codes',
+  asyncHandler(async (_req, res) => {
+    const promoCodes = await promoCodeService.list();
+    res.status(200).json({ promoCodes });
+  }),
+);
+
+adminRouter.post(
+  '/promo-codes',
+  asyncHandler(async (req, res) => {
+    const parsed = CreatePromoCodeRequestSchema.safeParse(req.body);
+    if (!parsed.success) throw new BadRequestError(parsed.error.errors[0]?.message ?? 'Invalid input.');
+    const promoCode = await promoCodeService.create(req.user!.id, parsed.data);
+    res.status(201).json({ promoCode });
+  }),
+);
+
+adminRouter.put(
+  '/promo-codes/:id',
+  asyncHandler(async (req, res) => {
+    const parsed = UpdatePromoCodeRequestSchema.safeParse(req.body);
+    if (!parsed.success) throw new BadRequestError(parsed.error.errors[0]?.message ?? 'Invalid input.');
+    const promoCode = await promoCodeService.update(req.user!.id, req.params.id, parsed.data);
+    res.status(200).json({ promoCode });
+  }),
+);
+
+adminRouter.delete(
+  '/promo-codes/:id',
+  asyncHandler(async (req, res) => {
+    await promoCodeService.deactivate(req.user!.id, req.params.id);
+    res.status(200).json({ success: true });
+  }),
+);
+
+// POST /admin/promo-codes/:id/send — broadcast the code to a user segment
+// via email + in-dashboard notification (e.g. "New Year" campaign).
+adminRouter.post(
+  '/promo-codes/:id/send',
+  asyncHandler(async (req, res) => {
+    const parsed = SendPromoCampaignRequestSchema.safeParse(req.body);
+    if (!parsed.success) throw new BadRequestError(parsed.error.errors[0]?.message ?? 'Invalid input.');
+    const result = await promoCodeService.sendCampaign(req.user!.id, req.params.id, parsed.data);
+    res.status(200).json(result);
   }),
 );
 

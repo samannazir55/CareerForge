@@ -43,6 +43,7 @@ import { AdminUsersPage } from './pages/admin/AdminUsersPage';
 import { AdminTemplatesPage } from './pages/admin/AdminTemplatesPage';
 import { AdminPlansPage } from './pages/admin/AdminPlansPage';
 import { AdminPointsPage } from './pages/admin/AdminPointsPage';
+import { AdminPromoCodesPage } from './pages/admin/AdminPromoCodesPage';
 import { AdminAuditPage } from './pages/admin/AdminAuditPage';
 import { AdminSeoPage } from './pages/admin/AdminSeoPage';
 
@@ -107,6 +108,7 @@ export function App() {
                 <Route path="templates" element={<AdminTemplatesPage />} />
                 <Route path="plans" element={<AdminPlansPage />} />
                 <Route path="points" element={<AdminPointsPage />} />
+                <Route path="promo-codes" element={<AdminPromoCodesPage />} />
                 <Route path="audit" element={<AdminAuditPage />} />
                 <Route path="seo" element={<AdminSeoPage />} />
               </Route>

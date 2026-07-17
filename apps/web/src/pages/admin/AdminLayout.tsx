@@ -7,6 +7,7 @@ import {
   CreditCard,
   Users,
   Coins,
+  Ticket,
   ScrollText,
   Search,
   ChevronLeft,
@@ -52,6 +53,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { path: '/admin/users', label: 'All Users', icon: Users },
       { path: '/admin/points', label: 'Points Economy', icon: Coins },
+      { path: '/admin/promo-codes', label: 'Promo Codes', icon: Ticket },
     ],
   },
   {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { User, CreditCard, Zap, CheckCircle2, Star } from 'lucide-react';
+import { User, CreditCard, Zap, CheckCircle2, Star, Gift } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
@@ -38,6 +38,28 @@ export function SettingsPage() {
   const [loadingCheckout, setLoadingCheckout] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [redeemCode, setRedeemCode] = useState('');
+  const [isRedeeming, setIsRedeeming] = useState(false);
+  const [redeemError, setRedeemError] = useState<string | null>(null);
+  const [redeemSuccess, setRedeemSuccess] = useState<string | null>(null);
+
+  async function handleRedeem() {
+    if (!redeemCode.trim()) return;
+    setIsRedeeming(true);
+    setRedeemError(null);
+    setRedeemSuccess(null);
+    try {
+      const { pointsAwarded, newBalance } = await pointsApi.redeem(redeemCode.trim());
+      setBalance(newBalance);
+      setRedeemSuccess(`+${pointsAwarded} points added to your balance!`);
+      setRedeemCode('');
+      pointsApi.get().then((d) => setTransactions(d.transactions)).catch(() => undefined);
+    } catch (e) {
+      setRedeemError(e instanceof ApiError ? e.message : 'Failed to redeem code.');
+    } finally {
+      setIsRedeeming(false);
+    }
+  }
 
   useEffect(() => {
     pointsApi.get().then((d) => {
@@ -151,7 +173,32 @@ export function SettingsPage() {
           </div>
         </GlassCard>
 
-        {/* Subscription plans */}
+        {/* Redeem a promo code */}
+        <GlassCard className="mb-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-8 w-8 rounded-lg bg-amber-500/15 flex items-center justify-center">
+              <Gift size={15} className="text-amber-400" />
+            </div>
+            <div>
+              <h2 className="font-semibold">Redeem a code</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Got a promo code from us? Enter it here for bonus points.</p>
+            </div>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <input
+              value={redeemCode}
+              onChange={(e) => { setRedeemCode(e.target.value.toUpperCase()); setRedeemError(null); setRedeemSuccess(null); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleRedeem(); }}
+              placeholder="e.g. NEWYEAR2027"
+              className="flex-1 h-10 rounded-xl border border-input bg-background px-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            <Button onClick={handleRedeem} disabled={isRedeeming || !redeemCode.trim()}>
+              {isRedeeming ? 'Redeeming…' : 'Redeem'}
+            </Button>
+          </div>
+          {redeemError && <p className="text-sm text-destructive mt-3">{redeemError}</p>}
+          {redeemSuccess && <p className="text-sm text-emerald-400 mt-3">{redeemSuccess}</p>}
+        </GlassCard>
         <div className="flex items-center gap-3 mb-4">
           <div className="h-8 w-8 rounded-lg bg-purple-500/15 flex items-center justify-center">
             <CreditCard size={15} className="text-purple-400" />

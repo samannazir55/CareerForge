@@ -10,6 +10,11 @@ import type {
   GrantPointsRequest,
   UpdateUserRoleRequest,
   AdminAuditLogEntry,
+  PromoCode,
+  CreatePromoCodeRequest,
+  UpdatePromoCodeRequest,
+  SendPromoCampaignRequest,
+  SendPromoCampaignResponse,
 } from '@careerforge/schema';
 
 export interface DynamicTemplate {
@@ -125,4 +130,16 @@ export const adminApi = {
   // SEO
   getPageSpeed: (url: string, strategy: 'mobile' | 'desktop') =>
     request<PageSpeedResult>(`/admin/seo/pagespeed?url=${encodeURIComponent(url)}&strategy=${strategy}`),
+
+  // Promo codes
+  listPromoCodes: () =>
+    request<{ promoCodes: PromoCode[] }>('/admin/promo-codes'),
+  createPromoCode: (body: CreatePromoCodeRequest) =>
+    request<{ promoCode: PromoCode }>('/admin/promo-codes', { method: 'POST', body }),
+  updatePromoCode: (id: string, body: UpdatePromoCodeRequest) =>
+    request<{ promoCode: PromoCode }>(`/admin/promo-codes/${id}`, { method: 'PUT', body }),
+  deactivatePromoCode: (id: string) =>
+    request<{ success: boolean }>(`/admin/promo-codes/${id}`, { method: 'DELETE' }),
+  sendPromoCampaign: (id: string, body: SendPromoCampaignRequest) =>
+    request<SendPromoCampaignResponse>(`/admin/promo-codes/${id}/send`, { method: 'POST', body }),
 };
