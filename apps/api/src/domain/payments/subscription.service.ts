@@ -4,6 +4,7 @@ import { StripePaymentProvider } from './stripe.adapter.js';
 import { pointsService } from '../points/points.service.js';
 import { env } from '../../config/env.js';
 import { BadRequestError, NotFoundError } from '../../lib/errors.js';
+import { notify } from '../../lib/notify.js';
 import type { SubscriptionTier } from '@careerforge/schema';
 
 const paymentProvider = new StripePaymentProvider();
@@ -74,6 +75,10 @@ export async function handleWebhook(payload: Buffer, signature: string): Promise
         data: { subscriptionTier: 'FREE' },
       }),
     ]);
+    await notify(subscription.userId, 'subscription_changed', 'Plan updated', 'You are now on FREE', {
+      tier: 'FREE',
+      status: 'CANCELED',
+    });
     return;
   }
 
@@ -102,6 +107,7 @@ export async function handleWebhook(payload: Buffer, signature: string): Promise
           data: { subscriptionTier: tier },
         }),
       ]);
+      await notify(sub.userId, 'subscription_changed', 'Plan updated', `You are now on ${tier}`, { tier, status });
     } else {
       // New subscription — find user by Stripe customer ID stored in metadata
       // or by looking up who initiated the checkout session.
@@ -134,6 +140,10 @@ export async function handleWebhook(payload: Buffer, signature: string): Promise
           data: { subscriptionTier: tier },
         }),
       ]);
+      await notify(existingSub.userId, 'subscription_changed', 'Plan updated', `You are now on ${tier}`, {
+        tier,
+        status,
+      });
     }
 
     // Award points for upgrading to premium

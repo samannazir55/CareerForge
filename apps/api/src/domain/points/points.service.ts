@@ -1,5 +1,6 @@
 import { prisma } from '../../lib/prisma.js';
 import type { PointsEarnReason, PointsSpendReason } from '@prisma/client';
+import { notify } from '../../lib/notify.js';
 
 /**
  * Points ledger service. The user's balance is ALWAYS derived from summing
@@ -41,6 +42,17 @@ export const pointsService = {
         data: { pointsBalance: { increment: amount } },
       }),
     ]);
+
+    // notify() already swallows its own errors (see lib/notify.ts) — a
+    // failed notification write must never undo or fail a points award
+    // that already committed above.
+    await notify(
+      userId,
+      'points_earned',
+      `You earned ${amount} points`,
+      description ? `For: ${description}` : `Reason: ${reason.toLowerCase().replace(/_/g, ' ')}`,
+      { amount, reason },
+    );
   },
 
   async spend(

@@ -4,10 +4,18 @@ import { requireAuth, requireVerifiedEmail } from '../../middleware/authGuard.js
 import { asyncHandler } from '../../lib/asyncHandler.js';
 import { prisma } from '../../lib/prisma.js';
 import { NotFoundError } from '../../lib/errors.js';
+import { notify } from '../../lib/notify.js';
 import { runMigrations } from '@careerforge/schema';
 import { resolveTemplate } from '../templates/templateResolver.js';
 
 export const sharingRouter = Router();
+
+// Don't fire a fresh "resume viewed" notification on every single hit —
+// page refreshes, link-preview crawlers, and repeat visits within a short
+// window would otherwise spam the owner with one notification per request.
+// viewCount/lastViewedAt still update on every hit either way; only the
+// notification itself is throttled.
+const VIEW_NOTIFICATION_COOLDOWN_MS = 15 * 60 * 1000; // 15 minutes
 
 // Enable/create shareable link for a resume
 sharingRouter.post(
@@ -56,6 +64,29 @@ sharingRouter.get(
     });
 
     if (!link || !link.isEnabled) throw new NotFoundError('Resume not found or link disabled.');
+
+    const now = new Date();
+    const shouldNotify =
+      !link.lastViewNotifiedAt || now.getTime() - link.lastViewNotifiedAt.getTime() > VIEW_NOTIFICATION_COOLDOWN_MS;
+
+    await prisma.shareableLink.update({
+      where: { id: link.id },
+      data: {
+        viewCount: { increment: 1 },
+        lastViewedAt: now,
+        ...(shouldNotify ? { lastViewNotifiedAt: now } : {}),
+      },
+    });
+
+    if (shouldNotify) {
+      await notify(
+        link.resume.ownerId,
+        'resume_viewed',
+        'Your resume was viewed',
+        `Someone viewed "${link.resume.title}"`,
+        { resumeId: link.resume.id, slug: link.slug },
+      );
+    }
 
     const { payload: resume } = runMigrations({
       schemaVersion: link.resume.schemaVersion,

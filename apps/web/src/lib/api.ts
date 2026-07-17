@@ -449,3 +449,24 @@ export const jobSearchApi = {
     return request<JobSearchResponse>(`/job-search?${qs}`);
   },
 };
+
+export interface AppNotification {
+  id: string;
+  userId: string;
+  type: string;
+  title: string;
+  body: string;
+  isRead: boolean;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export const notificationsApi = {
+  list: (unreadOnly = false) =>
+    request<{ notifications: AppNotification[]; unreadCount: number }>(
+      `/notifications${unreadOnly ? '?unreadOnly=true' : ''}`,
+    ),
+  markRead: (id: string) => request<void>(`/notifications/${id}/read`, { method: 'PATCH' }),
+  markAllRead: () => request<void>('/notifications/read-all', { method: 'PATCH' }),
+  remove: (id: string) => request<void>(`/notifications/${id}`, { method: 'DELETE' }),
+};

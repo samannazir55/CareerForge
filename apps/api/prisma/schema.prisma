@@ -62,6 +62,7 @@ model User {
   conversationSessions ConversationSession[]
   jobApplications      JobApplication[]
   adminAuditLogs       AdminAuditLog[]      @relation("AdminAuditLogAdmin")
+  notifications        Notification[]
 
   @@map("users")
 }
@@ -260,10 +261,38 @@ model ShareableLink {
   resumeId   String   @unique
   slug       String   @unique
   isEnabled  Boolean  @default(true)
+  // View analytics + resume_viewed notification throttling (see
+  // domain/sharing/sharing.routes.ts). lastViewNotifiedAt is tracked
+  // separately from lastViewedAt: every hit bumps viewCount/lastViewedAt,
+  // but a notification only fires once per cooldown window so a page
+  // refresh (or a crawler) doesn't spam the owner with one notification
+  // per request.
+  viewCount          Int       @default(0)
+  lastViewedAt       DateTime?
+  lastViewNotifiedAt DateTime?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @default(now()) @updatedAt
 
   @@map("shareable_links")
+}
+
+// ---------------------------------------------------------------------------
+// Notifications
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  type      String   // e.g. "points_earned", "resume_viewed", "subscription_changed", "interview_completed"
+  title     String
+  body      String
+  isRead    Boolean  @default(false)
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead, createdAt])
+  @@map("notifications")
 }
 // ---------------------------------------------------------------------------
 // NEW ENUMS — Phase 6: Career Knowledge Base

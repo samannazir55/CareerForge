@@ -6,6 +6,7 @@ import { aiProvider, type InterviewQuestion, type AnswerEvaluation } from '../ai
 import { prisma } from '../../lib/prisma.js';
 import { runMigrations } from '@careerforge/schema';
 import { NotFoundError, BadRequestError } from '../../lib/errors.js';
+import { notify } from '../../lib/notify.js';
 import rateLimit from 'express-rate-limit';
 
 // Same cast used by resume.service.ts and admin/auditLog.ts for every
@@ -216,6 +217,14 @@ interviewRouter.post(
         },
       },
     });
+
+    await notify(
+      req.user!.id,
+      'interview_completed',
+      'Interview session saved',
+      `Overall score: ${overallScore}%`,
+      { sessionId: session.id, overallScore, resumeId },
+    );
 
     res.status(200).json({ sessionId: session.id, overallScore, summary });
   }),

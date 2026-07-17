@@ -22,6 +22,7 @@ import { useUIStore } from '../../store/ui.store';
 import { pointsApi } from '../../lib/api';
 import { cn } from '../../lib/utils';
 import { LogoMark } from '../ui/LogoMark';
+import { NotificationBell } from './NotificationBell';
 
 interface AppShellProps {
   children: ReactNode;
@@ -132,6 +133,9 @@ export function AppShell({ children }: AppShellProps) {
               {user.subscriptionTier.toLowerCase()}
             </div>
           )}
+
+          {/* Notifications */}
+          <NotificationBell />
 
           {/* Theme toggle */}
           <button
