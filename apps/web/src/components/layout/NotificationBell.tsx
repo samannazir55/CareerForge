@@ -64,6 +64,27 @@ export function NotificationBell() {
     return () => clearInterval(interval);
   }, []);
 
+  // Close on outside click/tap. Deliberately NOT the "invisible fixed
+  // overlay div" pattern — this header has backdrop-blur (glass-panel),
+  // which makes it a containing block for any position:fixed descendant,
+  // so a fixed overlay nested in here only ever covers the header's own
+  // box, not the real viewport, and never catches clicks on the page
+  // below it. A document-level listener isn't affected by that.
+  useEffect(() => {
+    if (!open) return;
+    function handlePointerDown(e: MouseEvent | TouchEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+    };
+  }, [open]);
+
   const handleOpenNotification = (notification: AppNotification) => {
     if (!notification.isRead) {
       setNotifications((prev) => prev.map((n) => (n.id === notification.id ? { ...n, isRead: true } : n)));
@@ -100,7 +121,6 @@ export function NotificationBell() {
       <AnimatePresence>
         {open && (
           <>
-            <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
             <motion.div
               initial={{ opacity: 0, y: -8, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}

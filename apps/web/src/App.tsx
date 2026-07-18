@@ -33,6 +33,7 @@ import { InterviewPrepPage } from './pages/interview/InterviewPrepPage';
 import { LinkedInOptimizerPage } from './pages/linkedin/LinkedInOptimizerPage';
 import { CareerCoachPage } from './pages/coach/CareerCoachPage';
 import { SettingsPage } from './pages/settings/SettingsPage';
+import { ContactPage } from './pages/contact/ContactPage';
 import { CareerProfilePage } from './pages/profile/CareerProfilePage';
 import { ProfileSetupWizard } from './pages/profile/ProfileSetupWizard';
 
@@ -104,6 +105,7 @@ export function App() {
             <Route path="/profile" element={<CareerProfilePage />} />
             <Route path="/profile/setup" element={<ProfileSetupWizard />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/contact" element={<ContactPage />} />
             <Route path="/settings/subscription" element={<SettingsPage />} />
 
             {/* Admin panel — ADMIN role required */}

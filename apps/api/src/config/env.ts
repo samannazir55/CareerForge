@@ -37,20 +37,17 @@ const EnvSchema = z.object({
   GITHUB_REDIRECT_URI: z.string().optional().default(''),
 
   // No "console"/dev fallback by design: emails are a real integration, not
-  // a mockable one. Without real SMTP credentials, send calls fail loudly
-  // (see hostinger.adapter.ts) rather than silently pretending to succeed.
-  EMAIL_PROVIDER: z.enum(['hostinger']).default('hostinger'),
-  // Hostinger/Titan mailbox SMTP credentials — get these from Titan
-  // Webmail → Settings → Configure 3rd party apps (or hPanel → Emails →
-  // Manage → Connect Apps & Devices) for the mailbox you want to send from.
-  SMTP_HOST: z.string().optional().default(''),
-  SMTP_PORT: z.coerce.number().default(465),
-  SMTP_USER: z.string().optional().default(''),
-  SMTP_PASSWORD: z.string().optional().default(''),
+  // a mockable one. Without a real RESEND_API_KEY, send calls fail loudly
+  // (see resend.adapter.ts) rather than silently pretending to succeed.
+  EMAIL_PROVIDER: z.enum(['resend']).default('resend'),
+  RESEND_API_KEY: z.string().optional().default(''),
   EMAIL_FROM: z.string().default('Corvyx <noreply@example.com>'),
 
   // Optional — only used by prisma/seed.ts to create an initial admin user.
   SEED_ADMIN_EMAIL: z.string().optional().default(''),
+  // Where the in-app Contact Us form (Suggestion / Bug Report) sends its
+  // admin notification email — see domain/contact/contact.service.ts.
+  CONTACT_INBOX_EMAIL: z.string().default('connect@corvyx.app'),
   SEED_ADMIN_PASSWORD: z.string().optional().default(''),
 
   // Required for PDF export. Set to the path of a Chromium or Chrome binary.

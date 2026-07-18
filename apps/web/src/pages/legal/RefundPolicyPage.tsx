@@ -38,7 +38,7 @@ export function RefundPolicyPage() {
       <h2>5. Contact us</h2>
       <p>
         For refund requests or billing questions:{' '}
-        <a href="mailto:REPLACE_WITH_SUPPORT_EMAIL">REPLACE_WITH_SUPPORT_EMAIL</a>
+        <a href="mailto:connect@corvyx.app">connect@corvyx.app</a>
       </p>
     </LegalPageLayout>
   );

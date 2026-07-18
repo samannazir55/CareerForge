@@ -51,7 +51,7 @@ export function PrivacyPolicyPage() {
       <ul>
         <li><strong>Stripe</strong> — payment processing and subscription billing</li>
         <li><strong>Google / GitHub</strong> — optional sign-in (only if you choose to use them)</li>
-        <li><strong>Hostinger</strong> — transactional email (verification codes, password resets, activity digests) sent through our Hostinger-hosted mailbox</li>
+        <li><strong>Resend</strong> — transactional email (verification codes, password resets)</li>
         <li><strong>Cloudinary</strong> — storage for uploaded profile photos and images</li>
         <li><strong>Google Analytics</strong> — aggregate, anonymized usage analytics</li>
         <li><strong>Our AI providers</strong> (Anthropic / OpenAI / Groq via OpenRouter) — described in Section 3</li>
@@ -86,7 +86,7 @@ export function PrivacyPolicyPage() {
       <h2>10. Contact us</h2>
       <p>
         Questions about this policy or your data:{' '}
-        <a href="mailto:REPLACE_WITH_SUPPORT_EMAIL">REPLACE_WITH_SUPPORT_EMAIL</a>
+        <a href="mailto:connect@corvyx.app">connect@corvyx.app</a>
         <br />
         REPLACE_WITH_BUSINESS_NAME_AND_ADDRESS
       </p>

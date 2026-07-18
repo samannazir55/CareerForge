@@ -494,6 +494,31 @@ export const notificationsApi = {
     request<{ preference: EmailPreference }>('/notifications/preferences', { method: 'PATCH', body }),
 };
 
+export type ContactSubmissionType = 'SUGGESTION' | 'BUG_REPORT';
+
+export interface ContactSubmission {
+  id: string;
+  userId: string;
+  type: ContactSubmissionType;
+  subject: string;
+  message: string;
+  screenshotUrl: string | null;
+  status: 'OPEN' | 'RESOLVED';
+  createdAt: string;
+}
+
+export const contactApi = {
+  submit: (params: { type: ContactSubmissionType; subject: string; message: string; screenshot?: File | null }) => {
+    const formData = new FormData();
+    formData.append('type', params.type);
+    formData.append('subject', params.subject);
+    formData.append('message', params.message);
+    if (params.screenshot) formData.append('screenshot', params.screenshot);
+    return requestMultipart<{ submission: ContactSubmission }>('/contact', formData);
+  },
+  list: () => request<{ submissions: ContactSubmission[] }>('/contact'),
+};
+
 export interface ResumeAnalytics {
   totalViews: number;
   uniqueViews: number;

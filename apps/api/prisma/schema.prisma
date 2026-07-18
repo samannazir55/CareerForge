@@ -1,7 +1,8 @@
 // CareerForge — Prisma schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -63,6 +64,7 @@ model User {
   jobApplications      JobApplication[]
   adminAuditLogs       AdminAuditLog[]      @relation("AdminAuditLogAdmin")
   notifications        Notification[]
+  contactSubmissions   ContactSubmission[]
   promoCodesCreated    PromoCode[]           @relation("PromoCodeCreatedBy")
   promoCodeRedemptions PromoCodeRedemption[]
   emailPreference      EmailPreference?
@@ -317,32 +319,6 @@ model Notification {
 }
 
 // ---------------------------------------------------------------------------
-// Email preferences
-// One row per user (created lazily on first read via
-// notifications.routes.ts, same "GET creates default if missing" pattern
-// used elsewhere) governing which proactive emails — the weekly digest,
-// resume-view alerts, job-application follow-up reminders, interview
-// reminders, and marketing — the scheduler/domain services are allowed to
-// send. Every sender in domain/email/digest.service.ts checks its own flag
-// before sending; this table is the single source of truth for consent,
-// never inferred from anything else.
-// ---------------------------------------------------------------------------
-
-model EmailPreference {
-  id                      String   @id @default(uuid())
-  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId                  String   @unique
-  weeklyDigest            Boolean  @default(true)
-  resumeViewAlerts        Boolean  @default(true)
-  jobApplicationReminders Boolean  @default(true)
-  interviewReminders      Boolean  @default(true)
-  marketingEmails         Boolean  @default(false)
-  updatedAt               DateTime @default(now()) @updatedAt
-
-  @@map("email_preferences")
-}
-
-// ---------------------------------------------------------------------------
 // Promo codes — admin-issued codes redeemable by users for bonus points
 // (e.g. a "New Year" campaign). Redemptions are logged separately from the
 // code itself so a single code can be capped globally (maxRedemptions) and
@@ -377,6 +353,28 @@ model PromoCodeRedemption {
 
   @@index([promoCodeId, userId])
   @@map("promo_code_redemptions")
+}
+
+// ---------------------------------------------------------------------------
+// Email preferences — per-user opt in/out for each category of proactive
+// email (weekly digest, resume view alerts, job/interview reminders,
+// marketing). One row per user, created lazily on first read/write rather
+// than at signup, so existing users who predate this feature still get
+// sane defaults instead of a missing row breaking the scheduler's queries.
+// ---------------------------------------------------------------------------
+
+model EmailPreference {
+  id                      String   @id @default(uuid())
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId                  String   @unique
+  weeklyDigest            Boolean  @default(true)
+  resumeViewAlerts        Boolean  @default(true)
+  jobApplicationReminders Boolean  @default(true)
+  interviewReminders      Boolean  @default(true)
+  marketingEmails         Boolean  @default(false)
+  updatedAt               DateTime @default(now()) @updatedAt
+
+  @@map("email_preferences")
 }
 // ---------------------------------------------------------------------------
 // NEW ENUMS — Phase 6: Career Knowledge Base
@@ -434,6 +432,24 @@ model CareerProfile {
   userId    String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // ---------------------------------------------------------------------
+  // Public portfolio — an optional public-facing identity at /u/:slug
+  // showing headline/bio/socials + any resumes the user has already made
+  // shareable. isPublic gates the whole page (not just discoverability):
+  // /u/:slug 404s when false even if publicSlug is set, so a user can
+  // reserve/preview a slug without exposing anything yet.
+  // ---------------------------------------------------------------------
+  publicSlug  String?  @unique
+  isPublic    Boolean  @default(false)
+  headline    String?
+  bio         String?
+  location    String?
+  website     String?
+  linkedinUrl String?
+  githubUrl   String?
+  twitterUrl  String?
+  avatarUrl   String?
 
   facts    ProfileFact[]
 
@@ -592,4 +608,37 @@ model DynamicTemplate {
 
   @@index([isActive, displayOrder])
   @@map("dynamic_templates")
+}
+
+// ---------------------------------------------------------------------------
+// Contact submissions — the in-app "Contact Us" form (Suggestion / Bug
+// Report tabs, see components/contact/ContactPage.tsx). Both types share one
+// table since they're the same shape (subject, message, optional
+// screenshot); `type` is what the admin panel filters/sorts on.
+// ---------------------------------------------------------------------------
+
+enum ContactSubmissionType {
+  SUGGESTION
+  BUG_REPORT
+}
+
+enum ContactSubmissionStatus {
+  OPEN
+  RESOLVED
+}
+
+model ContactSubmission {
+  id            String                  @id @default(uuid())
+  user          User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String
+  type          ContactSubmissionType
+  subject       String
+  message       String
+  screenshotUrl String?
+  status        ContactSubmissionStatus @default(OPEN)
+  createdAt     DateTime                @default(now())
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@map("contact_submissions")
 }

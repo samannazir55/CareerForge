@@ -10,6 +10,7 @@ import { exportRouter } from './domain/export/export.routes.js';
 import { paymentsRouter } from './domain/payments/payments.routes.js';
 import { pointsRouter } from './domain/points/points.routes.js';
 import { aiRouter } from './domain/ai/ai.routes.js';
+import { contactRouter } from './domain/contact/contact.routes.js';
 import { dashboardRouter } from './domain/dashboard/dashboard.routes.js';
 import { sharingRouter } from './domain/sharing/sharing.routes.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
@@ -124,6 +125,7 @@ export function createApp() {
   app.use('/api/linkedin', linkedinRouter);
   app.use('/api/coach', coachRouter);
   app.use('/api/notifications', notificationsRouter);
+  app.use('/api/contact', contactRouter);
 
   // Serve the React SPA in production.
   // The Dockerfile builds apps/web and copies its dist here so the API and

@@ -5,7 +5,7 @@ import { BadRequestError, ConfigurationError } from '../../lib/errors.js';
 // ---------------------------------------------------------------------------
 // Cloudinary photo uploads (resume profile photos)
 // ---------------------------------------------------------------------------
-// No mock/fallback mode by design, same reasoning as the Hostinger email
+// No mock/fallback mode by design, same reasoning as the Resend email
 // adapter: an upload that silently "succeeds" without actually storing
 // anything would be far worse than a loud, obvious failure at request time.
 // All three CLOUDINARY_* env vars are required together for this to work.
@@ -88,4 +88,40 @@ export async function uploadResumePhoto(
 export async function deleteResumePhoto(userId: string): Promise<void> {
   const client = getClient();
   await client.uploader.destroy(`resume-photos/${userId}/photo`, { resource_type: 'image' });
+}
+
+const MAX_SCREENSHOT_BYTES = 10 * 1024 * 1024; // 10MB — a full-res phone screenshot can run a few MB
+
+/**
+ * Uploads a screenshot attached to a Contact Us submission (bug report or
+ * suggestion). Unlike uploadResumePhoto, no crop/face transform — this is
+ * a screenshot, not an avatar, so the original framing matters. One
+ * asset per submission (no overwrite), scoped by userId + a per-submission
+ * id so a listing of one user's uploads never surfaces another's.
+ */
+export async function uploadContactScreenshot(
+  fileBuffer: Buffer,
+  mimeType: string,
+  userId: string,
+  submissionId: string,
+): Promise<UploadedPhoto> {
+  if (!ALLOWED_MIME_TYPES.has(mimeType)) {
+    throw new BadRequestError(`Unsupported image type "${mimeType}" — use JPEG, PNG, or WebP.`);
+  }
+  if (fileBuffer.byteLength > MAX_SCREENSHOT_BYTES) {
+    throw new BadRequestError(`Screenshot is too large (max ${MAX_SCREENSHOT_BYTES / 1024 / 1024}MB).`);
+  }
+
+  const client = getClient();
+  const dataUri = `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
+
+  const result = await client.uploader.upload(dataUri, {
+    folder: `contact-screenshots/${userId}`,
+    resource_type: 'image',
+    transformation: [{ width: 1600, crop: 'limit' }, { quality: 'auto', fetch_format: 'auto' }],
+    public_id: submissionId,
+    overwrite: true,
+  });
+
+  return { url: result.secure_url, publicId: result.public_id };
 }

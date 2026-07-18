@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -16,6 +16,9 @@ import {
   MessageSquare,
   Linkedin,
   Compass,
+  Menu,
+  X,
+  MessageCircle,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useUIStore } from '../../store/ui.store';
@@ -55,10 +58,55 @@ export function AppShell({ children }: AppShellProps) {
   const { theme, setTheme } = useUIStore();
   const [pointsBalance, setPointsBalance] = useState<number | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const mobileNavRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     pointsApi.get().then((d) => setPointsBalance(d.balance)).catch(() => undefined);
   }, []);
+
+  // Close the mobile nav whenever the route changes (tapping a link
+  // navigates away, but on a slower connection the drawer would otherwise
+  // stay open behind the new page until manually dismissed).
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [location.pathname]);
+
+  // Close on outside click/tap. See the matching comment in
+  // NotificationBell.tsx — this header's glass-panel (backdrop-blur)
+  // makes a nested "fixed inset-0" overlay only cover the header's own
+  // box, not the real viewport, so a document-level listener is used
+  // instead of that pattern.
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handlePointerDown(e: MouseEvent | TouchEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+    };
+  }, [menuOpen]);
+
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    function handlePointerDown(e: MouseEvent | TouchEvent) {
+      if (mobileNavRef.current && !mobileNavRef.current.contains(e.target as Node)) {
+        setMobileNavOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+    };
+  }, [mobileNavOpen]);
 
   const isDark =
     theme === 'dark' ||
@@ -73,6 +121,17 @@ export function AppShell({ children }: AppShellProps) {
       {/* Top nav */}
       <header className="flex-none h-16 border-b border-border glass-panel z-50 flex items-center justify-between px-4 sm:px-6 sticky top-0">
         <div className="flex items-center gap-3 sm:gap-8">
+          {/* Hamburger — mobile only. The pill nav below has 8 items and
+              no wrap/scroll handling, so below md it's replaced entirely
+              by this button + the dropdown drawer at the end of the header. */}
+          <button
+            onClick={() => setMobileNavOpen((o) => !o)}
+            aria-label={mobileNavOpen ? 'Close menu' : 'Open menu'}
+            className="md:hidden h-9 w-9 -ml-1 rounded-full flex items-center justify-center hover:bg-accent transition-colors shrink-0"
+          >
+            {mobileNavOpen ? <X size={19} /> : <Menu size={19} />}
+          </button>
+
           {/* Logo */}
           <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
@@ -83,8 +142,8 @@ export function AppShell({ children }: AppShellProps) {
             </span>
           </Link>
 
-          {/* Pill nav */}
-          <nav className="flex items-center gap-1 bg-muted/50 p-1 rounded-xl border border-border/50">
+          {/* Pill nav — desktop/tablet only, see hamburger above */}
+          <nav className="hidden md:flex items-center gap-1 bg-muted/50 p-1 rounded-xl border border-border/50">
             {NAV_ITEMS.map((item) => {
               const isActive = activeItem?.path === item.path;
               const Icon = item.icon;
@@ -106,7 +165,7 @@ export function AppShell({ children }: AppShellProps) {
                   )}
                   <span className="relative z-10 flex items-center gap-2">
                     <Icon size={16} />
-                    <span className="hidden md:inline">{item.label}</span>
+                    <span className="hidden lg:inline">{item.label}</span>
                   </span>
                 </Link>
               );
@@ -157,7 +216,7 @@ export function AppShell({ children }: AppShellProps) {
           </button>
 
           {/* User menu */}
-          <div className="relative">
+          <div className="relative" ref={menuRef}>
             <button
               onClick={() => setMenuOpen((o) => !o)}
               className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full hover:bg-accent transition-colors"
@@ -170,41 +229,83 @@ export function AppShell({ children }: AppShellProps) {
 
             <AnimatePresence>
               {menuOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
-                  <motion.div
-                    initial={{ opacity: 0, y: -8, scale: 0.96 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -8, scale: 0.96 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute right-0 top-full mt-2 w-56 glass-panel rounded-2xl p-2 z-50 shadow-xl"
+                <motion.div
+                  initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-0 top-full mt-2 w-56 glass-panel rounded-2xl p-2 z-50 shadow-xl"
+                >
+                  <div className="px-3 py-2 mb-1">
+                    <p className="text-sm font-medium truncate">{user?.fullName ?? 'User'}</p>
+                    <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+                  </div>
+                  <Link
+                    to="/settings"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
                   >
-                    <div className="px-3 py-2 mb-1">
-                      <p className="text-sm font-medium truncate">{user?.fullName ?? 'User'}</p>
-                      <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
-                    </div>
-                    <Link
-                      to="/settings"
-                      onClick={() => setMenuOpen(false)}
-                      className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                    >
-                      <Settings size={15} />
-                      Settings
-                    </Link>
-                    <button
-                      onClick={() => logout()}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                    >
-                      <LogOut size={15} />
-                      Sign out
-                    </button>
-                  </motion.div>
-                </>
+                    <Settings size={15} />
+                    Settings
+                  </Link>
+                  <Link
+                    to="/contact"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                  >
+                    <MessageCircle size={15} />
+                    Contact us
+                  </Link>
+                  <button
+                    onClick={() => logout()}
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  >
+                    <LogOut size={15} />
+                    Sign out
+                  </button>
+                </motion.div>
               )}
             </AnimatePresence>
           </div>
         </div>
       </header>
+
+      {/* Mobile nav drawer — see hamburger button above. Own ref/listener
+          pair (mobileNavRef) since it opens/closes independently of the
+          user menu and lives in a different part of the header. */}
+      <AnimatePresence>
+        {mobileNavOpen && (
+          <motion.div
+            ref={mobileNavRef}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="md:hidden glass-panel border-b border-border sticky top-16 z-40 overflow-hidden"
+          >
+            <nav className="p-3 grid grid-cols-2 gap-2 max-h-[70vh] overflow-y-auto">
+              {NAV_ITEMS.map((item) => {
+                const isActive = activeItem?.path === item.path;
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setMobileNavOpen(false)}
+                    className={cn(
+                      'flex items-center gap-2.5 px-3.5 py-3 rounded-xl text-sm font-medium transition-colors',
+                      isActive ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent/60',
+                    )}
+                  >
+                    <Icon size={17} className="shrink-0" />
+                    <span className="truncate">{item.label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Main */}
       <main className="flex-1 overflow-auto">

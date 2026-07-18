@@ -238,7 +238,7 @@ export function OnboardingModal() {
 
   return (
     <div
-      className="welcome-page fixed inset-0 z-[100] overflow-y-auto flex items-center justify-center p-4 sm:p-6"
+      className="welcome-page fixed inset-0 z-[100] overflow-y-auto flex items-center justify-center px-4 py-16 sm:p-6"
       role="dialog"
       aria-modal="true"
       aria-label="Welcome to Corvyx onboarding"
