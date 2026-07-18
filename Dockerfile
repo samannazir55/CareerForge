@@ -110,4 +110,4 @@
     
     EXPOSE 4000
     
-    CMD ["sh", "-c", "./node_modules/.bin/prisma db push --schema=apps/api/prisma/schema.prisma && node apps/api/dist/index.js"]
+    CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy --schema=apps/api/prisma/schema.prisma && node apps/api/dist/index.js"]
