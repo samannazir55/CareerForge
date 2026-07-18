@@ -23,7 +23,11 @@ export function Switch({ checked, onChange, disabled, label, className }: Switch
       onClick={() => onChange(!checked)}
       className={cn(
         'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed',
-        checked ? 'bg-indigo-500' : 'bg-white/10',
+        // bg-input resolves via the --input CSS var, which is defined for
+        // both the light (:root) and dark (.dark) themes — a fixed
+        // bg-white/10 here would be nearly invisible against the light
+        // theme's near-white background.
+        checked ? 'bg-indigo-500' : 'bg-input',
         className,
       )}
     >

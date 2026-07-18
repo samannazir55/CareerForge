@@ -431,6 +431,24 @@ model CareerProfile {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // ---------------------------------------------------------------------
+  // Public portfolio — an optional public-facing identity at /u/:slug
+  // showing headline/bio/socials + any resumes the user has already made
+  // shareable. isPublic gates the whole page (not just discoverability):
+  // /u/:slug 404s when false even if publicSlug is set, so a user can
+  // reserve/preview a slug without exposing anything yet.
+  // ---------------------------------------------------------------------
+  publicSlug  String?  @unique
+  isPublic    Boolean  @default(false)
+  headline    String?
+  bio         String?
+  location    String?
+  website     String?
+  linkedinUrl String?
+  githubUrl   String?
+  twitterUrl  String?
+  avatarUrl   String?
+
   facts    ProfileFact[]
 
   @@map("career_profiles")

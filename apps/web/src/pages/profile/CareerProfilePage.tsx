@@ -9,6 +9,7 @@ import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
 import { ProfileCompletionRing } from '../../components/profile/ProfileCompletionRing';
 import { FactCard } from '../../components/profile/FactCard';
+import { PublicPortfolioSettings } from '../../components/profile/PublicPortfolioSettings';
 import { useProfileStore } from '../../store/profile.store';
 import { fetchProfile, deleteFact } from '../../lib/profileApi';
 import type { ProfileFactCategory } from '@careerforge/schema';
@@ -84,6 +85,8 @@ export function CareerProfilePage() {
               <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
             </Button>
           </div>
+
+          <PublicPortfolioSettings />
 
           {profile && (
             <motion.div

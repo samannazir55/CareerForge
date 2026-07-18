@@ -45,6 +45,7 @@ import { AdminPlansPage } from './pages/admin/AdminPlansPage';
 import { AdminPointsPage } from './pages/admin/AdminPointsPage';
 import { ResumeAnalyticsPage } from './pages/resumes/ResumeAnalyticsPage';
 import { AdminPromoCodesPage } from './pages/admin/AdminPromoCodesPage';
+import { PublicProfilePage } from './pages/profile/PublicProfilePage';
 import { AdminAuditPage } from './pages/admin/AdminAuditPage';
 import { AdminSeoPage } from './pages/admin/AdminSeoPage';
 
@@ -73,6 +74,9 @@ export function App() {
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
           <Route path="/terms" element={<TermsOfServicePage />} />
           <Route path="/refund-policy" element={<RefundPolicyPage />} />
+
+          {/* Public career portfolio — no auth, shared as a single recruiter-facing link */}
+          <Route path="/u/:slug" element={<PublicProfilePage />} />
 
           {/* Public auth routes */}
           <Route path="/login" element={<LoginPage />} />

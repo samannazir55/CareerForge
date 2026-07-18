@@ -2,17 +2,58 @@ import { Router } from 'express';
 import { requireAuth, requireVerifiedEmail } from '../../middleware/authGuard.js';
 import { asyncHandler } from '../../lib/asyncHandler.js';
 import { BadRequestError } from '../../lib/errors.js';
-import { UpsertProfileFactRequestSchema, ProfileFactCategorySchema } from '@careerforge/schema';
+import { verifyAccessToken } from '../../lib/jwt.js';
+import {
+  UpsertProfileFactRequestSchema,
+  ProfileFactCategorySchema,
+  UpdatePublicProfileSettingsRequestSchema,
+} from '@careerforge/schema';
 import {
   getProfile,
   upsertFact,
   deleteFact,
   getFactsByCategory,
+  getPublicProfileBySlug,
+  getPublicProfileSettings,
+  updatePublicProfileSettings,
 } from './profile.service.js';
 
 export const profileRouter = Router();
 
-// All profile endpoints require a verified session.
+/**
+ * GET /api/profile/public/:slug
+ * No auth required — public portfolio lookup, also (re)used by the
+ * settings page as an advisory slug-availability check (see the tradeoff
+ * note on getPublicProfileBySlug in profile.service.ts). Registered
+ * before the `profileRouter.use(requireAuth, ...)` guard below so it
+ * stays reachable without a session.
+ *
+ * If an Authorization header happens to be present (e.g. the owner is
+ * logged in and hits "Preview my profile"), it's parsed on a best-effort
+ * basis — an invalid/expired/absent token is treated the same as no
+ * token at all, never as an error, since this route must stay fully
+ * accessible to anonymous visitors. A valid token matching the profile's
+ * own owner lets them preview the page before setting isPublic on.
+ */
+profileRouter.get(
+  '/public/:slug',
+  asyncHandler(async (req, res) => {
+    let viewerUserId: string | undefined;
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+      try {
+        viewerUserId = verifyAccessToken(authHeader.slice('Bearer '.length)).sub;
+      } catch {
+        // Not a valid session — fall through and treat as anonymous.
+      }
+    }
+
+    const profile = await getPublicProfileBySlug(req.params.slug, viewerUserId);
+    res.status(200).json({ profile });
+  }),
+);
+
+// Everything below requires a verified session.
 profileRouter.use(requireAuth, requireVerifiedEmail);
 
 /**
@@ -80,5 +121,37 @@ profileRouter.delete(
     const key = decodeURIComponent(req.params.key);
     await deleteFact(req.user!.id, key);
     res.status(200).json({ success: true });
+  }),
+);
+
+/**
+ * GET /api/profile/public-settings
+ * Returns the caller's own public-portfolio settings (see the note on
+ * getPublicProfileSettings in profile.service.ts).
+ */
+profileRouter.get(
+  '/public-settings',
+  asyncHandler(async (req, res) => {
+    const profile = await getPublicProfileSettings(req.user!.id);
+    res.status(200).json({ profile });
+  }),
+);
+
+/**
+ * PATCH /api/profile/public-settings
+ * Body: { publicSlug?, isPublic?, headline?, bio?, location?, website?,
+ *         linkedinUrl?, githubUrl?, twitterUrl? }
+ * Validates slug is URL-safe/unique/3-30 chars (see updatePublicProfileSettings).
+ */
+profileRouter.patch(
+  '/public-settings',
+  asyncHandler(async (req, res) => {
+    const parsed = UpdatePublicProfileSettingsRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      throw new BadRequestError(parsed.error.errors[0]?.message ?? 'Invalid input.');
+    }
+
+    const profile = await updatePublicProfileSettings(req.user!.id, parsed.data);
+    res.status(200).json({ profile });
   }),
 );

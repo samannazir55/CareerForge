@@ -183,3 +183,79 @@ export const ProfileWithFactsSchema = CareerProfileSchema.extend({
   completeness: ProfileCompletenessSchema,
 });
 export type ProfileWithFacts = z.infer<typeof ProfileWithFactsSchema>;
+
+// ---------------------------------------------------------------------------
+// Public portfolio — /u/:slug
+// ---------------------------------------------------------------------------
+
+/** Full CareerProfile row including the public-portfolio fields, as
+ * returned by the authenticated public-settings endpoints (GET /profile
+ * already returns ProfileWithFacts without these — they're additive here
+ * rather than folded into CareerProfileSchema so existing callers of
+ * ProfileWithFacts are unaffected). */
+export const CareerProfilePublicFieldsSchema = z.object({
+  publicSlug: z.string().nullable(),
+  isPublic: z.boolean(),
+  headline: z.string().nullable(),
+  bio: z.string().nullable(),
+  location: z.string().nullable(),
+  website: z.string().nullable(),
+  linkedinUrl: z.string().nullable(),
+  githubUrl: z.string().nullable(),
+  twitterUrl: z.string().nullable(),
+  avatarUrl: z.string().nullable(),
+});
+export type CareerProfilePublicFields = z.infer<typeof CareerProfilePublicFieldsSchema>;
+
+export const CareerProfileWithPublicFieldsSchema = CareerProfileSchema.merge(CareerProfilePublicFieldsSchema);
+export type CareerProfileWithPublicFields = z.infer<typeof CareerProfileWithPublicFieldsSchema>;
+
+// Slug rule shared by client-side validation and the server: 3-30 chars,
+// lowercase letters/numbers/hyphens, no leading/trailing/double hyphens —
+// kept simple and readable since this becomes a public URL segment.
+export const PUBLIC_SLUG_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+export const UpdatePublicProfileSettingsRequestSchema = z.object({
+  publicSlug: z.string().trim().toLowerCase().min(3).max(30).regex(PUBLIC_SLUG_REGEX, 'Use lowercase letters, numbers, and single hyphens only.').optional(),
+  isPublic: z.boolean().optional(),
+  headline: z.string().max(150).optional(),
+  bio: z.string().max(1000).optional(),
+  location: z.string().max(100).optional(),
+  website: z.string().url().max(300).optional().or(z.literal('')),
+  linkedinUrl: z.string().url().max(300).optional().or(z.literal('')),
+  githubUrl: z.string().url().max(300).optional().or(z.literal('')),
+  twitterUrl: z.string().url().max(300).optional().or(z.literal('')),
+});
+export type UpdatePublicProfileSettingsRequest = z.infer<typeof UpdatePublicProfileSettingsRequestSchema>;
+
+export const PublicResumeSummarySchema = z.object({
+  id: z.string().uuid(),
+  title: z.string(),
+  templateId: z.string(),
+  templateName: z.string(),
+  slug: z.string(),
+  viewCount: z.number().int(),
+});
+export type PublicResumeSummary = z.infer<typeof PublicResumeSummarySchema>;
+
+export const PublicProfileSchema = z.object({
+  fullName: z.string().nullable(),
+  headline: z.string().nullable(),
+  bio: z.string().nullable(),
+  location: z.string().nullable(),
+  website: z.string().nullable(),
+  linkedinUrl: z.string().nullable(),
+  githubUrl: z.string().nullable(),
+  twitterUrl: z.string().nullable(),
+  avatarUrl: z.string().nullable(),
+  isPublic: z.boolean(),
+  publicResumes: z.array(PublicResumeSummarySchema),
+  skills: z.array(z.string()),
+  totalResumeViews: z.number().int(),
+});
+export type PublicProfile = z.infer<typeof PublicProfileSchema>;
+
+export const SlugAvailabilitySchema = z.object({
+  available: z.boolean(),
+});
+export type SlugAvailability = z.infer<typeof SlugAvailabilitySchema>;

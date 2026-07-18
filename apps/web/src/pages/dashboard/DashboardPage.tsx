@@ -10,6 +10,8 @@ import {
   History,
   ArrowRight,
   Target,
+  Globe2,
+  X,
 } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
 import { GlassCard } from '../../components/ui/GlassCard';
@@ -17,9 +19,11 @@ import { Button } from '../../components/ui/Button';
 import { dashboardApi, pointsApi, paymentsApi, plansApi, type PublicPlan, ApiError } from '../../lib/api';
 import { ProfileCompletionRing } from '../../components/profile/ProfileCompletionRing';
 import { useProfileStore } from '../../store/profile.store';
-import { fetchProfile } from '../../lib/profileApi';
+import { fetchProfile, fetchOwnPublicProfileSettings } from '../../lib/profileApi';
 import { useAuth } from '../../context/AuthContext';
 import { OnboardingModal } from '../../components/onboarding/OnboardingModal';
+
+const PORTFOLIO_NUDGE_DISMISSED_KEY = 'corvyx:portfolio-nudge-dismissed';
 
 interface DashboardData {
   user: { fullName: string | null; email: string; subscriptionTier: string };
@@ -52,6 +56,7 @@ export function DashboardPage() {
   const [plans, setPlans] = useState<PublicPlan[] | null>(null);
   const [isUpgrading, setIsUpgrading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showPortfolioNudge, setShowPortfolioNudge] = useState(false);
 
   const navigate = useNavigate();
   const { profile, setProfile } = useProfileStore();
@@ -70,7 +75,18 @@ export function DashboardPage() {
     });
     pointsApi.get().then((d) => setTransactions(d.transactions)).catch(() => undefined);
     plansApi.list().then((d) => setPlans(d.plans)).catch(() => undefined);
+
+    if (localStorage.getItem(PORTFOLIO_NUDGE_DISMISSED_KEY) !== 'true') {
+      fetchOwnPublicProfileSettings()
+        .then((settings) => setShowPortfolioNudge(!settings.isPublic || !settings.publicSlug))
+        .catch(() => undefined);
+    }
   }, []);
+
+  function dismissPortfolioNudge() {
+    setShowPortfolioNudge(false);
+    localStorage.setItem(PORTFOLIO_NUDGE_DISMISSED_KEY, 'true');
+  }
 
   function handleCreateResume() {
     // Goes to the AI chat builder rather than creating a blank resume and
@@ -115,6 +131,33 @@ export function DashboardPage() {
         </div>
 
         {error && <p className="text-destructive">{error}</p>}
+
+        {showPortfolioNudge && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-panel rounded-2xl p-4 sm:p-5 flex items-center gap-4 relative"
+          >
+            <div className="h-10 w-10 rounded-xl bg-indigo-500/15 flex items-center justify-center shrink-0">
+              <Globe2 size={18} className="text-indigo-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium">
+                🌐 Share your career portfolio — Create your public profile page and share one link with recruiters.
+              </p>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => navigate('/profile')} className="shrink-0">
+              Set up now <ArrowRight size={14} className="ml-1.5" />
+            </Button>
+            <button
+              onClick={dismissPortfolioNudge}
+              aria-label="Dismiss"
+              className="shrink-0 h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+            >
+              <X size={15} />
+            </button>
+          </motion.div>
+        )}
 
         {/* Points + Subscription + Profile glow cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

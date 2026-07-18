@@ -1,8 +1,17 @@
 import { prisma } from '../../lib/prisma.js';
 import { NotFoundError, BadRequestError } from '../../lib/errors.js';
 import { computeCompleteness } from './completeness.js';
-import type { UpsertProfileFactRequest, ProfileWithFacts } from '@careerforge/schema';
+import type {
+  UpsertProfileFactRequest,
+  ProfileWithFacts,
+  UpdatePublicProfileSettingsRequest,
+  CareerProfileWithPublicFields,
+  PublicProfile,
+  PublicResumeSummary,
+  SkillValue,
+} from '@careerforge/schema';
 import type { ProfileFact } from '@prisma/client';
+import { getAllTemplateMetadata } from '@careerforge/templates';
 
 /**
  * Ensures a CareerProfile exists for the given user, creating one if absent.
@@ -150,6 +159,194 @@ export async function batchUpsertFacts(
       }),
     ),
   );
+}
+
+// ---------------------------------------------------------------------------
+// Public portfolio — /u/:slug
+// ---------------------------------------------------------------------------
+
+const CODE_TEMPLATE_NAMES = new Map(getAllTemplateMetadata().map((t) => [t.id, t.name]));
+
+/**
+ * Looks up a display name for a templateId without needing the full
+ * ResolvedTemplate machinery in templateResolver.ts (which builds render
+ * functions we don't need here) — checks the code registry first, then
+ * DynamicTemplate rows, matching the same precedence as the resolver.
+ */
+async function getTemplateName(templateId: string): Promise<string> {
+  const codeName = CODE_TEMPLATE_NAMES.get(templateId);
+  if (codeName) return codeName;
+
+  const dynamic = await prisma.dynamicTemplate.findUnique({
+    where: { id: templateId },
+    select: { name: true },
+  });
+  return dynamic?.name ?? 'Custom';
+}
+
+/**
+ * Returns the public-facing portfolio for a published profile. Callers
+ * (the /u/:slug route) get a 404-equivalent NotFoundError both when the
+ * slug doesn't exist and when it exists but isPublic is false — a private
+ * profile's existence isn't revealed to unauthenticated visitors.
+ *
+ * `viewerUserId`, if provided and equal to the profile's own owner, lets
+ * the owner preview their unpublished (isPublic: false) page before going
+ * live — see the optional-auth check in the /public/:slug route handler.
+ * Any other viewer, authenticated or not, still gets the 404 gate.
+ *
+ * Known tradeoff: the same lookup path backs the settings page's slug
+ * availability check, so a slug that's taken by someone whose profile is
+ * currently private will read as "available" in that debounced check.
+ * The actual source of truth is the unique constraint on publicSlug,
+ * enforced in updatePublicProfileSettings below — the availability check
+ * is advisory UI, not the final gate.
+ */
+export async function getPublicProfileBySlug(slug: string, viewerUserId?: string): Promise<PublicProfile> {
+  const profile = await prisma.careerProfile.findUnique({
+    where: { publicSlug: slug.toLowerCase() },
+    include: {
+      user: { select: { fullName: true } },
+      facts: { where: { category: 'SKILL' } },
+    },
+  });
+
+  const isOwner = Boolean(viewerUserId) && profile?.userId === viewerUserId;
+  if (!profile || (!profile.isPublic && !isOwner)) {
+    throw new NotFoundError('Public profile not found.');
+  }
+
+  const resumes = await prisma.resume.findMany({
+    where: { ownerId: profile.userId, shareableLink: { isEnabled: true } },
+    include: { shareableLink: true },
+  });
+
+  const publicResumes: PublicResumeSummary[] = await Promise.all(
+    resumes.map(async (resume) => {
+      const templateId = (resume.theme as { templateId?: string })?.templateId ?? 'modern';
+      return {
+        id: resume.id,
+        title: resume.title,
+        templateId,
+        templateName: await getTemplateName(templateId),
+        // shareableLink is guaranteed non-null by the `isEnabled: true`
+        // filter above, but Prisma's include type can't express that.
+        slug: resume.shareableLink!.slug,
+        viewCount: resume.shareableLink!.viewCount,
+      };
+    }),
+  );
+
+  const totalResumeViews = await prisma.resumeView.count({
+    where: { resume: { ownerId: profile.userId } },
+  });
+
+  const skills = profile.facts
+    .map((f) => (f.value as SkillValue | null)?.name)
+    .filter((name): name is string => Boolean(name));
+
+  return {
+    fullName: profile.user.fullName,
+    headline: profile.headline,
+    bio: profile.bio,
+    location: profile.location,
+    website: profile.website,
+    linkedinUrl: profile.linkedinUrl,
+    githubUrl: profile.githubUrl,
+    twitterUrl: profile.twitterUrl,
+    avatarUrl: profile.avatarUrl,
+    isPublic: profile.isPublic,
+    publicResumes,
+    skills,
+    totalResumeViews,
+  };
+}
+
+/**
+ * Returns the caller's own public-portfolio settings (as opposed to
+ * getPublicProfileBySlug, which is the no-auth /u/:slug view of someone
+ * else's published profile). Not explicitly listed in the original spec's
+ * two endpoints, but needed so the settings page in CareerProfilePage.tsx
+ * has something to populate its fields with on mount — added as a GET
+ * companion to PATCH /public-settings, mirroring the existing
+ * GET+PATCH /notifications/preferences pattern elsewhere in this codebase.
+ */
+export async function getPublicProfileSettings(userId: string): Promise<CareerProfileWithPublicFields> {
+  const profile = await prisma.careerProfile.findUnique({ where: { userId } });
+  if (!profile) throw new NotFoundError('Career profile not found.');
+
+  return {
+    id: profile.id,
+    userId: profile.userId,
+    createdAt: profile.createdAt.toISOString(),
+    updatedAt: profile.updatedAt.toISOString(),
+    publicSlug: profile.publicSlug,
+    isPublic: profile.isPublic,
+    headline: profile.headline,
+    bio: profile.bio,
+    location: profile.location,
+    website: profile.website,
+    linkedinUrl: profile.linkedinUrl,
+    githubUrl: profile.githubUrl,
+    twitterUrl: profile.twitterUrl,
+    avatarUrl: profile.avatarUrl,
+  };
+}
+
+/**
+ * Updates the caller's public-portfolio settings. Empty-string values for
+ * the URL fields (website/linkedinUrl/githubUrl/twitterUrl) are treated as
+ * "clear this field" — the zod schema allows '' specifically so the
+ * settings page can send a blanked-out input without a separate "unset"
+ * affordance.
+ */
+export async function updatePublicProfileSettings(
+  userId: string,
+  input: UpdatePublicProfileSettingsRequest,
+): Promise<CareerProfileWithPublicFields> {
+  const profile = await prisma.careerProfile.findUnique({ where: { userId } });
+  if (!profile) throw new NotFoundError('Career profile not found.');
+
+  if (input.publicSlug && input.publicSlug !== profile.publicSlug) {
+    const existing = await prisma.careerProfile.findUnique({ where: { publicSlug: input.publicSlug } });
+    if (existing && existing.userId !== userId) {
+      throw new BadRequestError(`The URL "${input.publicSlug}" is already taken.`, 'SLUG_TAKEN');
+    }
+  }
+
+  const toNullable = (v: string | undefined) => (v === '' ? null : v);
+
+  const updated = await prisma.careerProfile.update({
+    where: { userId },
+    data: {
+      publicSlug: input.publicSlug,
+      isPublic: input.isPublic,
+      headline: input.headline,
+      bio: input.bio,
+      location: input.location,
+      website: toNullable(input.website),
+      linkedinUrl: toNullable(input.linkedinUrl),
+      githubUrl: toNullable(input.githubUrl),
+      twitterUrl: toNullable(input.twitterUrl),
+    },
+  });
+
+  return {
+    id: updated.id,
+    userId: updated.userId,
+    createdAt: updated.createdAt.toISOString(),
+    updatedAt: updated.updatedAt.toISOString(),
+    publicSlug: updated.publicSlug,
+    isPublic: updated.isPublic,
+    headline: updated.headline,
+    bio: updated.bio,
+    location: updated.location,
+    website: updated.website,
+    linkedinUrl: updated.linkedinUrl,
+    githubUrl: updated.githubUrl,
+    twitterUrl: updated.twitterUrl,
+    avatarUrl: updated.avatarUrl,
+  };
 }
 
 // ---------------------------------------------------------------------------
