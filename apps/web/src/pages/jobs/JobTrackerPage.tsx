@@ -11,6 +11,7 @@ import {
   ChevronUp,
   Briefcase,
   Sparkles,
+  FileText,
 } from 'lucide-react';
 import type { JobApplication, JobApplicationStatus } from '@careerforge/schema';
 import { jobsApi, ApiError } from '../../lib/api';
@@ -19,6 +20,7 @@ import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { TailorResumeModal } from '../../components/jobs/TailorResumeModal';
+import { CoverLetterModal } from '../../components/jobs/CoverLetterModal';
 import { cn } from '../../lib/utils';
 
 // ---------------------------------------------------------------------------
@@ -334,6 +336,7 @@ function JobPanel({
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [tailorOpen, setTailorOpen] = useState(false);
+  const [coverLetterOpen, setCoverLetterOpen] = useState(false);
 
   // Reset the form whenever a different job (or "new") is opened. A "new"
   // panel opened from FindJobsPage arrives with `prefill` set — merge it
@@ -500,9 +503,14 @@ function JobPanel({
                 )}
 
                 {isEditing && (
-                  <Button type="button" variant="secondary" size="sm" onClick={() => setTailorOpen(true)}>
-                    <Sparkles size={14} className="mr-1.5" /> Tailor Resume for this Job
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="secondary" size="sm" onClick={() => setTailorOpen(true)}>
+                      <Sparkles size={14} className="mr-1.5" /> Tailor Resume for this Job
+                    </Button>
+                    <Button type="button" variant="secondary" size="sm" onClick={() => setCoverLetterOpen(true)}>
+                      <FileText size={14} className="mr-1.5" /> Cover Letter
+                    </Button>
+                  </div>
                 )}
 
                 {formError && <p className="text-sm text-destructive">{formError}</p>}
@@ -528,6 +536,12 @@ function JobPanel({
       <TailorResumeModal
         open={tailorOpen}
         onClose={() => setTailorOpen(false)}
+        initialJobDescription={form.notes}
+        jobContext={form.jobTitle && form.companyName ? `${form.jobTitle} at ${form.companyName}` : undefined}
+      />
+      <CoverLetterModal
+        open={coverLetterOpen}
+        onClose={() => setCoverLetterOpen(false)}
         initialJobDescription={form.notes}
         jobContext={form.jobTitle && form.companyName ? `${form.jobTitle} at ${form.companyName}` : undefined}
       />

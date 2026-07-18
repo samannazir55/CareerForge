@@ -12,6 +12,7 @@ import {
   Briefcase,
   Loader2,
   Sparkles,
+  FileText,
 } from 'lucide-react';
 import type { JobSearchCountry, JobSearchListing } from '@careerforge/schema';
 import { jobSearchApi, ApiError } from '../../lib/api';
@@ -20,6 +21,7 @@ import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { TailorResumeModal } from '../../components/jobs/TailorResumeModal';
+import { CoverLetterModal } from '../../components/jobs/CoverLetterModal';
 import type { JobTrackerPrefillState } from './JobTrackerPage';
 
 const COUNTRIES: { code: JobSearchCountry; label: string }[] = [
@@ -63,6 +65,7 @@ export function FindJobsPage() {
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [tailorTarget, setTailorTarget] = useState<JobSearchListing | null>(null);
+  const [coverLetterTarget, setCoverLetterTarget] = useState<JobSearchListing | null>(null);
 
   async function runSearch(targetPage: number) {
     if (!q.trim()) {
@@ -196,6 +199,7 @@ export function FindJobsPage() {
                     job={job}
                     onAdd={() => handleAddToTracker(job)}
                     onTailor={() => setTailorTarget(job)}
+                    onCoverLetter={() => setCoverLetterTarget(job)}
                   />
                 ))}
               </AnimatePresence>
@@ -232,11 +236,27 @@ export function FindJobsPage() {
         initialJobDescription={tailorTarget?.description ?? ''}
         jobContext={tailorTarget ? `${tailorTarget.title} at ${tailorTarget.company}` : undefined}
       />
+      <CoverLetterModal
+        open={coverLetterTarget !== null}
+        onClose={() => setCoverLetterTarget(null)}
+        initialJobDescription={coverLetterTarget?.description ?? ''}
+        jobContext={coverLetterTarget ? `${coverLetterTarget.title} at ${coverLetterTarget.company}` : undefined}
+      />
     </AppShell>
   );
 }
 
-function JobResultCard({ job, onAdd, onTailor }: { job: JobSearchListing; onAdd: () => void; onTailor: () => void }) {
+function JobResultCard({
+  job,
+  onAdd,
+  onTailor,
+  onCoverLetter,
+}: {
+  job: JobSearchListing;
+  onAdd: () => void;
+  onTailor: () => void;
+  onCoverLetter: () => void;
+}) {
   const posted = timeAgoLabel(job.postedAt);
   return (
     <motion.div
@@ -288,6 +308,9 @@ function JobResultCard({ job, onAdd, onTailor }: { job: JobSearchListing; onAdd:
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" variant="secondary" onClick={onTailor}>
             <Sparkles size={13} className="mr-1.5" /> Tailor Resume
+          </Button>
+          <Button size="sm" variant="secondary" onClick={onCoverLetter}>
+            <FileText size={13} className="mr-1.5" /> Cover Letter
           </Button>
           <Button size="sm" variant="secondary" onClick={onAdd}>
             <Plus size={13} className="mr-1.5" /> Add to Tracker
