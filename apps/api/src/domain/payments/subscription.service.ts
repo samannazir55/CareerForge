@@ -5,6 +5,7 @@ import { pointsService } from '../points/points.service.js';
 import { env } from '../../config/env.js';
 import { BadRequestError, NotFoundError } from '../../lib/errors.js';
 import { notify } from '../../lib/notify.js';
+import { getLimits } from '../../lib/planLimits.js';
 import type { SubscriptionTier } from '@careerforge/schema';
 
 const paymentProvider = new StripePaymentProvider();
@@ -91,6 +92,13 @@ export async function handleWebhook(payload: Buffer, signature: string): Promise
     const status = event.status ?? 'ACTIVE';
 
     if (sub) {
+      // A rolled-over currentPeriodStart (vs what's already stored) means
+      // Stripe has billed a new cycle — as opposed to this same webhook
+      // firing for an in-cycle change like a plan swap, which leaves the
+      // period start untouched. Only a genuine new cycle earns this
+      // month's points; captured before the update below overwrites it.
+      const isNewBillingCycle = sub.currentPeriodStart?.getTime() !== event.currentPeriodStart?.getTime();
+
       await prisma.$transaction([
         prisma.subscription.update({
           where: { id: sub.id },
@@ -108,6 +116,15 @@ export async function handleWebhook(payload: Buffer, signature: string): Promise
         }),
       ]);
       await notify(sub.userId, 'subscription_changed', 'Plan updated', `You are now on ${tier}`, { tier, status });
+
+      if (isNewBillingCycle && status === 'ACTIVE') {
+        const monthlyPoints = getLimits(tier).pointsPerMonth;
+        if (monthlyPoints > 0) {
+          await pointsService
+            .award(sub.userId, monthlyPoints, 'SUBSCRIPTION_RENEWAL', `${tier} monthly points`)
+            .catch(() => undefined);
+        }
+      }
     } else {
       // New subscription — find user by Stripe customer ID stored in metadata
       // or by looking up who initiated the checkout session.
@@ -146,11 +163,19 @@ export async function handleWebhook(payload: Buffer, signature: string): Promise
       });
     }
 
-    // Award points for upgrading to premium
-    if (tier === 'PREMIUM' && status === 'ACTIVE') {
+    // Award this tier's signup bonus the first time a subscription for it
+    // goes active — same PLAN_LIMITS numbers the /settings page and pricing
+    // copy show, rather than a hardcoded amount that only ever covered
+    // PREMIUM and silently gave PROFESSIONAL upgrades nothing.
+    if (!sub && status === 'ACTIVE') {
       const user = await prisma.user.findFirst({ where: { subscription: { stripeCustomerId: event.stripeCustomerId } } });
       if (user) {
-        await pointsService.award(user.id, 500, 'ADMIN_GRANT', 'Premium subscription activated').catch(() => undefined);
+        const signupPoints = getLimits(tier).pointsOnSignup;
+        if (signupPoints > 0) {
+          await pointsService
+            .award(user.id, signupPoints, 'SIGNUP_BONUS', `${tier} plan activated`)
+            .catch(() => undefined);
+        }
       }
     }
   }

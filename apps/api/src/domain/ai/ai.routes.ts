@@ -4,8 +4,10 @@ import { asyncHandler } from '../../lib/asyncHandler.js';
 import { aiProvider } from './index.js';
 import { prisma } from '../../lib/prisma.js';
 import { runMigrations, mergeResumeSections, CURRENT_SCHEMA_VERSION, type Section } from '@careerforge/schema';
-import { NotFoundError, BadRequestError } from '../../lib/errors.js';
+import { NotFoundError, BadRequestError, ForbiddenError } from '../../lib/errors.js';
 import rateLimit from 'express-rate-limit';
+import { getLimits, type Tier } from '../../lib/planLimits.js';
+import { assertWithinUsageLimit, logUsage } from '../../lib/usageLimits.js';
 
 export const aiRouter = Router();
 
@@ -135,7 +137,10 @@ aiRouter.post(
 
     if (!messages?.length) throw new BadRequestError('messages array is required.');
 
+    await assertWithinUsageLimit(req.user!.id, req.user!.subscriptionTier as Tier, 'AI_CHAT_MESSAGE');
+
     const result = await aiProvider.chat(messages, RESUME_CHAT_SYSTEM_PROMPT);
+    await logUsage(req.user!.id, 'AI_CHAT_MESSAGE');
 
     // The "click Import to paste your existing CV" nudge used to be a prompt
     // instruction asking the model to detect "this is my second reply" and
@@ -233,6 +238,14 @@ aiRouter.post(
     });
 
     const result = await aiProvider.scoreATS(resume as any, jobDescription);
+
+    // FREE gets "Basic ATS score (score only, no keyword suggestions)" —
+    // Professional/Premium get the full breakdown (see PLAN_LIMITS.fullATS).
+    if (!getLimits(req.user!.subscriptionTier as Tier).fullATS) {
+      res.status(200).json({ score: result.score, missingKeywords: [], missingSections: [], suggestions: [] });
+      return;
+    }
+
     res.status(200).json(result);
   }),
 );
@@ -246,6 +259,10 @@ aiRouter.post(
     const { resumeId, jobDescription } = req.body as { resumeId?: string; jobDescription?: string };
     if (!resumeId) throw new BadRequestError('resumeId is required.');
     if (!jobDescription) throw new BadRequestError('jobDescription is required.');
+
+    if (!getLimits(req.user!.subscriptionTier as Tier).fullATS) {
+      throw new ForbiddenError('Job matching requires a Professional or Premium plan.', 'PLAN_LIMIT_REACHED');
+    }
 
     const row = await prisma.resume.findUnique({ where: { id: resumeId } });
     if (!row || row.ownerId !== req.user!.id) throw new NotFoundError('Resume not found.');
@@ -275,6 +292,8 @@ aiRouter.post(
     if (!resumeId) throw new BadRequestError('resumeId is required.');
     if (!jobDescription) throw new BadRequestError('jobDescription is required.');
 
+    await assertWithinUsageLimit(req.user!.id, req.user!.subscriptionTier as Tier, 'COVER_LETTER');
+
     const row = await prisma.resume.findUnique({ where: { id: resumeId } });
     if (!row || row.ownerId !== req.user!.id) throw new NotFoundError('Resume not found.');
 
@@ -285,6 +304,7 @@ aiRouter.post(
     });
 
     const coverLetter = await aiProvider.generateCoverLetter(resume as any, jobDescription, tone);
+    await logUsage(req.user!.id, 'COVER_LETTER');
     res.status(200).json({ coverLetter });
   }),
 );
@@ -298,6 +318,8 @@ aiRouter.post(
     const { resumeId, jobDescription } = req.body as { resumeId?: string; jobDescription?: string };
     if (!resumeId) throw new BadRequestError('resumeId is required.');
     if (!jobDescription?.trim()) throw new BadRequestError('jobDescription is required.');
+
+    await assertWithinUsageLimit(req.user!.id, req.user!.subscriptionTier as Tier, 'RESUME_TAILORING');
 
     const row = await prisma.resume.findUnique({ where: { id: resumeId } });
     if (!row || row.ownerId !== req.user!.id) throw new NotFoundError('Resume not found.');
@@ -315,6 +337,7 @@ aiRouter.post(
       aiProvider.matchJobDescription(resume as any, jobDescription),
       aiProvider.tailorResume(resume as any, jobDescription),
     ]);
+    await logUsage(req.user!.id, 'RESUME_TAILORING');
 
     const toJson = (v: unknown) => v as any;
 

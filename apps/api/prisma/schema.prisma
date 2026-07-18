@@ -68,6 +68,7 @@ model User {
   promoCodesCreated    PromoCode[]           @relation("PromoCodeCreatedBy")
   promoCodeRedemptions PromoCodeRedemption[]
   emailPreference      EmailPreference?
+  usageLogs            UsageLog[]
 
   @@map("users")
 }
@@ -205,6 +206,8 @@ enum PointsEarnReason {
   REFERRAL
   ADMIN_GRANT
   PROMO_CODE
+  SIGNUP_BONUS
+  SUBSCRIPTION_RENEWAL
 }
 
 enum PointsSpendReason {
@@ -226,6 +229,36 @@ model PointsTransaction {
 
   @@index([userId, createdAt])
   @@map("points_transactions")
+}
+
+// ---------------------------------------------------------------------------
+// Usage ledger — backs the per-day / per-month plan limits in
+// apps/api/src/lib/planLimits.ts (aiMessagesPerDay, coverLettersPerMonth,
+// tailoringPerMonth). One append-only row per successful use; a limit check
+// is just "count rows of this kind newer than the window start". Kept
+// separate from PointsTransaction since points are a currency the user
+// spends/earns, while this is pure metering with no balance semantics.
+// Interview-session usage deliberately isn't tracked here — it already has
+// a natural row per session in ConversationSession (see interview.routes.ts),
+// so a second ledger for the same fact would just be a second place for the
+// count to drift from the real session history.
+// ---------------------------------------------------------------------------
+
+enum UsageKind {
+  AI_CHAT_MESSAGE
+  COVER_LETTER
+  RESUME_TAILORING
+}
+
+model UsageLog {
+  id        String    @id @default(uuid())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  kind      UsageKind
+  createdAt DateTime  @default(now())
+
+  @@index([userId, kind, createdAt])
+  @@map("usage_logs")
 }
 
 // ---------------------------------------------------------------------------

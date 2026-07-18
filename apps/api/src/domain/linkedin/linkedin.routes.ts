@@ -4,8 +4,9 @@ import { asyncHandler } from '../../lib/asyncHandler.js';
 import { aiProvider } from '../ai/index.js';
 import { prisma } from '../../lib/prisma.js';
 import { runMigrations } from '@careerforge/schema';
-import { NotFoundError, BadRequestError } from '../../lib/errors.js';
+import { NotFoundError, BadRequestError, ForbiddenError } from '../../lib/errors.js';
 import rateLimit from 'express-rate-limit';
+import { getLimits, type Tier } from '../../lib/planLimits.js';
 
 export const linkedinRouter = Router();
 
@@ -33,6 +34,10 @@ linkedinRouter.post(
   asyncHandler(async (req, res) => {
     const { resumeId, targetRole } = req.body as { resumeId?: string; targetRole?: string };
     if (!resumeId) throw new BadRequestError('resumeId is required.');
+
+    if (!getLimits(req.user!.subscriptionTier as Tier).linkedinOptimizer) {
+      throw new ForbiddenError('LinkedIn Optimizer is a Premium feature.', 'PLAN_LIMIT_REACHED');
+    }
 
     const row = await prisma.resume.findUnique({ where: { id: resumeId } });
     if (!row || row.ownerId !== req.user!.id) throw new NotFoundError('Resume not found.');

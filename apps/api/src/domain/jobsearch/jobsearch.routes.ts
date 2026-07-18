@@ -1,8 +1,10 @@
 import { Router } from 'express';
 import { asyncHandler } from '../../lib/asyncHandler.js';
-import { BadGatewayError, ConfigurationError } from '../../lib/errors.js';
+import { BadGatewayError, ConfigurationError, ForbiddenError } from '../../lib/errors.js';
 import { JobSearchQuerySchema, type JobSearchListing, type JobSearchResponse } from '@careerforge/schema';
 import { env } from '../../config/env.js';
+import { requireAuth } from '../../middleware/authGuard.js';
+import { getLimits, type Tier } from '../../lib/planLimits.js';
 
 export const jobSearchRouter = Router();
 
@@ -15,14 +17,21 @@ export const jobSearchRouter = Router();
  * ever add or swap job-search providers, only this file changes, not the
  * frontend or the shared schema types.
  *
- * No auth required: search is a public feature, same as the marketing site.
- * Saving a result to the tracker is a separate, authenticated call
- * (POST /api/jobs, see domain/jobtracker) made from the client afterwards.
+ * "Find Jobs" is a Professional/Premium feature (see PLAN_LIMITS.findJobs),
+ * so this now requires auth to check the caller's plan — unlike the
+ * previously-public route, a stranger with no account can no longer hit
+ * Adzuna through this proxy at all. Saving a result to the tracker remains
+ * a separate, authenticated call (POST /api/jobs, see domain/jobtracker).
  */
 jobSearchRouter.get(
   '/',
+  requireAuth,
   asyncHandler(async (req, res) => {
     const { q, location, country, page } = JobSearchQuerySchema.parse(req.query);
+
+    if (!getLimits(req.user!.subscriptionTier as Tier).findJobs) {
+      throw new ForbiddenError('Find Jobs requires a Professional or Premium plan.', 'PLAN_LIMIT_REACHED');
+    }
 
     if (!env.ADZUNA_APP_ID || !env.ADZUNA_APP_KEY) {
       throw new ConfigurationError(

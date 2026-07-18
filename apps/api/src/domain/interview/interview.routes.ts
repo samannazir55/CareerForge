@@ -5,9 +5,11 @@ import { asyncHandler } from '../../lib/asyncHandler.js';
 import { aiProvider, type InterviewQuestion, type AnswerEvaluation } from '../ai/index.js';
 import { prisma } from '../../lib/prisma.js';
 import { runMigrations } from '@careerforge/schema';
-import { NotFoundError, BadRequestError } from '../../lib/errors.js';
+import { NotFoundError, BadRequestError, ForbiddenError } from '../../lib/errors.js';
 import { notify } from '../../lib/notify.js';
 import rateLimit from 'express-rate-limit';
+import { getLimits, type Tier } from '../../lib/planLimits.js';
+import { assertWithinInterviewSessionLimit } from '../../lib/usageLimits.js';
 
 // Same cast used by resume.service.ts and admin/auditLog.ts for every
 // hand-built object headed into a Prisma Json column — Prisma's generated
@@ -76,6 +78,10 @@ interviewRouter.post(
     };
     if (!resumeId) throw new BadRequestError('resumeId is required.');
     if (!jobDescription?.trim()) throw new BadRequestError('jobDescription is required.');
+
+    if (getLimits(req.user!.subscriptionTier as Tier).interviewSessionsPerMonth <= 0) {
+      throw new ForbiddenError('Interview prep requires a Professional or Premium plan.', 'PLAN_LIMIT_REACHED');
+    }
 
     const clampedCount =
       count !== undefined ? Math.min(MAX_QUESTIONS, Math.max(MIN_QUESTIONS, Math.round(count))) : undefined;
@@ -151,6 +157,8 @@ interviewRouter.post(
     if (!jobDescription?.trim()) throw new BadRequestError('jobDescription is required.');
     if (!questions?.length) throw new BadRequestError('questions array is required.');
     if (!answers) throw new BadRequestError('answers is required.');
+
+    await assertWithinInterviewSessionLimit(req.user!.id, req.user!.subscriptionTier as Tier);
 
     const { row } = await loadOwnedResume(resumeId, req.user!.id);
 

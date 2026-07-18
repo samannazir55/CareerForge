@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import { requireAuth } from '../../middleware/authGuard.js';
 import { asyncHandler } from '../../lib/asyncHandler.js';
-import { BadRequestError } from '../../lib/errors.js';
+import { BadRequestError, ForbiddenError } from '../../lib/errors.js';
+import { prisma } from '../../lib/prisma.js';
+import { getLimits, type Tier } from '../../lib/planLimits.js';
 import {
   CreateJobApplicationRequestSchema,
   UpdateJobApplicationRequestSchema,
@@ -53,6 +55,18 @@ jobTrackerRouter.post(
   '/',
   asyncHandler(async (req, res) => {
     const input = CreateJobApplicationRequestSchema.parse(req.body);
+
+    const limits = getLimits(req.user!.subscriptionTier as Tier);
+    if (limits.maxJobTracker !== Infinity) {
+      const count = await prisma.jobApplication.count({ where: { userId: req.user!.id } });
+      if (count >= limits.maxJobTracker) {
+        throw new ForbiddenError(
+          `Your ${req.user!.subscriptionTier} plan allows ${limits.maxJobTracker} tracked jobs. Upgrade to track more.`,
+          'PLAN_LIMIT_REACHED',
+        );
+      }
+    }
+
     const job = await createJobApplication(req.user!.id, input);
     res.status(201).json({ job });
   }),

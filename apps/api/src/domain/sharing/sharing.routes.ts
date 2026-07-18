@@ -3,7 +3,8 @@ import { randomBytes } from 'node:crypto';
 import { requireAuth, requireVerifiedEmail } from '../../middleware/authGuard.js';
 import { asyncHandler } from '../../lib/asyncHandler.js';
 import { prisma } from '../../lib/prisma.js';
-import { NotFoundError } from '../../lib/errors.js';
+import { ForbiddenError, NotFoundError } from '../../lib/errors.js';
+import { getLimits, type Tier } from '../../lib/planLimits.js';
 import { notify } from '../../lib/notify.js';
 import { sendResumeViewAlert } from '../email/digest.service.js';
 import { runMigrations } from '@careerforge/schema';
@@ -66,6 +67,11 @@ sharingRouter.post(
   requireVerifiedEmail,
   asyncHandler(async (req, res) => {
     const { resumeId } = req.params;
+
+    if (!getLimits(req.user!.subscriptionTier as Tier).shareableLinks) {
+      throw new ForbiddenError('Shareable resume links require a Professional or Premium plan.', 'PLAN_LIMIT_REACHED');
+    }
+
     const row = await prisma.resume.findUnique({ where: { id: resumeId } });
     if (!row || row.ownerId !== req.user!.id) throw new NotFoundError('Resume not found.');
 

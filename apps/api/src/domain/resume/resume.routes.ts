@@ -11,8 +11,9 @@ import {
 import * as resumeService from './resume.service.js';
 import { asyncHandler } from '../../lib/asyncHandler.js';
 import { requireAuth, requireVerifiedEmail } from '../../middleware/authGuard.js';
-import { BadRequestError, NotFoundError } from '../../lib/errors.js';
+import { BadRequestError, ForbiddenError, NotFoundError } from '../../lib/errors.js';
 import { prisma } from '../../lib/prisma.js';
+import { getLimits, FREE_TIER_TEMPLATE_IDS, type Tier } from '../../lib/planLimits.js';
 import multer from 'multer';
 import { uploadResumePhoto, deleteResumePhoto } from '../uploads/cloudinary.service.js';
 
@@ -31,6 +32,18 @@ resumeRouter.post(
   '/',
   asyncHandler(async (req, res) => {
     const { title } = CreateResumeRequestSchema.parse(req.body);
+
+    const limits = getLimits(req.user!.subscriptionTier as Tier);
+    if (limits.maxResumes !== Infinity) {
+      const count = await prisma.resume.count({ where: { ownerId: req.user!.id } });
+      if (count >= limits.maxResumes) {
+        throw new ForbiddenError(
+          `Your ${req.user!.subscriptionTier} plan allows ${limits.maxResumes} resumes. Upgrade to create more.`,
+          'PLAN_LIMIT_REACHED',
+        );
+      }
+    }
+
     const resume = await resumeService.createResume(req.user!.id, title);
     res.status(201).json({ resume });
   }),
@@ -56,6 +69,25 @@ resumeRouter.patch(
   '/:id',
   asyncHandler(async (req, res) => {
     const patch = UpdateResumeRequestSchema.parse(req.body);
+
+    // Template selection is plan-gated: FREE only gets Modern + Classic.
+    // A template the user has separately bought with points (the
+    // marketplace's per-template purchase flow, independent of
+    // subscription tier) is still allowed even on FREE.
+    const requestedTemplateId = patch.theme?.templateId;
+    const limits = getLimits(req.user!.subscriptionTier as Tier);
+    if (requestedTemplateId && limits.maxTemplates !== Infinity && !FREE_TIER_TEMPLATE_IDS.includes(requestedTemplateId)) {
+      const purchased = await prisma.templatePurchase.findUnique({
+        where: { userId_templateId: { userId: req.user!.id, templateId: requestedTemplateId } },
+      });
+      if (!purchased) {
+        throw new ForbiddenError(
+          `Your ${req.user!.subscriptionTier} plan only includes the Modern and Classic templates. Upgrade or purchase this template with points to use it.`,
+          'PLAN_LIMIT_REACHED',
+        );
+      }
+    }
+
     const resume = await resumeService.updateResume(req.params.id, req.user!.id, patch);
     res.status(200).json({ resume });
   }),

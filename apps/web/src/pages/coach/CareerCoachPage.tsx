@@ -17,10 +17,12 @@ import {
   Info,
 } from 'lucide-react';
 import type { ResumeSummary } from '@careerforge/schema';
+import { getLimits, type Tier } from '@careerforge/schema';
 import {
   resumeApi,
   coachApi,
   ApiError,
+  isPlanLimitError,
   type CareerCoachContext,
   type ActionItem,
   type CareerGrowthAnalysis,
@@ -28,8 +30,10 @@ import {
 import { AppShell } from '../../components/layout/AppShell';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
+import { UpgradePrompt } from '../../components/ui/UpgradePrompt';
 import { SuggestionCapsules } from '../../components/ai/SuggestionCapsules';
 import { cn } from '../../lib/utils';
+import { useAuth } from '../../context/AuthContext';
 
 type CoachTab = 'chat' | 'analysis';
 
@@ -88,6 +92,9 @@ function ActionItemCard({ item }: { item: ActionItem }) {
 }
 
 export function CareerCoachPage() {
+  const { user } = useAuth();
+  const planAllowsFeature = getLimits((user?.subscriptionTier ?? 'FREE') as Tier).careerCoach;
+
   const [tab, setTab] = useState<CoachTab>('chat');
 
   // ---------------------------------------------------------------------
@@ -157,7 +164,11 @@ export function CareerCoachPage() {
         setActionItems((prev) => [...result.actionItems!, ...prev]);
       }
     } catch (err) {
-      setChatError(err instanceof ApiError ? err.message : 'Could not reach your coach right now. Please try again.');
+      if (isPlanLimitError(err)) {
+        setChatError(err.message);
+      } else {
+        setChatError(err instanceof ApiError ? err.message : 'Could not reach your coach right now. Please try again.');
+      }
     } finally {
       setIsSending(false);
     }
@@ -211,7 +222,13 @@ export function CareerCoachPage() {
       const data = await coachApi.analyse(analysisResumeId, analysisTargetRole.trim());
       setAnalysis(data.analysis);
     } catch (err) {
-      setAnalysisError(err instanceof ApiError ? err.message : 'Could not analyze your career path right now. Please try again.');
+      setAnalysisError(
+        isPlanLimitError(err)
+          ? err.message
+          : err instanceof ApiError
+          ? err.message
+          : 'Could not analyze your career path right now. Please try again.',
+      );
     } finally {
       setAnalysing(false);
     }
@@ -230,6 +247,10 @@ export function CareerCoachPage() {
           </p>
         </div>
 
+        {!planAllowsFeature ? (
+          <UpgradePrompt feature="Career Coach" requiredPlan="PREMIUM" />
+        ) : (
+        <>
         {/* Tab bar — same layoutId-animated pill pattern used across the AI tools */}
         <nav className="flex items-center gap-1 bg-muted/50 p-1 rounded-xl border border-border/50 mb-6 w-fit">
           {TABS.map((t) => {
@@ -590,6 +611,8 @@ export function CareerCoachPage() {
               </div>
             )}
           </div>
+        )}
+        </>
         )}
       </div>
     </AppShell>

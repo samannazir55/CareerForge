@@ -13,11 +13,14 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import type { ResumeSummary } from '@careerforge/schema';
-import { resumeApi, linkedinApi, ApiError, type LinkedInOptimization } from '../../lib/api';
+import { getLimits, type Tier } from '@careerforge/schema';
+import { resumeApi, linkedinApi, ApiError, isPlanLimitError, type LinkedInOptimization } from '../../lib/api';
 import { AppShell } from '../../components/layout/AppShell';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
+import { UpgradePrompt } from '../../components/ui/UpgradePrompt';
 import { cn } from '../../lib/utils';
+import { useAuth } from '../../context/AuthContext';
 
 const HEADLINE_MAX = 220;
 const SUMMARY_MAX = 2600;
@@ -72,6 +75,9 @@ function CopyButton({ text, label = 'Copy', className }: { text: string; label?:
 }
 
 export function LinkedInOptimizerPage() {
+  const { user } = useAuth();
+  const planAllowsFeature = getLimits((user?.subscriptionTier ?? 'FREE') as Tier).linkedinOptimizer;
+
   // Setup state
   const [resumes, setResumes] = useState<ResumeSummary[] | null>(null);
   const [resumesError, setResumesError] = useState<string | null>(null);
@@ -79,6 +85,7 @@ export function LinkedInOptimizerPage() {
   const [targetRole, setTargetRole] = useState('');
   const [optimizing, setOptimizing] = useState(false);
   const [setupError, setSetupError] = useState<string | null>(null);
+  const [planLimitError, setPlanLimitError] = useState<string | null>(null);
 
   // Result state
   const [optimization, setOptimization] = useState<LinkedInOptimization | null>(null);
@@ -104,6 +111,7 @@ export function LinkedInOptimizerPage() {
     }
     setOptimizing(true);
     setSetupError(null);
+    setPlanLimitError(null);
     try {
       const data = await linkedinApi.optimize(selectedResumeId, targetRole.trim() || undefined);
       setOptimization(data.optimization);
@@ -112,7 +120,11 @@ export function LinkedInOptimizerPage() {
       setSkillChecked(Object.fromEntries(data.optimization.skills.map((s) => [s, true])));
       setActiveTab('headline');
     } catch (err) {
-      setSetupError(err instanceof ApiError ? err.message : 'Could not optimize your LinkedIn profile right now. Please try again.');
+      if (isPlanLimitError(err)) {
+        setPlanLimitError(err.message);
+      } else {
+        setSetupError(err instanceof ApiError ? err.message : 'Could not optimize your LinkedIn profile right now. Please try again.');
+      }
     } finally {
       setOptimizing(false);
     }
@@ -155,6 +167,12 @@ export function LinkedInOptimizerPage() {
           )}
         </div>
 
+        {!planAllowsFeature ? (
+          <UpgradePrompt feature="LinkedIn Optimizer" requiredPlan="PREMIUM" />
+        ) : planLimitError ? (
+          <UpgradePrompt feature="LinkedIn Optimizer" requiredPlan="PREMIUM" message={planLimitError} />
+        ) : (
+        <>
         {/* Setup */}
         <GlassCard className="mb-6">
           {optimizing ? (
@@ -386,6 +404,8 @@ export function LinkedInOptimizerPage() {
               <RotateCcw size={16} className="mr-1.5" /> Start Over
             </Button>
           </div>
+        )}
+        </>
         )}
       </div>
     </AppShell>

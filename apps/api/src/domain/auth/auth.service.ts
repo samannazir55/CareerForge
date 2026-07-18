@@ -9,6 +9,8 @@ import { env } from '../../config/env.js';
 import { BadRequestError, ConflictError, UnauthorizedError } from '../../lib/errors.js';
 import type { RegisterRequest, LoginRequest, UserPublic } from '@careerforge/schema';
 import { ensureCareerProfile } from '../profile/profile.service.js';
+import { pointsService } from '../points/points.service.js';
+import { getLimits } from '../../lib/planLimits.js';
 export function toPublicUser(user: User): UserPublic {
   return {
     id: user.id,
@@ -61,6 +63,16 @@ export async function register(input: RegisterRequest): Promise<{ user: User; to
   await ensureCareerProfile(user.id).catch((err) => {
     console.error('Failed to create career profile after OAuth registration:', err);
   });
+
+  // Every new account starts on FREE — award its signup bonus from the
+  // same PLAN_LIMITS table the pricing page and the API's feature gates
+  // read from, rather than a hardcoded number here that could drift from
+  // what /settings advertises.
+  await pointsService
+    .award(user.id, getLimits('FREE').pointsOnSignup, 'SIGNUP_BONUS', 'Welcome to Corvyx!')
+    .catch((err) => {
+      console.error('Failed to award signup bonus points:', err);
+    });
 
   // Email sending is best-effort — a provider failure should never prevent
   // account creation. The user can request a new OTP from the verify page.
@@ -192,6 +204,7 @@ export async function completeOAuth(
   // it instead of creating a duplicate user.
   let user = await prisma.user.findUnique({ where: { email: profile.email } });
 
+  let isNewUser = false;
   if (!user) {
     user = await prisma.user.create({
       data: {
@@ -201,6 +214,14 @@ export async function completeOAuth(
         isEmailVerified: true,
       },
     });
+    isNewUser = true;
+  }
+  if (isNewUser) {
+    await pointsService
+      .award(user.id, getLimits('FREE').pointsOnSignup, 'SIGNUP_BONUS', 'Welcome to Corvyx!')
+      .catch((err) => {
+        console.error('Failed to award signup bonus points:', err);
+      });
   }
   await ensureCareerProfile(user.id).catch((err) => {
     console.error(

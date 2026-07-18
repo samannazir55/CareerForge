@@ -16,12 +16,15 @@ import {
   Target,
 } from 'lucide-react';
 import type { ResumeSummary } from '@careerforge/schema';
-import { resumeApi, interviewApi, ApiError, type InterviewQuestion, type AnswerEvaluation } from '../../lib/api';
+import { getLimits, type Tier } from '@careerforge/schema';
+import { resumeApi, interviewApi, ApiError, isPlanLimitError, type InterviewQuestion, type AnswerEvaluation } from '../../lib/api';
 import { AppShell } from '../../components/layout/AppShell';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
+import { UpgradePrompt } from '../../components/ui/UpgradePrompt';
 import { ProfileCompletionRing } from '../../components/profile/ProfileCompletionRing';
 import { cn } from '../../lib/utils';
+import { useAuth } from '../../context/AuthContext';
 
 type Step = 'setup' | 'practice' | 'results';
 
@@ -63,6 +66,9 @@ function topItems(questions: InterviewQuestion[], evaluations: Record<string, An
 }
 
 export function InterviewPrepPage() {
+  const { user } = useAuth();
+  const planAllowsFeature = getLimits((user?.subscriptionTier ?? 'FREE') as Tier).interviewSessionsPerMonth > 0;
+
   const [step, setStep] = useState<Step>('setup');
 
   // Setup state
@@ -132,7 +138,13 @@ export function InterviewPrepPage() {
       setSaveError(null);
       setStep('practice');
     } catch (err) {
-      setSetupError(err instanceof ApiError ? err.message : 'Could not generate questions right now. Please try again.');
+      setSetupError(
+        isPlanLimitError(err)
+          ? err.message
+          : err instanceof ApiError
+          ? err.message
+          : 'Could not generate questions right now. Please try again.',
+      );
     } finally {
       setGenerating(false);
     }
@@ -237,6 +249,10 @@ export function InterviewPrepPage() {
           </p>
         </div>
 
+        {!planAllowsFeature ? (
+          <UpgradePrompt feature="Interview Prep" requiredPlan="PROFESSIONAL" />
+        ) : (
+        <>
         {/* Step 1 — Setup */}
         {step === 'setup' && (
           <GlassCard>
@@ -576,6 +592,8 @@ export function InterviewPrepPage() {
               </Button>
             </div>
           </div>
+        )}
+        </>
         )}
       </div>
     </AppShell>

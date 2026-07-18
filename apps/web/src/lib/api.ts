@@ -42,6 +42,15 @@ export class ApiError extends Error {
   }
 }
 
+/** True for a 403 the API returned specifically because the caller's plan
+ * doesn't allow the feature/action (see ForbiddenError usages guarded by
+ * getLimits()/canUseFeature() across the API's route handlers) — as
+ * opposed to some other 403 like EMAIL_NOT_VERIFIED. Pages use this to
+ * show an UpgradePrompt instead of a generic error banner. */
+export function isPlanLimitError(err: unknown): err is ApiError {
+  return err instanceof ApiError && err.status === 403 && err.code === 'PLAN_LIMIT_REACHED';
+}
+
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;

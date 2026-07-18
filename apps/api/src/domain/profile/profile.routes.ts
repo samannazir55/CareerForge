@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import { requireAuth, requireVerifiedEmail } from '../../middleware/authGuard.js';
 import { asyncHandler } from '../../lib/asyncHandler.js';
-import { BadRequestError } from '../../lib/errors.js';
+import { BadRequestError, ForbiddenError } from '../../lib/errors.js';
 import { verifyAccessToken } from '../../lib/jwt.js';
+import { getLimits, type Tier } from '../../lib/planLimits.js';
 import {
   UpsertProfileFactRequestSchema,
   ProfileFactCategorySchema,
@@ -149,6 +150,13 @@ profileRouter.patch(
     const parsed = UpdatePublicProfileSettingsRequestSchema.safeParse(req.body);
     if (!parsed.success) {
       throw new BadRequestError(parsed.error.errors[0]?.message ?? 'Invalid input.');
+    }
+
+    if (parsed.data.isPublic && !getLimits(req.user!.subscriptionTier as Tier).publicPortfolio) {
+      throw new ForbiddenError(
+        'The public portfolio page requires a Professional or Premium plan.',
+        'PLAN_LIMIT_REACHED',
+      );
     }
 
     const profile = await updatePublicProfileSettings(req.user!.id, parsed.data);

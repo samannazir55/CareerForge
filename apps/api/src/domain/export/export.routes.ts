@@ -2,7 +2,8 @@ import { Router } from 'express';
 import { exportResume } from './export.service.js';
 import { requireAuth, requireVerifiedEmail } from '../../middleware/authGuard.js';
 import { asyncHandler } from '../../lib/asyncHandler.js';
-import { BadRequestError } from '../../lib/errors.js';
+import { BadRequestError, ForbiddenError } from '../../lib/errors.js';
+import { getLimits, type Tier } from '../../lib/planLimits.js';
 
 export const exportRouter = Router();
 
@@ -23,6 +24,10 @@ exportRouter.get(
         `Unsupported export format: "${format}". Use "pdf" or "docx".`,
         'UNSUPPORTED_FORMAT',
       );
+    }
+
+    if (format === 'docx' && !getLimits(req.user!.subscriptionTier as Tier).docxExport) {
+      throw new ForbiddenError('DOCX export requires a Professional or Premium plan.', 'PLAN_LIMIT_REACHED');
     }
 
     const { buffer, mimeType, filename } = await exportResume(id, req.user!, format);

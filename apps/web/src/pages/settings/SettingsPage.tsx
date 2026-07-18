@@ -9,6 +9,8 @@ import { Switch } from '../../components/ui/Switch';
 import { paymentsApi, pointsApi, plansApi, notificationsApi, type PublicPlan, type EmailPreference, type UpdateEmailPreferenceRequest } from '../../lib/api';
 import { ApiError } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
+import { getLimits, type Tier } from '@careerforge/schema';
+import { FeatureComparisonTable } from '../../components/settings/FeatureComparisonTable';
 
 interface PointsTransaction {
   id: string;
@@ -306,6 +308,11 @@ export function SettingsPage() {
                       <span className="text-emerald-400 mt-0.5 shrink-0">✓</span> {f}
                     </li>
                   ))}
+                  <li className="text-xs text-yellow-400/90 flex items-start gap-2 pt-1 mt-1 border-t border-white/5">
+                    <span className="mt-0.5 shrink-0">⭐</span>
+                    {getLimits(style.id).pointsOnSignup} points on signup
+                    {getLimits(style.id).pointsPerMonth > 0 && ` + ${getLimits(style.id).pointsPerMonth}/month`}
+                  </li>
                 </ul>
                 {isCurrent ? (
                   <Button variant="secondary" size="sm" disabled>Current plan</Button>
@@ -326,6 +333,14 @@ export function SettingsPage() {
               </motion.div>
             );
           })}
+        </div>
+
+        {/* Full feature-by-feature comparison — same PLAN_LIMITS the API
+            enforces server-side, so this table can never promise a feature
+            the backend doesn't actually grant. */}
+        <div className="mb-8">
+          <h3 className="font-semibold mb-3">Compare all features</h3>
+          <FeatureComparisonTable currentTier={currentTier as Tier} />
         </div>
 
         <p className="text-xs text-muted-foreground text-center mb-6">
