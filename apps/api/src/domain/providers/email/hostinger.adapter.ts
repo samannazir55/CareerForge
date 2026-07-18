@@ -65,6 +65,10 @@ export class HostingerEmailProvider implements EmailProvider {
     }
   }
 
+  async sendRawEmail(params: { to: string; subject: string; html: string }): Promise<void> {
+    await this.send(params.to, params.subject, params.html);
+  }
+
   async sendOtpEmail(params: { to: string; fullName: string | null; code: string; purpose: 'verify' | 'reset' }): Promise<void> {
     const greeting = params.fullName ? `Hi ${params.fullName},` : 'Hi,';
     const subject =

@@ -5,6 +5,10 @@
  * and changing EMAIL_PROVIDER — nothing else in the codebase changes.
  */
 export interface EmailProvider {
+  /** Low-level escape hatch for one-off admin notifications (e.g. Contact Us
+   * submissions) that don't warrant a dedicated typed method. */
+  sendRawEmail(params: { to: string; subject: string; html: string }): Promise<void>;
+
   sendOtpEmail(params: { to: string; fullName: string | null; code: string; purpose: 'verify' | 'reset' }): Promise<void>;
   sendWelcomeEmail(params: { to: string; fullName: string | null }): Promise<void>;
   sendPromoCodeEmail(params: {
