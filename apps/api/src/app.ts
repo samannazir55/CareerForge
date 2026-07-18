@@ -78,6 +78,13 @@ export function createApp() {
             'https://www.googletagmanager.com',
           ],
           'connect-src': ["'self'", 'https://www.google-analytics.com', 'https://*.google-analytics.com', 'https://*.analytics.google.com'],
+          // pdfjs-dist (used client-side to parse PDF resumes on import —
+          // see components/import/ImportResumeModal.tsx) spins up its
+          // parsing worker from a blob: URL. worker-src isn't in helmet's
+          // default directive set, so without this it silently falls back
+          // to script-src, which doesn't allow blob: and the worker never
+          // starts.
+          'worker-src': ["'self'", 'blob:'],
           // Resume profile photos are served from Cloudinary (see
           // domain/uploads/cloudinary.service.ts) -- the default CSP's
           // img-src is 'self' data: only, which silently blocks the

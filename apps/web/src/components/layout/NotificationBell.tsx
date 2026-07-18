@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, CheckCheck, Inbox } from 'lucide-react';
 import { notificationsApi, type AppNotification } from '../../lib/api';
@@ -6,6 +7,29 @@ import { cn, formatRelativeTime } from '../../lib/utils';
 
 const POLL_INTERVAL_MS = 60_000;
 const PANEL_ITEM_COUNT = 10;
+
+/**
+ * Maps a notification's `type` + `metadata` (see lib/notify.ts callers on
+ * the backend for the exact shape each type is created with) to the page
+ * it should open. Returns null for types with nothing sensible to deep
+ * link to, in which case clicking still marks it read but doesn't navigate.
+ */
+function getNotificationLink(notification: AppNotification): string | null {
+  const meta = notification.metadata as Record<string, unknown> | null;
+  switch (notification.type) {
+    case 'resume_viewed':
+      return typeof meta?.resumeId === 'string' ? `/resumes/${meta.resumeId}/analytics` : null;
+    case 'interview_completed':
+      return '/interview';
+    case 'subscription_changed':
+      return '/settings/subscription';
+    case 'points_earned':
+    case 'promo_code':
+      return '/settings';
+    default:
+      return null;
+  }
+}
 
 
 /**
@@ -16,6 +40,7 @@ const PANEL_ITEM_COUNT = 10;
  * user menu dropdown in AppShell.
  */
 export function NotificationBell() {
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
@@ -45,6 +70,9 @@ export function NotificationBell() {
       setUnreadCount((c) => Math.max(0, c - 1));
       notificationsApi.markRead(notification.id).catch(() => refresh());
     }
+    setOpen(false);
+    const link = getNotificationLink(notification);
+    if (link) navigate(link);
   };
 
   const handleMarkAllRead = () => {
