@@ -3,51 +3,42 @@ import { prisma } from './prisma.js';
 import { sendWeeklyDigest, sendJobApplicationReminder } from '../domain/email/digest.service.js';
 
 /**
- * Starts the app's background email schedules. Called once from index.ts
- * after the server starts listening — a single process handles both the
- * HTTP server and these cron jobs, so this is a no-op on any additional
- * instance you might scale to unless you gate it (e.g. behind an
- * IS_SCHEDULER_INSTANCE env var) unless you're deliberately running more
- * than one API process against the same database.
+ * Registers the cron jobs behind Corvyx's proactive-email features. Called
+ * once from index.ts after the server starts listening.
+ *
+ * Both jobs pre-filter users by `isEmailVerified` (no point emailing an
+ * address nobody's confirmed owning) and by the relevant EmailPreference
+ * flag, then hand off one user at a time to the digest service — which
+ * re-checks the same preference itself, so this pre-filter is purely an
+ * optimization (skip the query fan-out for users who opted out), not the
+ * only place consent is enforced.
+ *
+ * Each per-user send is wrapped so one user's failure (bad address,
+ * mailbox outage, whatever) can't abort the batch for everyone else.
  */
 export function startScheduler(): void {
   // Weekly digest — every Monday at 8am UTC
   cron.schedule('0 8 * * 1', async () => {
-    console.log('[scheduler] running weekly digest job');
     const users = await prisma.user.findMany({
-      where: {
-        isEmailVerified: true,
-        // EmailPreference rows are created lazily (see getOrCreateEmailPreference),
-        // so a user who predates this feature and has never opened Settings
-        // has no row at all yet — not a row with weeklyDigest: false. Since
-        // the column defaults to true, "no row" must be treated the same as
-        // "row with weeklyDigest: true", or every pre-existing user would
-        // silently never receive a digest until they happened to visit Settings.
-        OR: [{ emailPreference: null }, { emailPreference: { weeklyDigest: true } }],
-      },
+      where: { isEmailVerified: true, emailPreference: { weeklyDigest: true } },
       select: { id: true },
     });
     for (const user of users) {
       await sendWeeklyDigest(user.id).catch((e) => console.error('Digest failed for', user.id, e));
     }
-    console.log(`[scheduler] weekly digest sent to ${users.length} user(s)`);
   });
 
   // Job follow-up reminders — every Wednesday at 9am UTC
   cron.schedule('0 9 * * 3', async () => {
-    console.log('[scheduler] running job application reminder job');
     const users = await prisma.user.findMany({
-      where: {
-        isEmailVerified: true,
-        // Same "no row yet" reasoning as the digest query above.
-        OR: [{ emailPreference: null }, { emailPreference: { jobApplicationReminders: true } }],
-      },
+      where: { isEmailVerified: true, emailPreference: { jobApplicationReminders: true } },
       select: { id: true },
     });
     for (const user of users) {
-      await sendJobApplicationReminder(user.id).catch((e) => console.error('Reminder failed for', user.id, e));
+      await sendJobApplicationReminder(user.id).catch((e) =>
+        console.error('Reminder failed for', user.id, e),
+      );
     }
-    console.log(`[scheduler] job application reminders checked for ${users.length} user(s)`);
   });
 
   console.log('Scheduler started');

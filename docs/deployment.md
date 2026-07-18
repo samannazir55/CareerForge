@@ -63,8 +63,11 @@ NODE_ENV                  # production
 API_PORT                  # 4000
 API_BASE_URL              # https://your-api.onrender.com
 FRONTEND_URL              # https://your-web.onrender.com
-RESEND_API_KEY            # from resend.com
-EMAIL_FROM                # Corvyx <noreply@yourdomain.com>
+SMTP_HOST                 # smtp.hostinger.com (or smtp.titan.email if your mailbox is on Titan)
+SMTP_PORT                 # 465
+SMTP_USER                 # full mailbox address, e.g. connect@yourdomain.com
+SMTP_PASSWORD             # that mailbox's password
+EMAIL_FROM                # Corvyx <connect@yourdomain.com>
 GOOGLE_CLIENT_ID          # from Google Cloud Console
 GOOGLE_CLIENT_SECRET      #
 GOOGLE_REDIRECT_URI       # https://your-api.onrender.com/api/auth/oauth/google/callback
@@ -114,8 +117,8 @@ See `.env.example` at the monorepo root for the full annotated list. The short v
 | `DATABASE_URL` | ✅ | Postgres connection string |
 | `JWT_ACCESS_SECRET` | ✅ | Min 32 chars random string |
 | `JWT_REFRESH_SECRET` | ✅ | Different from access secret |
-| `RESEND_API_KEY` | ✅ | OTP emails won't send without it |
-| `EMAIL_FROM` | ✅ | Must be a verified Resend sender |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` | ✅ | OTP emails won't send without these — Hostinger/Titan mailbox credentials |
+| `EMAIL_FROM` | ✅ | Must be the same mailbox address as `SMTP_USER` (or an alias on it) |
 | `FRONTEND_URL` | ✅ | Used for CORS and OAuth redirects |
 | `GOOGLE_CLIENT_ID/SECRET` | ⚠️ | Required only if Google login is enabled |
 | `GITHUB_CLIENT_ID/SECRET` | ⚠️ | Required only if GitHub login is enabled |

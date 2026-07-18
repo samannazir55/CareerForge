@@ -2,9 +2,7 @@ import { Router } from 'express';
 import { requireAuth } from '../../middleware/authGuard.js';
 import { asyncHandler } from '../../lib/asyncHandler.js';
 import { prisma } from '../../lib/prisma.js';
-import { NotFoundError, BadRequestError } from '../../lib/errors.js';
-import { UpdateEmailPreferenceRequestSchema } from '@careerforge/schema';
-import { getOrCreateEmailPreference } from '../email/digest.service.js';
+import { BadRequestError, NotFoundError } from '../../lib/errors.js';
 
 export const notificationsRouter = Router();
 
@@ -42,6 +40,75 @@ notificationsRouter.get(
   }),
 );
 
+// The only fields a client may toggle via PATCH — deliberately excludes
+// id/userId/updatedAt so a client can't smuggle those through the same
+// "partial update" body.
+const EMAIL_PREFERENCE_FIELDS = [
+  'weeklyDigest',
+  'resumeViewAlerts',
+  'jobApplicationReminders',
+  'interviewReminders',
+  'marketingEmails',
+] as const;
+type EmailPreferenceField = (typeof EMAIL_PREFERENCE_FIELDS)[number];
+
+/**
+ * GET /api/notifications/preferences
+ * Returns the caller's EmailPreference row, creating one with column
+ * defaults on first read — mirrors how a Subscription/CareerProfile row
+ * doesn't exist until something triggers its creation, rather than
+ * backfilling every user up front.
+ */
+notificationsRouter.get(
+  '/preferences',
+  asyncHandler(async (req, res) => {
+    const preference = await prisma.emailPreference.upsert({
+      where: { userId: req.user!.id },
+      update: {},
+      create: { userId: req.user!.id },
+    });
+    res.status(200).json({ preference });
+  }),
+);
+
+/**
+ * PATCH /api/notifications/preferences
+ * Body: any subset of the boolean EmailPreference fields. Unknown keys are
+ * rejected outright (rather than silently ignored) so a typo in the
+ * frontend fails loudly instead of quietly no-op'ing.
+ */
+notificationsRouter.patch(
+  '/preferences',
+  asyncHandler(async (req, res) => {
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const keys = Object.keys(body);
+
+    if (keys.length === 0) {
+      throw new BadRequestError('At least one preference field is required.');
+    }
+
+    const data: Partial<Record<EmailPreferenceField, boolean>> = {};
+    for (const key of keys) {
+      if (!EMAIL_PREFERENCE_FIELDS.includes(key as EmailPreferenceField)) {
+        throw new BadRequestError(`Unknown preference field: ${key}`);
+      }
+      const value = body[key];
+      if (typeof value !== 'boolean') {
+        throw new BadRequestError(`Preference field "${key}" must be a boolean.`);
+      }
+      data[key as EmailPreferenceField] = value;
+    }
+
+    const preference = await prisma.emailPreference.upsert({
+      where: { userId: req.user!.id },
+      update: data,
+      create: { userId: req.user!.id, ...data },
+    });
+
+    res.status(200).json({ preference });
+  }),
+);
+
 /**
  * PATCH /api/notifications/:id/read
  * Marks one notification as read. Scoped to the caller via updateMany's
@@ -73,43 +140,6 @@ notificationsRouter.patch(
       data: { isRead: true },
     });
     res.status(200).json({ message: 'All notifications marked as read.' });
-  }),
-);
-
-/**
- * GET /api/notifications/preferences
- * Returns the caller's EmailPreference, creating one with schema defaults
- * on first access (see getOrCreateEmailPreference in digest.service.ts).
- */
-notificationsRouter.get(
-  '/preferences',
-  asyncHandler(async (req, res) => {
-    const preference = await getOrCreateEmailPreference(req.user!.id);
-    res.status(200).json({ preference });
-  }),
-);
-
-/**
- * PATCH /api/notifications/preferences
- * Body: Partial<{ weeklyDigest, resumeViewAlerts, jobApplicationReminders,
- * interviewReminders, marketingEmails }>
- * Upserts rather than update-only, so a user whose row hasn't been lazily
- * created yet (e.g. flipping a toggle as their very first preferences
- * interaction) doesn't 404 against a row that doesn't exist yet.
- */
-notificationsRouter.patch(
-  '/preferences',
-  asyncHandler(async (req, res) => {
-    const parsed = UpdateEmailPreferenceRequestSchema.safeParse(req.body);
-    if (!parsed.success) throw new BadRequestError(parsed.error.errors[0]?.message ?? 'Invalid input.');
-
-    const preference = await prisma.emailPreference.upsert({
-      where: { userId: req.user!.id },
-      create: { userId: req.user!.id, ...parsed.data },
-      update: parsed.data,
-    });
-
-    res.status(200).json({ preference });
   }),
 );
 

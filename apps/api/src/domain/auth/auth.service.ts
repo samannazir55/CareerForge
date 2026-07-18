@@ -62,7 +62,7 @@ export async function register(input: RegisterRequest): Promise<{ user: User; to
     console.error('Failed to create career profile after OAuth registration:', err);
   });
 
-  // Email sending is best-effort — a Resend failure should never prevent
+  // Email sending is best-effort — a provider failure should never prevent
   // account creation. The user can request a new OTP from the verify page.
   sendVerificationOtp(user.id).catch((err) => {
     console.error('Failed to send verification OTP after registration:', err);

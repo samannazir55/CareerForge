@@ -10,7 +10,7 @@ TypeScript end-to-end. React + Vite + Tailwind on the frontend, Express + Prisma
 
 ## A note on how this was built
 
-This codebase was written without the ability to run `npm install`, start the dev servers, or run the TypeScript compiler against the real dependency tree — the build environment had no network access. Every file was type-checked locally against hand-written structural shims for each third-party package (Express, Prisma, Zod, JWT, bcryptjs, Resend, React, react-router-dom, framer-motion) to catch real syntax and logic errors, and two genuine bugs were caught and fixed this way. But that's a substitute for, not equivalent to, actually running it. **Treat the first `npm install` + `npm run dev` as the real test**, and report back anything that breaks.
+This codebase was written without the ability to run `npm install`, start the dev servers, or run the TypeScript compiler against the real dependency tree — the build environment had no network access. Every file was type-checked locally against hand-written structural shims for each third-party package (Express, Prisma, Zod, JWT, bcryptjs, Nodemailer, React, react-router-dom, framer-motion) to catch real syntax and logic errors, and two genuine bugs were caught and fixed this way. But that's a substitute for, not equivalent to, actually running it. **Treat the first `npm install` + `npm run dev` as the real test**, and report back anything that breaks.
 
 ## Getting started
 
@@ -27,7 +27,7 @@ npm install
 ```bash
 cp apps/api/.env.example apps/api/.env
 ```
-Fill in at minimum `DATABASE_URL`, `JWT_ACCESS_SECRET`, and `JWT_REFRESH_SECRET` (any long random string for the two secrets — e.g. `openssl rand -hex 32`). Everything else (OAuth, Resend) can stay blank for now; those features will throw a clear `ConfigurationError` if used without credentials, rather than silently faking success.
+Fill in at minimum `DATABASE_URL`, `JWT_ACCESS_SECRET`, and `JWT_REFRESH_SECRET` (any long random string for the two secrets — e.g. `openssl rand -hex 32`). Everything else (OAuth, SMTP email) can stay blank for now; those features will throw a clear `ConfigurationError` if used without credentials, rather than silently faking success.
 
 ### 4. Set up the database
 ```bash
@@ -40,11 +40,11 @@ This runs Prisma's migration, creating the `users`, `oauth_accounts`, `otp_codes
 npm run dev:api   # http://localhost:4000
 npm run dev:web   # http://localhost:5173
 ```
-Visit `http://localhost:5173/register` and you should be able to create an account end-to-end — except the OTP email won't send until you configure Resend (step 6), since that's a real integration, not a mock.
+Visit `http://localhost:5173/register` and you should be able to create an account end-to-end — except the OTP email won't send until you configure SMTP (step 6), since that's a real integration, not a mock.
 
 ### 6. Wiring up real providers (optional, but needed for full functionality)
 
-**Resend (email/OTP):** create a free account at resend.com, verify a sending domain (or use their test domain for local dev), grab an API key, set `RESEND_API_KEY` and `EMAIL_FROM` in `apps/api/.env`.
+**Hostinger SMTP (email/OTP):** create a mailbox on your Hostinger-hosted domain, then grab the SMTP host/port and that mailbox's credentials from your email app's manual/advanced setup screen (or hPanel → Emails → Manage → Connect Apps & Devices) — typically `smtp.hostinger.com` port 465 for plain Hostinger Email, or `smtp.titan.email` if your mailbox is on Titan. Set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and `EMAIL_FROM` in `apps/api/.env`.
 
 **Google OAuth:** in Google Cloud Console, create an OAuth 2.0 Client ID (Web application). Authorized redirect URI: `http://localhost:4000/api/auth/oauth/google/callback`. Set `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`.
 

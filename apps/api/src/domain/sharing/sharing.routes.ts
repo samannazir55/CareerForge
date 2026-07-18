@@ -181,10 +181,9 @@ sharingRouter.get(
         { resumeId: link.resume.id, slug: link.slug },
       );
 
-      // Same cooldown-gated, fire-and-forget treatment as the notification
-      // above — an email alert per page refresh would be far more
-      // annoying than a repeated in-dashboard notification, so it rides
-      // the same 15-minute throttle rather than firing on every hit.
+      // Fire-and-forget, same pattern as notify() above — an email alert is
+      // a side effect of the view being recorded, not part of serving the
+      // public resume page, so it must never delay or fail the response.
       sendResumeViewAlert(link.resume.ownerId, link.resume.title).catch((err) =>
         console.error('[sharing] failed to send resume view alert email:', err),
       );

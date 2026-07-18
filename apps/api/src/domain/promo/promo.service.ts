@@ -186,9 +186,13 @@ export const promoCodeService = {
     let emailsFailed = 0;
 
     // Sequential rather than Promise.all — this can be a few thousand
-    // recipients and the Resend adapter has no batching of its own; a
-    // tight concurrent burst would just trip its rate limiter and turn
-    // into a wall of retried failures instead of a clean sequential send.
+    // recipients and the Hostinger SMTP adapter has no batching or rate
+    // limiting of its own; a tight concurrent burst would trip the
+    // mailbox's hourly sending cap (roughly 500/hour on most Hostinger
+    // business plans) and turn into a wall of failures instead of a clean
+    // sequential send. At high recipient counts this loop can still take a
+    // while in real time — that's expected and preferable to getting the
+    // sending mailbox rate-limited or flagged.
     for (const user of recipients) {
       try {
         await emailProvider.sendPromoCodeEmail({

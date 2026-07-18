@@ -16,12 +16,31 @@ export interface EmailProvider {
     pointsValue: number;
     expiresAt: string | null;
   }): Promise<void>;
-  /**
-   * Generic escape hatch for callers that build their own full HTML body
-   * (digest emails, reminders) rather than a fixed template baked into the
-   * provider itself — used by domain/email/digest.service.ts so adding a
-   * new email type there never requires touching this interface or its
-   * adapters again.
-   */
-  sendRawEmail(params: { to: string; subject: string; html: string }): Promise<void>;
+
+  /** Weekly "Your Corvyx week in review" activity summary. */
+  sendWeeklyDigestEmail(params: {
+    to: string;
+    fullName: string | null;
+    resumeViews: number;
+    pointsEarned: number;
+    jobApplications: number;
+    interviewSessions: number;
+    unreadNotifications: number;
+  }): Promise<void>;
+
+  /** Sent (throttled by the caller) when someone views one of the user's
+   * shared resumes. */
+  sendResumeViewAlertEmail(params: {
+    to: string;
+    fullName: string | null;
+    resumeTitle: string;
+  }): Promise<void>;
+
+  /** Sent when one or more job applications have sat in "applied" with no
+   * update for 7+ days. */
+  sendJobApplicationReminderEmail(params: {
+    to: string;
+    fullName: string | null;
+    staleApplications: Array<{ company: string; role: string; daysSinceApplied: number }>;
+  }): Promise<void>;
 }

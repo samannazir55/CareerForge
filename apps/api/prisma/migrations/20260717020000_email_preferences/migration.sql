@@ -1,11 +1,13 @@
 -- CreateTable: per-user email preferences
 -- Migration: 20260717020000_email_preferences
 --
--- Backs the weekly digest + smart reminder emails (see
--- domain/email/digest.service.ts and lib/scheduler.ts). One row per user,
--- created lazily on first read/write (see notifications.routes.ts) rather
--- than a signup-time insert, so existing users get sane defaults instead
--- of the scheduler having to treat a missing row as a special case.
+-- Backs the new proactive-communication features (weekly activity digest,
+-- resume-view alerts, job-application follow-up reminders, interview
+-- reminders, marketing emails). One row per user; rows are created lazily
+-- on first read (see notifications.routes.ts GET /preferences) rather than
+-- backfilled here, so existing users implicitly get the column defaults
+-- (everything on except marketing) the first time they touch the endpoint
+-- or are picked up by the scheduler.
 
 CREATE TABLE "email_preferences" (
     "id"                      TEXT NOT NULL,
@@ -22,6 +24,5 @@ CREATE TABLE "email_preferences" (
 
 CREATE UNIQUE INDEX "email_preferences_userId_key" ON "email_preferences"("userId");
 
-ALTER TABLE "email_preferences"
-    ADD CONSTRAINT "email_preferences_userId_fkey"
+ALTER TABLE "email_preferences" ADD CONSTRAINT "email_preferences_userId_fkey"
     FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;

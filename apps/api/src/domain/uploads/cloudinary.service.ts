@@ -5,7 +5,7 @@ import { BadRequestError, ConfigurationError } from '../../lib/errors.js';
 // ---------------------------------------------------------------------------
 // Cloudinary photo uploads (resume profile photos)
 // ---------------------------------------------------------------------------
-// No mock/fallback mode by design, same reasoning as the Resend email
+// No mock/fallback mode by design, same reasoning as the Hostinger email
 // adapter: an upload that silently "succeeds" without actually storing
 // anything would be far worse than a loud, obvious failure at request time.
 // All three CLOUDINARY_* env vars are required together for this to work.
