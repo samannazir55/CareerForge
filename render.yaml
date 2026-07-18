@@ -17,6 +17,10 @@ services:
         value: samannazir55@email.com
       - key: PORT
         value: 8000
+      # Read at build time by Vite (see apps/web/src/lib/analytics.ts) and
+      # forwarded into the Docker build via the ARG declared in Dockerfile.
+      - key: VITE_GA_MEASUREMENT_ID
+        value: G-DFR41DEJLT
       - key: DATABASE_URL
         fromDatabase:
           name: careerforge-db
