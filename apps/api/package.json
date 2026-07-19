@@ -34,7 +34,8 @@
     "openai": "^4.72.0",
     "cloudinary": "^2.10.0",
     "multer": "^2.2.0",
-    "node-cron": "^3.0.3"
+    "node-cron": "^3.0.3",
+    "cheerio": "^1.0.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

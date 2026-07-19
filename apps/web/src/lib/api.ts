@@ -318,9 +318,25 @@ interface ChatResumeUpdate {
   sections?: Section[];
 }
 
+export interface ScrapedJob {
+  title: string;
+  company: string;
+  location: string;
+  description: string;
+  url: string;
+}
+
+export interface TargetJob {
+  title?: string;
+  company?: string;
+  description?: string;
+}
+
 export const aiApi = {
-  chat: (messages: Array<{ role: 'user' | 'assistant'; content: string }>, resumeId?: string) =>
-    request<{ reply: string; resumeUpdate?: ChatResumeUpdate; suggestions?: string[]; degraded?: boolean }>('/ai/chat', { method: 'POST', body: { messages, resumeId } }),
+  chat: (messages: Array<{ role: 'user' | 'assistant'; content: string }>, resumeId?: string, targetJob?: TargetJob) =>
+    request<{ reply: string; resumeUpdate?: ChatResumeUpdate; suggestions?: string[]; degraded?: boolean }>('/ai/chat', { method: 'POST', body: { messages, resumeId, targetJob } }),
+  scrapeJob: (url: string) =>
+    request<{ job: ScrapedJob }>('/ai/scrape-job', { method: 'POST', body: { url } }),
   scoreATS: (resumeId: string, jobDescription?: string) =>
     request<{ score: number; missingKeywords: string[]; missingSections: string[]; suggestions: string[] }>('/ai/ats-score', { method: 'POST', body: { resumeId, jobDescription } }),
   matchJob: (resumeId: string, jobDescription: string) =>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, X, Loader2, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Sparkles, X, Loader2, AlertCircle, CheckCircle2, ArrowRight, Link2, CheckCircle } from 'lucide-react';
 import type { ResumeSummary } from '@careerforge/schema';
 import { resumeApi, aiApi, ApiError } from '../../lib/api';
 import { Button } from '../ui/Button';
@@ -38,6 +38,15 @@ export function TailorResumeModal({ open, onClose, initialJobDescription, jobCon
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ resumeId: string; matchScore: number; suggestions: string[] } | null>(null);
 
+  // Optional "paste a URL and let us fetch the job description" flow —
+  // fills in jobDescription/scrapedTitle/scrapedCompany but leaves the
+  // textarea editable so a failed or partial scrape never blocks the user.
+  const [jobUrl, setJobUrl] = useState('');
+  const [isFetchingJob, setIsFetchingJob] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [scrapedTitle, setScrapedTitle] = useState('');
+  const [scrapedCompany, setScrapedCompany] = useState('');
+
   // Re-seed everything each time the modal opens fresh, and fetch the
   // resume list right away — no point waiting for the person to notice
   // the dropdown is empty.
@@ -49,6 +58,10 @@ export function TailorResumeModal({ open, onClose, initialJobDescription, jobCon
     setJobDescription(initialJobDescription);
     setResumes(null);
     setResumesError(null);
+    setJobUrl('');
+    setFetchError(null);
+    setScrapedTitle('');
+    setScrapedCompany('');
     resumeApi
       .list()
       .then((data) => {
@@ -58,6 +71,25 @@ export function TailorResumeModal({ open, onClose, initialJobDescription, jobCon
       .catch(() => setResumesError('Could not load your resumes.'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  async function handleFetchJob() {
+    const url = jobUrl.trim();
+    if (!url) return;
+    setIsFetchingJob(true);
+    setFetchError(null);
+    try {
+      const { job } = await aiApi.scrapeJob(url);
+      setJobDescription(job.description);
+      setScrapedTitle(job.title);
+      setScrapedCompany(job.company);
+    } catch (err) {
+      setFetchError(
+        err instanceof ApiError ? err.message : "Couldn't fetch that URL — please paste the description manually.",
+      );
+    } finally {
+      setIsFetchingJob(false);
+    }
+  }
 
   async function handleTailor() {
     if (!selectedResumeId) {
@@ -149,7 +181,69 @@ export function TailorResumeModal({ open, onClose, initialJobDescription, jobCon
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-medium">Job description</label>
+                  <label className="text-sm font-medium">Paste a job listing URL (optional)</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={jobUrl}
+                      onChange={(e) => { setJobUrl(e.target.value); setFetchError(null); }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleFetchJob();
+                        }
+                      }}
+                      disabled={stage === 'loading' || isFetchingJob}
+                      placeholder="https://linkedin.com/jobs/…"
+                      className="flex-1 h-11 rounded-xl border border-input bg-background px-4 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleFetchJob}
+                      disabled={stage === 'loading' || isFetchingJob || !jobUrl.trim()}
+                    >
+                      {isFetchingJob ? (
+                        <>
+                          <Loader2 size={14} className="animate-spin mr-1.5" /> Fetching…
+                        </>
+                      ) : (
+                        <>
+                          <Link2 size={14} className="mr-1.5" /> Fetch
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  {fetchError && <p className="text-sm text-destructive">{fetchError}</p>}
+                  {!fetchError && scrapedTitle && (
+                    <>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs text-muted-foreground">Job Title</span>
+                          <input
+                            readOnly
+                            value={scrapedTitle}
+                            className="h-9 w-full rounded-lg border border-input bg-muted/50 px-3 text-sm text-muted-foreground"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs text-muted-foreground">Company</span>
+                          <input
+                            readOnly
+                            value={scrapedCompany || '—'}
+                            className="h-9 w-full rounded-lg border border-input bg-muted/50 px-3 text-sm text-muted-foreground"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-sm text-emerald-500 flex items-center gap-1.5">
+                        <CheckCircle size={14} /> Job details fetched ✓
+                      </p>
+                    </>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-medium">Or paste the job description manually</label>
                   <textarea
                     value={jobDescription}
                     onChange={(e) => setJobDescription(e.target.value)}

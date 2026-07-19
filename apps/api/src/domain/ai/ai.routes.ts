@@ -9,6 +9,7 @@ import { aiRateLimit } from '../../middleware/rateLimit.js';
 import { getLimits, type Tier } from '../../lib/planLimits.js';
 import { assertWithinUsageLimit, logUsage } from '../../lib/usageLimits.js';
 import { sanitise } from '../../lib/sanitise.js';
+import { scrapeJobUrl } from '../../lib/scrapeJobUrl.js';
 
 export const aiRouter = Router();
 
@@ -122,9 +123,10 @@ aiRouter.post(
   requireVerifiedEmail,
   aiRateLimit,
   asyncHandler(async (req, res) => {
-    const { messages: rawMessages, resumeId } = req.body as {
+    const { messages: rawMessages, resumeId, targetJob: rawTargetJob } = req.body as {
       messages?: Array<{ role: 'user' | 'assistant'; content: string }>;
       resumeId?: string;
+      targetJob?: { title?: string; company?: string; description?: string };
     };
 
     if (!rawMessages?.length) throw new BadRequestError('messages array is required.');
@@ -132,7 +134,20 @@ aiRouter.post(
 
     await assertWithinUsageLimit(req.user!.id, req.user!.subscriptionTier as Tier, 'AI_CHAT_MESSAGE');
 
-    const result = await aiProvider.chat(messages, RESUME_CHAT_SYSTEM_PROMPT);
+    // Optional job the person is targeting (set via the "Target Job"
+    // section on AIChatBuilderPage). When present it's folded into the
+    // system prompt so the model's follow-up questions naturally steer
+    // toward that specific role instead of staying generic.
+    let systemPrompt = RESUME_CHAT_SYSTEM_PROMPT;
+    const targetTitle = sanitise(rawTargetJob?.title, 200);
+    const targetCompany = sanitise(rawTargetJob?.company, 100);
+    const targetDescription = sanitise(rawTargetJob?.description, 5_000);
+    if (targetTitle || targetCompany || targetDescription) {
+      const jobLine = [targetTitle, targetCompany && `at ${targetCompany}`].filter(Boolean).join(' ');
+      systemPrompt += `\n\nThe user is targeting this job: ${jobLine || 'see description below'}. Job description: ${targetDescription || '(not provided)'}`;
+    }
+
+    const result = await aiProvider.chat(messages, systemPrompt);
     await logUsage(req.user!.id, 'AI_CHAT_MESSAGE');
 
     // The "click Import to paste your existing CV" nudge used to be a prompt
@@ -209,6 +224,26 @@ aiRouter.post(
     }
 
     res.status(200).json(result);
+  }),
+);
+
+// POST /api/ai/scrape-job
+// Body: { url: string }
+// Fetches a job listing URL and extracts title/company/description so the
+// person doesn't have to copy-paste the job description by hand. Best-effort
+// — many sites block scraping or render the description client-side, so
+// callers should treat failure as "fall back to pasting manually," not as
+// a hard error state.
+aiRouter.post(
+  '/scrape-job',
+  requireAuth,
+  aiRateLimit,
+  asyncHandler(async (req, res) => {
+    const { url } = req.body as { url?: string };
+    if (!url?.trim().startsWith('http')) throw new BadRequestError('A valid URL is required.');
+
+    const job = await scrapeJobUrl(url.trim());
+    res.status(200).json({ job });
   }),
 );
 

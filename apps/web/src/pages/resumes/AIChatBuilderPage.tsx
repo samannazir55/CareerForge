@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, type FormEvent, type ChangeEvent } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, ArrowLeft, Upload, CheckCircle2, Eye, EyeOff } from 'lucide-react';
+import { Send, ArrowLeft, Upload, CheckCircle2, Eye, EyeOff, Target, ChevronDown, ChevronUp, Link2, Loader2, X } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
 import { ResumePreview } from '../../components/preview/ResumePreview';
@@ -177,6 +177,49 @@ export function AIChatBuilderPage() {
   // Each failed retry was silently leaving behind another empty, orphaned
   // "Untitled Resume" row in the database.
   const [createdResumeId, setCreatedResumeId] = useState<string | null>(null);
+
+  // Optional job the person is targeting — collapsible "Target Job" section
+  // above the chat. Once set, it's passed as context on every subsequent
+  // /ai/chat call so the AI's follow-up questions steer toward that role.
+  const [targetJobOpen, setTargetJobOpen] = useState(false);
+  const [targetJob, setTargetJob] = useState<{ title: string; company: string; description: string } | null>(null);
+  const [targetJobUrl, setTargetJobUrl] = useState('');
+  const [targetJobManual, setTargetJobManual] = useState('');
+  const [isFetchingTargetJob, setIsFetchingTargetJob] = useState(false);
+  const [targetJobError, setTargetJobError] = useState<string | null>(null);
+
+  async function handleFetchTargetJob() {
+    const url = targetJobUrl.trim();
+    if (!url) return;
+    setIsFetchingTargetJob(true);
+    setTargetJobError(null);
+    try {
+      const { job } = await aiApi.scrapeJob(url);
+      setTargetJob({ title: job.title, company: job.company, description: job.description });
+      setTargetJobOpen(false);
+    } catch (err) {
+      setTargetJobError(
+        err instanceof ApiError ? err.message : "Couldn't fetch that URL — please paste the description manually.",
+      );
+    } finally {
+      setIsFetchingTargetJob(false);
+    }
+  }
+
+  function handleAddTargetJobManually() {
+    const description = targetJobManual.trim();
+    if (!description) return;
+    setTargetJob({ title: '', company: '', description });
+    setTargetJobOpen(false);
+  }
+
+  function clearTargetJob() {
+    setTargetJob(null);
+    setTargetJobUrl('');
+    setTargetJobManual('');
+    setTargetJobError(null);
+  }
+
   const bottomRef = useRef<HTMLDivElement>(null);
   // The live preview panel further down is `hidden` below the `lg`
   // breakpoint (it's designed as a side-by-side desktop layout), which
@@ -269,6 +312,9 @@ export function AIChatBuilderPage() {
       const result = await aiApi.chat(
         newMessages.map((m) => ({ role: m.role, content: m.content })),
         resumeId,
+        targetJob
+          ? { title: targetJob.title || undefined, company: targetJob.company || undefined, description: targetJob.description }
+          : undefined,
       );
 
       setMessages((prev) => [...prev, { role: 'assistant', content: result.reply }]);
@@ -442,6 +488,83 @@ export function AIChatBuilderPage() {
                 {isFinishing ? 'Saving…' : 'Continue to Editor'}
               </Button>
             </div>
+          </div>
+
+          {/* Target Job — optional context passed to every AI chat message so
+              its follow-up questions steer toward a specific role. */}
+          <div className="border-b border-border">
+            {targetJob ? (
+              <div className="flex items-center gap-2 px-4 py-2.5 bg-indigo-500/5">
+                <Target size={13} className="text-indigo-400 shrink-0" />
+                <span className="text-xs font-medium truncate flex-1">
+                  🎯 Targeting: {targetJob.title || 'Untitled role'}
+                  {targetJob.company ? ` at ${targetJob.company}` : ''}
+                </span>
+                <button
+                  type="button"
+                  onClick={clearTargetJob}
+                  aria-label="Clear target job"
+                  className="shrink-0 h-5 w-5 rounded-full flex items-center justify-center hover:bg-background transition-colors"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            ) : (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setTargetJobOpen((v) => !v)}
+                  className="w-full flex items-center gap-1.5 px-4 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {targetJobOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                  <Target size={13} />
+                  Add target job
+                </button>
+                {targetJobOpen && (
+                  <div className="px-4 pb-3 space-y-2">
+                    <div className="flex gap-2">
+                      <input
+                        type="url"
+                        value={targetJobUrl}
+                        onChange={(e) => { setTargetJobUrl(e.target.value); setTargetJobError(null); }}
+                        placeholder="Paste job URL: https://…"
+                        disabled={isFetchingTargetJob}
+                        className="flex-1 h-9 rounded-lg border border-input bg-background px-3 text-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={handleFetchTargetJob}
+                        disabled={isFetchingTargetJob || !targetJobUrl.trim()}
+                      >
+                        {isFetchingTargetJob ? <Loader2 size={13} className="animate-spin" /> : <Link2 size={13} />}
+                      </Button>
+                    </div>
+                    {targetJobError && <p className="text-xs text-destructive">{targetJobError}</p>}
+                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase tracking-wide">
+                      <div className="flex-1 h-px bg-border" /> or <div className="flex-1 h-px bg-border" />
+                    </div>
+                    <textarea
+                      value={targetJobManual}
+                      onChange={(e) => setTargetJobManual(e.target.value)}
+                      placeholder="Paste description manually…"
+                      rows={3}
+                      className="w-full rounded-lg border border-input bg-background px-3 py-2 text-xs resize-none placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="w-full"
+                      onClick={handleAddTargetJobManually}
+                      disabled={!targetJobManual.trim()}
+                    >
+                      Add target job
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Mobile-only live preview — a collapsible version of the desktop
