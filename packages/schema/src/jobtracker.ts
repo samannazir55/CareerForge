@@ -34,7 +34,7 @@ export const CreateJobApplicationRequestSchema = z.object({
   jobTitle: z.string().trim().min(1, 'jobTitle is required.').max(200),
   jobUrl: z.string().trim().url('jobUrl must be a valid URL.').max(2000).optional(),
   status: JobApplicationStatusSchema.optional(),
-  notes: z.string().max(10_000).optional(),
+  notes: z.string().trim().max(10_000).optional(),
   appliedAt: z.string().datetime().optional(),
 });
 export type CreateJobApplicationRequest = z.infer<typeof CreateJobApplicationRequestSchema>;
@@ -46,7 +46,7 @@ export const UpdateJobApplicationRequestSchema = z
     jobTitle: z.string().trim().min(1, 'jobTitle cannot be empty.').max(200),
     jobUrl: z.string().trim().url('jobUrl must be a valid URL.').max(2000).nullable(),
     status: JobApplicationStatusSchema,
-    notes: z.string().max(10_000).nullable(),
+    notes: z.string().trim().max(10_000).nullable(),
     appliedAt: z.string().datetime().nullable(),
   })
   .partial()
