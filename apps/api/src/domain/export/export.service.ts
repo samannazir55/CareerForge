@@ -121,7 +121,9 @@ async function renderPdf(html: string): Promise<Buffer> {
     // in a fallback font), but cap it — a hung/unreachable font request
     // should degrade to "wrong font" rather than fail the whole export.
     await Promise.race([
-      page.evaluate(() => (globalThis as any).document.fonts?.ready).catch(() => undefined),
+      page.evaluate(() => (globalThis as any).document.fonts?.ready).catch((e) =>
+        console.error('[export] [font-ready]:', e),
+      ),
       new Promise((resolve) => setTimeout(resolve, 2500)),
     ]);
 

@@ -22,7 +22,18 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
     return;
   }
 
-  console.error('Unhandled error:', err);
+  if (isProd) {
+    console.error(JSON.stringify({
+      ts: new Date().toISOString(),
+      status: 500,
+      code: 'UNHANDLED_ERROR',
+      message: err instanceof Error ? err.message : String(err),
+      path: req.path,
+      method: req.method,
+    }));
+  } else {
+    console.error('Unhandled error:', err);
+  }
   res.status(500).json({
     error: {
       code: 'INTERNAL_ERROR',

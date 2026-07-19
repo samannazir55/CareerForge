@@ -1,9 +1,23 @@
 node_modules/
 dist/
 build/
+
+# Environment files — NEVER commit these
 .env
 .env.local
+.env.*.local
+apps/api/.env
+apps/web/.env
+*.env
+
 *.log
 .DS_Store
 apps/api/prisma/dev.db
 generated/
+
+# Stale docs that keep reappearing
+ARCHITECTURE.md
+render.yaml
+
+# Lock file — regenerated during Docker build
+package-lock.json

@@ -8,6 +8,8 @@
 # ---- Stage 1: Install dependencies ------------------------------------------
     FROM node:20-bookworm-slim AS deps
 
+    RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
     WORKDIR /app
     
     COPY package.json ./

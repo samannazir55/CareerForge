@@ -218,13 +218,13 @@ export const PUBLIC_SLUG_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 export const UpdatePublicProfileSettingsRequestSchema = z.object({
   publicSlug: z.string().trim().toLowerCase().min(3).max(30).regex(PUBLIC_SLUG_REGEX, 'Use lowercase letters, numbers, and single hyphens only.').optional(),
   isPublic: z.boolean().optional(),
-  headline: z.string().max(150).optional(),
-  bio: z.string().max(1000).optional(),
-  location: z.string().max(100).optional(),
-  website: z.string().url().max(300).optional().or(z.literal('')),
-  linkedinUrl: z.string().url().max(300).optional().or(z.literal('')),
-  githubUrl: z.string().url().max(300).optional().or(z.literal('')),
-  twitterUrl: z.string().url().max(300).optional().or(z.literal('')),
+  headline: z.string().trim().max(150).optional(),
+  bio: z.string().trim().max(1000).optional(),
+  location: z.string().trim().max(100).optional(),
+  website: z.string().trim().url().max(300).optional().or(z.literal('')),
+  linkedinUrl: z.string().trim().url().max(300).optional().or(z.literal('')),
+  githubUrl: z.string().trim().url().max(300).optional().or(z.literal('')),
+  twitterUrl: z.string().trim().url().max(300).optional().or(z.literal('')),
 });
 export type UpdatePublicProfileSettingsRequest = z.infer<typeof UpdatePublicProfileSettingsRequestSchema>;
 

@@ -40,7 +40,10 @@ export async function runPageSpeed(url: string, strategy: 'mobile' | 'desktop'):
 
   const response = await fetch(`${PSI_ENDPOINT}?${params.toString()}`);
   if (!response.ok) {
-    const body = await response.text().catch(() => '');
+    const body = await response.text().catch((e) => {
+      console.error('[seo] [psi-error-body]:', e);
+      return '';
+    });
     throw new AppError(502, 'PAGESPEED_UPSTREAM_ERROR', `PageSpeed Insights request failed (${response.status}): ${body.slice(0, 300)}`);
   }
 

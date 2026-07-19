@@ -7,7 +7,16 @@ import { startScheduler } from './lib/scheduler.js';
 const app = createApp();
 
 const server = app.listen(env.API_PORT, () => {
-  console.log(`Corvyx API listening on ${env.API_BASE_URL} (${env.NODE_ENV})`);
+  const model = env.OPENROUTER_MODEL?.split('/').pop() ?? 'unknown';
+  console.log(`
+┌─────────────────────────────────────┐
+│  Corvyx API                         │
+│  Port:    ${env.API_PORT}
+│  Env:     ${env.NODE_ENV}
+│  Base URL:${env.API_BASE_URL}
+│  AI:      ${env.AI_PROVIDER} / ${model}
+└─────────────────────────────────────┘
+`);
   startScheduler();
 });
 
