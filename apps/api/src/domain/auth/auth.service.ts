@@ -54,14 +54,8 @@ export async function register(input: RegisterRequest): Promise<{ user: User; to
   const user = await prisma.user.create({
     data: { email: input.email, fullName: input.fullName, passwordHash },
   });
-  // In register(), after user creation — add:
   await ensureCareerProfile(user.id).catch((err) => {
-    console.error('Failed to create career profile after registration:', err);
-  });
-
-  // In completeOAuth(), after new user creation — add:
-  await ensureCareerProfile(user.id).catch((err) => {
-    console.error('Failed to create career profile after OAuth registration:', err);
+    console.error('[auth] register ensureCareerProfile error:', err);
   });
 
   // Every new account starts on FREE — award its signup bonus from the
@@ -71,13 +65,13 @@ export async function register(input: RegisterRequest): Promise<{ user: User; to
   await pointsService
     .award(user.id, getLimits('FREE').pointsOnSignup, 'SIGNUP_BONUS', 'Welcome to Corvyx!')
     .catch((err) => {
-      console.error('Failed to award signup bonus points:', err);
+      console.error('[auth] register signup-bonus error:', err);
     });
 
   // Email sending is best-effort — a provider failure should never prevent
   // account creation. The user can request a new OTP from the verify page.
   sendVerificationOtp(user.id).catch((err) => {
-    console.error('Failed to send verification OTP after registration:', err);
+    console.error('[auth] register send-verification-otp error:', err);
   });
 
   const tokens = await issueSession(user);
@@ -113,7 +107,7 @@ export async function verifyEmail(userId: string, code: string): Promise<User> {
   const user = await prisma.user.update({ where: { id: userId }, data: { isEmailVerified: true } });
   // Welcome email is best-effort: a failure here shouldn't undo verification.
   await emailProvider.sendWelcomeEmail({ to: user.email, fullName: user.fullName }).catch((err) => {
-    console.error('Failed to send welcome email:', err);
+    console.error('[auth] verify-email send-welcome-email error:', err);
   });
   return user;
 }
@@ -136,7 +130,7 @@ export async function forgotPassword(email: string): Promise<void> {
       emailProvider.sendOtpEmail({ to: user.email, fullName: user.fullName, code, purpose: 'reset' }),
     )
     .catch((err) => {
-      console.error('Failed to send password reset email:', err);
+      console.error('[auth] forgot-password send-otp-email error:', err);
     });
 }
 
@@ -176,7 +170,7 @@ export async function revokeSession(rawRefreshToken: string): Promise<void> {
   const tokenHash = hashOpaqueToken(rawRefreshToken);
   await prisma.refreshToken
     .updateMany({ where: { tokenHash, revokedAt: null }, data: { revokedAt: new Date() } })
-    .catch(() => undefined);
+    .catch((err) => console.error('[auth] revoke-session error:', err));
 }
 
 export async function startOAuth(provider: PrismaOAuthProviderName, state: string): Promise<string> {
@@ -220,14 +214,11 @@ export async function completeOAuth(
     await pointsService
       .award(user.id, getLimits('FREE').pointsOnSignup, 'SIGNUP_BONUS', 'Welcome to Corvyx!')
       .catch((err) => {
-        console.error('Failed to award signup bonus points:', err);
+        console.error('[auth] oauth signup-bonus error:', err);
       });
   }
   await ensureCareerProfile(user.id).catch((err) => {
-    console.error(
-      'Failed to create career profile after OAuth registration:',
-      err
-    );
+    console.error('[auth] oauth ensureCareerProfile error:', err);
   });
   await prisma.oAuthAccount.create({
     data: { provider, providerUserId: profile.providerUserId, userId: user.id },

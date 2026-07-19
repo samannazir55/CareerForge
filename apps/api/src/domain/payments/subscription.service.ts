@@ -122,7 +122,7 @@ export async function handleWebhook(payload: Buffer, signature: string): Promise
         if (monthlyPoints > 0) {
           await pointsService
             .award(sub.userId, monthlyPoints, 'SUBSCRIPTION_RENEWAL', `${tier} monthly points`)
-            .catch(() => undefined);
+            .catch((err) => console.error('[payments] subscription-renewal points-award error:', err));
         }
       }
     } else {
@@ -174,7 +174,7 @@ export async function handleWebhook(payload: Buffer, signature: string): Promise
         if (signupPoints > 0) {
           await pointsService
             .award(user.id, signupPoints, 'SIGNUP_BONUS', `${tier} plan activated`)
-            .catch(() => undefined);
+            .catch((err) => console.error('[payments] subscription-created points-award error:', err));
         }
       }
     }

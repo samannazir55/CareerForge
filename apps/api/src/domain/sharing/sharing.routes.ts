@@ -176,7 +176,7 @@ sharingRouter.get(
           ...(shouldNotify ? { lastViewNotifiedAt: now } : {}),
         },
       })
-      .catch(() => undefined);
+      .catch((err) => console.error('[sharing] view-count update error:', err));
 
     if (shouldNotify) {
       await notify(
@@ -191,7 +191,7 @@ sharingRouter.get(
       // a side effect of the view being recorded, not part of serving the
       // public resume page, so it must never delay or fail the response.
       sendResumeViewAlert(link.resume.ownerId, link.resume.title).catch((err) =>
-        console.error('[sharing] failed to send resume view alert email:', err),
+        console.error('[sharing] resume-view-alert email error:', err),
       );
     }
 
@@ -241,7 +241,7 @@ sharingRouter.post(
             where: { id: req.params.viewId, resumeId: link.resumeId },
             data: { duration },
           })
-          .catch(() => undefined);
+          .catch((err) => console.error('[sharing] view-duration update error:', err));
       }
     }
 

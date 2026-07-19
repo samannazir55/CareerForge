@@ -96,7 +96,8 @@ export async function getBrowser(): Promise<import('puppeteer-core').Browser> {
     // SAME stale error until the process restarts, even after whatever
     // caused it is no longer true. Clearing it here lets the next export
     // attempt a fresh launch instead.
-    _browserPromise.catch(() => {
+    _browserPromise.catch((err) => {
+      console.error('[export] browser-launch error:', err);
       _browserPromise = null;
     });
   }
@@ -115,7 +116,10 @@ export async function getBrowser(): Promise<import('puppeteer-core').Browser> {
 
 export async function closeBrowser(): Promise<void> {
   if (_browserPromise) {
-    const browser = await _browserPromise.catch(() => null);
+    const browser = await _browserPromise.catch((err) => {
+      console.error('[export] browser-shutdown error:', err);
+      return null;
+    });
     await browser?.close();
     _browserPromise = null;
   }

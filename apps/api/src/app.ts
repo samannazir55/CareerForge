@@ -24,6 +24,8 @@ import { interviewRouter } from './domain/interview/interview.routes.js';
 import { linkedinRouter } from './domain/linkedin/linkedin.routes.js';
 import { coachRouter } from './domain/coach/coach.routes.js';
 import { notificationsRouter } from './domain/notifications/notifications.routes.js';
+import { globalRateLimit } from './middleware/rateLimit.js';
+import { prisma } from './lib/prisma.js';
 
 export function createApp() {
   const app = express();
@@ -101,9 +103,22 @@ export function createApp() {
   app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
   app.use(express.json());
 
-  app.get('/api/health', (_req: Request, res: Response) => {
-    res.status(200).json({ status: 'ok' });
+  app.get('/api/health', async (_req: Request, res: Response) => {
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      res.status(200).json({ status: 'ok', db: 'ok', ts: new Date().toISOString() });
+    } catch (err) {
+      console.error('[health] db check error:', err);
+      res.status(503).json({ status: 'error', db: 'unreachable', ts: new Date().toISOString() });
+    }
   });
+
+  // Baseline rate limit for every API route (see rateLimit.ts for why this
+  // exists alongside the tighter auth/AI-specific limiters — this is the
+  // floor, not a replacement). Scoped to /api rather than app-wide so a
+  // browser loading many static JS/CSS chunks on first paint doesn't burn
+  // through the same 100/min budget as actual API calls.
+  app.use('/api', globalRateLimit);
 
   // API routes
   app.use('/api/auth', authRouter);

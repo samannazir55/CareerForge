@@ -85,7 +85,8 @@ export class StripePaymentProvider implements PaymentProvider {
     let event: Stripe.Event;
     try {
       event = stripe.webhooks.constructEvent(payload, signature, env.STRIPE_WEBHOOK_SECRET);
-    } catch {
+    } catch (err) {
+      console.error('[payments] webhook-signature error:', err);
       throw new BadRequestError('Invalid Stripe webhook signature.', 'INVALID_WEBHOOK_SIGNATURE');
     }
 

@@ -19,6 +19,7 @@ import { VerifyOtpPage } from './pages/auth/VerifyOtpPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
 import { OAuthCallbackPage } from './pages/OAuthCallbackPage';
+import { NotFoundPage } from './pages/NotFoundPage';
 
 // App pages
 import { DashboardPage } from './pages/dashboard/DashboardPage';
@@ -122,6 +123,11 @@ export function App() {
               </Route>
             </Route>
           </Route>
+
+          {/* Catch-all — must stay last so every more-specific route above
+              (including nested admin/protected ones) gets first chance to
+              match. */}
+          <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </AuthProvider>
       </BrowserRouter>

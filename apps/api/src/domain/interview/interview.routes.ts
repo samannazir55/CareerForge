@@ -7,9 +7,10 @@ import { prisma } from '../../lib/prisma.js';
 import { runMigrations } from '@careerforge/schema';
 import { NotFoundError, BadRequestError, ForbiddenError } from '../../lib/errors.js';
 import { notify } from '../../lib/notify.js';
-import rateLimit from 'express-rate-limit';
+import { aiRateLimit } from '../../middleware/rateLimit.js';
 import { getLimits, type Tier } from '../../lib/planLimits.js';
 import { assertWithinInterviewSessionLimit } from '../../lib/usageLimits.js';
+import { sanitise } from '../../lib/sanitise.js';
 
 // Same cast used by resume.service.ts and admin/auditLog.ts for every
 // hand-built object headed into a Prisma Json column — Prisma's generated
@@ -18,17 +19,6 @@ import { assertWithinInterviewSessionLimit } from '../../lib/usageLimits.js';
 const toJson = (v: unknown): Prisma.InputJsonValue => v as Prisma.InputJsonValue;
 
 export const interviewRouter = Router();
-
-// Same rationale as aiRouter's rate limit — these endpoints all make LLM
-// calls, which are more expensive (time and cost) than a typical CRUD
-// request.
-const interviewRateLimit = rateLimit({
-  windowMs: 60 * 1000,
-  limit: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: { code: 'RATE_LIMITED', message: 'Too many interview requests. Please wait a moment.' } },
-});
 
 const MIN_QUESTIONS = 1;
 const MAX_QUESTIONS = 20;
@@ -69,15 +59,16 @@ interviewRouter.post(
   '/questions',
   requireAuth,
   requireVerifiedEmail,
-  interviewRateLimit,
+  aiRateLimit,
   asyncHandler(async (req, res) => {
-    const { resumeId, jobDescription, count } = req.body as {
+    const { resumeId, jobDescription: rawJobDescription, count } = req.body as {
       resumeId?: string;
       jobDescription?: string;
       count?: number;
     };
     if (!resumeId) throw new BadRequestError('resumeId is required.');
-    if (!jobDescription?.trim()) throw new BadRequestError('jobDescription is required.');
+    if (!rawJobDescription?.trim()) throw new BadRequestError('jobDescription is required.');
+    const jobDescription = sanitise(rawJobDescription, 20_000);
 
     if (getLimits(req.user!.subscriptionTier as Tier).interviewSessionsPerMonth <= 0) {
       throw new ForbiddenError('Interview prep requires a Professional or Premium plan.', 'PLAN_LIMIT_REACHED');
@@ -116,16 +107,19 @@ interviewRouter.post(
   '/evaluate',
   requireAuth,
   requireVerifiedEmail,
-  interviewRateLimit,
+  aiRateLimit,
   asyncHandler(async (req, res) => {
-    const { question, answer, jobDescription } = req.body as {
+    const { question: rawQuestion, answer: rawAnswer, jobDescription: rawJobDescription } = req.body as {
       question?: string;
       answer?: string;
       jobDescription?: string;
     };
-    if (!question?.trim()) throw new BadRequestError('question is required.');
-    if (!answer?.trim()) throw new BadRequestError('answer is required.');
-    if (!jobDescription?.trim()) throw new BadRequestError('jobDescription is required.');
+    if (!rawQuestion?.trim()) throw new BadRequestError('question is required.');
+    if (!rawAnswer?.trim()) throw new BadRequestError('answer is required.');
+    if (!rawJobDescription?.trim()) throw new BadRequestError('jobDescription is required.');
+    const question = sanitise(rawQuestion, 2_000);
+    const answer = sanitise(rawAnswer, 10_000);
+    const jobDescription = sanitise(rawJobDescription, 20_000);
 
     const evaluation = await aiProvider.evaluateAnswer(question, answer, jobDescription);
     res.status(200).json({ evaluation });
@@ -145,18 +139,22 @@ interviewRouter.post(
   '/session',
   requireAuth,
   requireVerifiedEmail,
-  interviewRateLimit,
+  aiRateLimit,
   asyncHandler(async (req, res) => {
-    const { resumeId, jobDescription, questions, answers } = req.body as {
+    const { resumeId, jobDescription: rawJobDescription, questions, answers: rawAnswers } = req.body as {
       resumeId?: string;
       jobDescription?: string;
       questions?: InterviewQuestion[];
       answers?: Record<string, string>;
     };
     if (!resumeId) throw new BadRequestError('resumeId is required.');
-    if (!jobDescription?.trim()) throw new BadRequestError('jobDescription is required.');
+    if (!rawJobDescription?.trim()) throw new BadRequestError('jobDescription is required.');
     if (!questions?.length) throw new BadRequestError('questions array is required.');
-    if (!answers) throw new BadRequestError('answers is required.');
+    if (!rawAnswers) throw new BadRequestError('answers is required.');
+    const jobDescription = sanitise(rawJobDescription, 20_000);
+    const answers = Object.fromEntries(
+      Object.entries(rawAnswers).map(([qId, a]) => [qId, sanitise(a, 10_000)]),
+    );
 
     await assertWithinInterviewSessionLimit(req.user!.id, req.user!.subscriptionTier as Tier);
 

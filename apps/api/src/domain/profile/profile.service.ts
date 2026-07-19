@@ -1,6 +1,7 @@
 import { prisma } from '../../lib/prisma.js';
 import { NotFoundError, BadRequestError } from '../../lib/errors.js';
 import { computeCompleteness } from './completeness.js';
+import { sanitise } from '../../lib/sanitise.js';
 import type {
   UpsertProfileFactRequest,
   ProfileWithFacts,
@@ -321,9 +322,9 @@ export async function updatePublicProfileSettings(
     data: {
       publicSlug: input.publicSlug,
       isPublic: input.isPublic,
-      headline: input.headline,
-      bio: input.bio,
-      location: input.location,
+      headline: input.headline !== undefined ? sanitise(input.headline, 150) : undefined,
+      bio: input.bio !== undefined ? sanitise(input.bio, 1000) : undefined,
+      location: input.location !== undefined ? sanitise(input.location, 200) : undefined,
       website: toNullable(input.website),
       linkedinUrl: toNullable(input.linkedinUrl),
       githubUrl: toNullable(input.githubUrl),

@@ -1,5 +1,6 @@
 import { prisma } from '../../lib/prisma.js';
 import { NotFoundError } from '../../lib/errors.js';
+import { sanitise } from '../../lib/sanitise.js';
 import type {
   CreateJobApplicationRequest,
   UpdateJobApplicationRequest,
@@ -50,7 +51,7 @@ export async function createJobApplication(
       role: input.jobTitle,
       url: input.jobUrl,
       status: input.status,
-      notes: input.notes,
+      notes: input.notes !== undefined ? sanitise(input.notes, 10_000) : input.notes,
       appliedAt: input.appliedAt ? new Date(input.appliedAt) : undefined,
     },
   });
@@ -83,7 +84,7 @@ export async function updateJobApplication(
       ...(input.jobTitle !== undefined ? { role: input.jobTitle } : {}),
       ...(input.jobUrl !== undefined ? { url: input.jobUrl } : {}),
       ...(input.status !== undefined ? { status: input.status } : {}),
-      ...(input.notes !== undefined ? { notes: input.notes } : {}),
+      ...(input.notes !== undefined ? { notes: input.notes === null ? null : sanitise(input.notes, 10_000) } : {}),
       ...(input.appliedAt !== undefined
         ? { appliedAt: input.appliedAt ? new Date(input.appliedAt) : null }
         : {}),

@@ -5,20 +5,12 @@ import { aiProvider } from './index.js';
 import { prisma } from '../../lib/prisma.js';
 import { runMigrations, mergeResumeSections, CURRENT_SCHEMA_VERSION, type Section } from '@careerforge/schema';
 import { NotFoundError, BadRequestError, ForbiddenError } from '../../lib/errors.js';
-import rateLimit from 'express-rate-limit';
+import { aiRateLimit } from '../../middleware/rateLimit.js';
 import { getLimits, type Tier } from '../../lib/planLimits.js';
 import { assertWithinUsageLimit, logUsage } from '../../lib/usageLimits.js';
+import { sanitise } from '../../lib/sanitise.js';
 
 export const aiRouter = Router();
-
-// AI endpoints are more expensive — tighter rate limit than auth endpoints
-const aiRateLimit = rateLimit({
-  windowMs: 60 * 1000,
-  limit: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: { code: 'RATE_LIMITED', message: 'Too many AI requests. Please wait a moment.' } },
-});
 
 const RESUME_CHAT_SYSTEM_PROMPT = `You are Corvyx AI, a friendly resume-building assistant.
 Your goal is to help users build a professional resume through conversation.
@@ -130,12 +122,13 @@ aiRouter.post(
   requireVerifiedEmail,
   aiRateLimit,
   asyncHandler(async (req, res) => {
-    const { messages, resumeId } = req.body as {
+    const { messages: rawMessages, resumeId } = req.body as {
       messages?: Array<{ role: 'user' | 'assistant'; content: string }>;
       resumeId?: string;
     };
 
-    if (!messages?.length) throw new BadRequestError('messages array is required.');
+    if (!rawMessages?.length) throw new BadRequestError('messages array is required.');
+    const messages = rawMessages.map((m) => ({ role: m.role, content: sanitise(m.content, 8_000) }));
 
     await assertWithinUsageLimit(req.user!.id, req.user!.subscriptionTier as Tier, 'AI_CHAT_MESSAGE');
 
@@ -225,19 +218,10 @@ aiRouter.post(
   requireVerifiedEmail,
   aiRateLimit,
   asyncHandler(async (req, res) => {
-    const { resumeId, jobDescription } = req.body as { resumeId?: string; jobDescription?: string };
+    const body = req.body as { resumeId?: string; jobDescription?: string };
+    const resumeId = body.resumeId;
+    const jobDescription = sanitise(body.jobDescription, 20_000);
     if (!resumeId) throw new BadRequestError('resumeId is required.');
-
-    const row = await prisma.resume.findUnique({ where: { id: resumeId } });
-    if (!row || row.ownerId !== req.user!.id) throw new NotFoundError('Resume not found.');
-
-    const { payload: resume } = runMigrations({
-      schemaVersion: row.schemaVersion,
-      migrationVersion: row.migrationVersion,
-      payload: { id: row.id, ownerId: row.ownerId, title: row.title, theme: row.theme, sections: row.sections, schemaVersion: row.schemaVersion, migrationVersion: row.migrationVersion, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() },
-    });
-
-    const result = await aiProvider.scoreATS(resume as any, jobDescription);
 
     // FREE gets "Basic ATS score (score only, no keyword suggestions)" —
     // Professional/Premium get the full breakdown (see PLAN_LIMITS.fullATS).
@@ -256,9 +240,10 @@ aiRouter.post(
   requireVerifiedEmail,
   aiRateLimit,
   asyncHandler(async (req, res) => {
-    const { resumeId, jobDescription } = req.body as { resumeId?: string; jobDescription?: string };
+    const { resumeId, jobDescription: rawJobDescription } = req.body as { resumeId?: string; jobDescription?: string };
     if (!resumeId) throw new BadRequestError('resumeId is required.');
-    if (!jobDescription) throw new BadRequestError('jobDescription is required.');
+    if (!rawJobDescription) throw new BadRequestError('jobDescription is required.');
+    const jobDescription = sanitise(rawJobDescription, 20_000);
 
     if (!getLimits(req.user!.subscriptionTier as Tier).fullATS) {
       throw new ForbiddenError('Job matching requires a Professional or Premium plan.', 'PLAN_LIMIT_REACHED');
@@ -284,13 +269,15 @@ aiRouter.post(
   requireVerifiedEmail,
   aiRateLimit,
   asyncHandler(async (req, res) => {
-    const { resumeId, jobDescription, tone } = req.body as {
+    const { resumeId, jobDescription: rawJobDescription, tone: rawTone } = req.body as {
       resumeId?: string;
       jobDescription?: string;
       tone?: string;
     };
     if (!resumeId) throw new BadRequestError('resumeId is required.');
-    if (!jobDescription) throw new BadRequestError('jobDescription is required.');
+    if (!rawJobDescription) throw new BadRequestError('jobDescription is required.');
+    const jobDescription = sanitise(rawJobDescription, 20_000);
+    const tone = sanitise(rawTone, 50) || undefined;
 
     await assertWithinUsageLimit(req.user!.id, req.user!.subscriptionTier as Tier, 'COVER_LETTER');
 
@@ -315,9 +302,10 @@ aiRouter.post(
   requireVerifiedEmail,
   aiRateLimit,
   asyncHandler(async (req, res) => {
-    const { resumeId, jobDescription } = req.body as { resumeId?: string; jobDescription?: string };
+    const { resumeId, jobDescription: rawJobDescription } = req.body as { resumeId?: string; jobDescription?: string };
     if (!resumeId) throw new BadRequestError('resumeId is required.');
-    if (!jobDescription?.trim()) throw new BadRequestError('jobDescription is required.');
+    if (!rawJobDescription?.trim()) throw new BadRequestError('jobDescription is required.');
+    const jobDescription = sanitise(rawJobDescription, 20_000);
 
     await assertWithinUsageLimit(req.user!.id, req.user!.subscriptionTier as Tier, 'RESUME_TAILORING');
 
@@ -378,8 +366,9 @@ aiRouter.post(
   requireVerifiedEmail,
   aiRateLimit,
   asyncHandler(async (req, res) => {
-    const { rawText } = req.body as { rawText?: string };
-    if (!rawText?.trim()) throw new BadRequestError('rawText is required.');
+    const { rawText: rawRawText } = req.body as { rawText?: string };
+    if (!rawRawText?.trim()) throw new BadRequestError('rawText is required.');
+    const rawText = sanitise(rawRawText, 50_000);
 
     const extracted = await aiProvider.extractResumeFromText(rawText);
 

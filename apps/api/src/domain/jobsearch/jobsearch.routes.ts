@@ -53,7 +53,8 @@ jobSearchRouter.get(
     let upstream: Response;
     try {
       upstream = await fetch(url);
-    } catch {
+    } catch (err) {
+      console.error('[jobsearch] adzuna-fetch error:', err);
       throw new BadGatewayError('Could not reach the job search provider. Please try again shortly.');
     }
 

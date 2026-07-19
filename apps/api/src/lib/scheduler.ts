@@ -36,7 +36,7 @@ export function startScheduler(): void {
     });
     for (const user of users) {
       await sendJobApplicationReminder(user.id).catch((e) =>
-        console.error('Reminder failed for', user.id, e),
+        console.error(`[scheduler] job-application-reminder error (user ${user.id}):`, e),
       );
     }
   });

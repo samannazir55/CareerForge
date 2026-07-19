@@ -5,21 +5,11 @@ import { aiProvider } from '../ai/index.js';
 import { prisma } from '../../lib/prisma.js';
 import { runMigrations } from '@careerforge/schema';
 import { NotFoundError, BadRequestError, ForbiddenError } from '../../lib/errors.js';
-import rateLimit from 'express-rate-limit';
+import { aiRateLimit } from '../../middleware/rateLimit.js';
 import { getLimits, type Tier } from '../../lib/planLimits.js';
+import { sanitise } from '../../lib/sanitise.js';
 
 export const linkedinRouter = Router();
-
-// Same rationale as aiRouter's / interviewRouter's rate limit — this
-// endpoint makes an LLM call, which is more expensive (time and cost)
-// than a typical CRUD request.
-const linkedinRateLimit = rateLimit({
-  windowMs: 60 * 1000,
-  limit: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: { code: 'RATE_LIMITED', message: 'Too many LinkedIn requests. Please wait a moment.' } },
-});
 
 /**
  * POST /api/linkedin/optimize
@@ -30,7 +20,7 @@ linkedinRouter.post(
   '/optimize',
   requireAuth,
   requireVerifiedEmail,
-  linkedinRateLimit,
+  aiRateLimit,
   asyncHandler(async (req, res) => {
     const { resumeId, targetRole } = req.body as { resumeId?: string; targetRole?: string };
     if (!resumeId) throw new BadRequestError('resumeId is required.');
@@ -58,7 +48,7 @@ linkedinRouter.post(
       },
     });
 
-    const optimization = await aiProvider.optimizeLinkedIn(resume as any, targetRole?.trim() || undefined);
+    const optimization = await aiProvider.optimizeLinkedIn(resume as any, sanitise(targetRole, 200) || undefined);
     res.status(200).json({ optimization });
   }),
 );
