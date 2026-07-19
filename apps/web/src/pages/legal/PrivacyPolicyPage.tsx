@@ -88,7 +88,8 @@ export function PrivacyPolicyPage() {
         Questions about this policy or your data:{' '}
         <a href="mailto:connect@corvyx.app">connect@corvyx.app</a>
         <br />
-        REPLACE_WITH_BUSINESS_NAME_AND_ADDRESS
+        Carl-von-Ossietzky.19, 65197 Wiesbaden, Germany
+        +49 176 72369217
       </p>
     </LegalPageLayout>
   );
