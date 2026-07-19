@@ -14,6 +14,44 @@
     <meta name="twitter:description" content="AI-powered career platform. Resume builder, interview prep, job tracker and career coach in one place." />
     <meta name="twitter:image" content="https://corvyx.app/og-image.png" />
     <link rel="manifest" href="/manifest.json" />
+    <!-- Structured data for search engines and AI crawlers/answer engines
+         (Google, Perplexity, ChatGPT Search, etc.) — describes what Corvyx
+         is and its real, current pricing tiers. Deliberately no
+         aggregateRating/review block: schema.org rating markup is supposed
+         to reflect genuine collected reviews, and Google's structured-data
+         guidelines treat fabricated or placeholder ratings as spam that can
+         get a site's rich-result eligibility revoked. Add that block later,
+         wired to real review data, once there is any. -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Corvyx",
+      "url": "https://corvyx.app",
+      "logo": "https://corvyx.app/og-image.png",
+      "description": "Corvyx is an AI-powered career platform. It combines an AI resume builder, ATS resume checker, job description matching, interview preparation, a job application tracker, and AI career coaching in one place.",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web",
+      "offers": [
+        { "@type": "Offer", "name": "Free", "price": "0", "priceCurrency": "USD" },
+        { "@type": "Offer", "name": "Professional", "price": "9", "priceCurrency": "USD", "billingIncrement": "month" },
+        { "@type": "Offer", "name": "Premium", "price": "19", "priceCurrency": "USD", "billingIncrement": "month" }
+      ],
+      "featureList": [
+        "AI Resume Builder",
+        "ATS Resume Checker",
+        "Job Description Matching",
+        "Resume Tailoring",
+        "AI Cover Letter Generator",
+        "Interview Preparation",
+        "Job Application Tracker",
+        "Job Search",
+        "Public Career Portfolio",
+        "PDF and DOCX Export",
+        "Template Marketplace"
+      ]
+    }
+    </script>
     <!-- Google Search's favicon crawler has inconsistent support for
          SVG-only favicons and generally prefers PNG/ICO — the SVG is kept
          first for browsers/tabs (crisp at any size), with PNG fallbacks

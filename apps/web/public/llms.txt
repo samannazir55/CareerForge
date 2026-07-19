@@ -1,0 +1,63 @@
+# Corvyx — AI Career Platform
+# https://corvyx.app
+
+Corvyx is an AI-powered career platform that helps job seekers build
+professional resumes, check them against ATS filters, prepare for
+interviews, track job applications, optimize their LinkedIn profile, and
+get AI career coaching.
+
+## What Corvyx does
+
+- AI Resume Builder: Conversational AI that builds your resume through
+  natural dialogue, with live preview and PDF/DOCX export
+- ATS Resume Checker: Scores resumes against job descriptions and
+  identifies missing keywords that prevent ATS systems from shortlisting
+  them
+- Resume Tailoring: Rewrites your resume to match a specific job
+  description without fabricating experience
+- Cover Letter Generator: Produces tailored cover letters from your
+  resume and a target job description
+- Interview Preparation: Generates role-specific interview questions,
+  evaluates your answers with AI feedback, and tracks progress over
+  sessions
+- LinkedIn Optimizer: Rewrites your headline, About section, and
+  experience bullets to improve recruiter search visibility
+- AI Career Coach: Ongoing chat-based career coaching
+- Job Application Tracker: Kanban board tracking every application
+  through Wishlist, Applied, Interview, and Offer stages
+- Job Search: Real job listings with one-click add to the tracker and
+  instant resume tailoring for any listing
+- Career Portfolio: Public profile page showcasing resumes, skills, and
+  career highlights
+- Template Marketplace: Free and premium resume templates
+
+## Pricing
+
+- Free: 3 resumes, 2 templates, basic ATS scoring, 5 AI messages/day
+- Professional ($9/month): 10 resumes, all templates, full ATS analysis,
+  cover letters, job tracker, interview prep, job search
+- Premium ($19/month): unlimited resumes and AI usage, plus the LinkedIn
+  optimizer and AI career coach
+
+Pricing is managed in-app and may change; treat the figures above as
+indicative rather than a live price feed.
+
+## Key URLs
+
+- Homepage: https://corvyx.app
+- About: https://corvyx.app/about
+- Pricing: https://corvyx.app/pricing
+- Free ATS Checker: https://corvyx.app/free-ats-checker
+- Resume Builder: https://corvyx.app/features/resume-builder
+- ATS Checker (info page): https://corvyx.app/features/ats-checker
+- Interview Prep: https://corvyx.app/features/interview-prep
+- Job Tracker: https://corvyx.app/features/job-tracker
+- LinkedIn Optimizer: https://corvyx.app/features/linkedin-optimizer
+- Career Coach: https://corvyx.app/features/career-coach
+- Blog: https://corvyx.app/blog
+- Register: https://corvyx.app/register
+
+## Category
+
+AI tools, career tools, resume builder, job search, interview prep,
+career development, ATS optimization

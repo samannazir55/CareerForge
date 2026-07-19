@@ -48,6 +48,27 @@ export const aiRateLimit = rateLimit({
 });
 
 /**
+ * Limiter for the public, no-auth ATS checker endpoint (/ai/ats-score-public,
+ * backing the /free-ats-checker landing page). Unlike aiRateLimit this has
+ * no logged-in user to key off, so it's IP-keyed like authRateLimit — but
+ * much tighter (5/hour, not 15 min) since every call here is a real LLM
+ * request with no account or plan limit behind it otherwise.
+ */
+export const publicAtsRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.ip ?? 'unknown',
+  message: {
+    error: {
+      code: 'RATE_LIMITED',
+      message: 'You have used your 5 free checks for this hour. Create a free account for unlimited access.',
+    },
+  },
+});
+
+/**
  * Baseline limiter applied to every request (see app.ts) so a route that
  * forgot its own rate limit isn't left completely unprotected. IP-keyed
  * since it runs ahead of auth on most routes. 100 requests / minute per

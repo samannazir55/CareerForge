@@ -5,7 +5,7 @@ import { aiProvider } from './index.js';
 import { prisma } from '../../lib/prisma.js';
 import { runMigrations, mergeResumeSections, CURRENT_SCHEMA_VERSION, type Section } from '@careerforge/schema';
 import { NotFoundError, BadRequestError, ForbiddenError } from '../../lib/errors.js';
-import { aiRateLimit } from '../../middleware/rateLimit.js';
+import { aiRateLimit, publicAtsRateLimit } from '../../middleware/rateLimit.js';
 import { getLimits, type Tier } from '../../lib/planLimits.js';
 import { assertWithinUsageLimit, logUsage } from '../../lib/usageLimits.js';
 import { sanitise } from '../../lib/sanitise.js';
@@ -276,6 +276,50 @@ aiRouter.post(
       return;
     }
 
+    res.status(200).json(result);
+  }),
+);
+
+// POST /api/ai/ats-score-public
+// Body: { resumeText: string, jobDescription?: string }
+// No-auth counterpart to /ats-score, backing the public /free-ats-checker
+// landing page: the visitor pastes resume text directly instead of scoring
+// a saved resumeId, since there's no account behind this at all. Rate
+// limited (not requireAuth-gated) since it's a real LLM call anyone on the
+// internet can trigger — publicAtsRateLimit caps it at 5/hour per IP.
+aiRouter.post(
+  '/ats-score-public',
+  publicAtsRateLimit,
+  asyncHandler(async (req, res) => {
+    const { resumeText: rawResumeText, jobDescription: rawJobDescription } = req.body as {
+      resumeText?: string;
+      jobDescription?: string;
+    };
+    const resumeText = sanitise(rawResumeText, 4_000);
+    if (!resumeText.trim()) throw new BadRequestError('Resume text is required.');
+    const jobDescription = sanitise(rawJobDescription, 20_000);
+
+    // Builds a minimal in-memory Resume-shaped object out of the raw pasted
+    // text rather than a real saved resume — resumeToText() (see the AI
+    // adapters) just joins every entry's field values, so a single
+    // "summary" section with one text field carries the whole pasted
+    // resume through unchanged.
+    const fakeResume = {
+      id: 'public',
+      title: 'Resume',
+      sections: [
+        {
+          id: 's1',
+          type: 'summary',
+          title: 'Resume Content',
+          order: 0,
+          fields: [],
+          entries: [{ id: 'e1', values: { text: resumeText } }],
+        },
+      ],
+    };
+
+    const result = await aiProvider.scoreATS(fakeResume as any, jobDescription || undefined);
     res.status(200).json(result);
   }),
 );

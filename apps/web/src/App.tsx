@@ -13,6 +13,15 @@ import { BlogPostPage } from './pages/blog/BlogPostPage';
 import { PrivacyPolicyPage } from './pages/legal/PrivacyPolicyPage';
 import { TermsOfServicePage } from './pages/legal/TermsOfServicePage';
 import { RefundPolicyPage } from './pages/legal/RefundPolicyPage';
+import { AboutPage } from './pages/about/AboutPage';
+import { PricingPage } from './pages/pricing/PricingPage';
+import { FreeATSCheckerPage } from './pages/features/FreeATSCheckerPage';
+import { ResumeBuilderPage } from './pages/features/ResumeBuilderPage';
+import { InterviewPrepPage as FeatureInterviewPrepPage } from './pages/features/InterviewPrepPage';
+import { JobTrackerPage as FeatureJobTrackerPage } from './pages/features/JobTrackerPage';
+import { LinkedInOptimizerPage as FeatureLinkedInOptimizerPage } from './pages/features/LinkedInOptimizerPage';
+import { CareerCoachPage as FeatureCareerCoachPage } from './pages/features/CareerCoachPage';
+import { AtsCheckerPage } from './pages/features/AtsCheckerPage';
 
 // Auth pages
 import { LoginPage } from './pages/auth/LoginPage';
@@ -82,6 +91,17 @@ export function App() {
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
           <Route path="/terms" element={<TermsOfServicePage />} />
           <Route path="/refund-policy" element={<RefundPolicyPage />} />
+
+          {/* Public marketing/discoverability pages — no auth */}
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/free-ats-checker" element={<FreeATSCheckerPage />} />
+          <Route path="/features/resume-builder" element={<ResumeBuilderPage />} />
+          <Route path="/features/interview-prep" element={<FeatureInterviewPrepPage />} />
+          <Route path="/features/job-tracker" element={<FeatureJobTrackerPage />} />
+          <Route path="/features/linkedin-optimizer" element={<FeatureLinkedInOptimizerPage />} />
+          <Route path="/features/career-coach" element={<FeatureCareerCoachPage />} />
+          <Route path="/features/ats-checker" element={<AtsCheckerPage />} />
 
           {/* Public career portfolio — no auth, shared as a single recruiter-facing link */}
           <Route path="/u/:slug" element={<PublicProfilePage />} />

@@ -339,6 +339,11 @@ export const aiApi = {
     request<{ job: ScrapedJob }>('/ai/scrape-job', { method: 'POST', body: { url } }),
   scoreATS: (resumeId: string, jobDescription?: string) =>
     request<{ score: number; missingKeywords: string[]; missingSections: string[]; suggestions: string[] }>('/ai/ats-score', { method: 'POST', body: { resumeId, jobDescription } }),
+  /** No-auth version backing the public /free-ats-checker landing page —
+   * takes raw pasted resume text instead of a resumeId since there's no
+   * account/saved resume behind it. Rate limited server-side per IP. */
+  scoreATSPublic: (resumeText: string, jobDescription?: string) =>
+    request<{ score: number; missingKeywords: string[]; missingSections: string[]; suggestions: string[] }>('/ai/ats-score-public', { method: 'POST', body: { resumeText, jobDescription } }),
   matchJob: (resumeId: string, jobDescription: string) =>
     request<{ matchScore: number; matchedKeywords: string[]; missingKeywords: string[]; suggestions: string[] }>('/ai/job-match', { method: 'POST', body: { resumeId, jobDescription } }),
   generateCoverLetter: (resumeId: string, jobDescription: string, tone?: string) =>

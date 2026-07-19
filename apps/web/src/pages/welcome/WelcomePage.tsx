@@ -87,6 +87,16 @@ export function WelcomePage() {
                 Blog
               </Button>
             </Link>
+            <Link to="/about">
+              <Button variant="ghost" size="sm" className="text-white/80 hover:text-white hover:bg-white/10">
+                About
+              </Button>
+            </Link>
+            <Link to="/pricing">
+              <Button variant="ghost" size="sm" className="text-white/80 hover:text-white hover:bg-white/10">
+                Pricing
+              </Button>
+            </Link>
             <Link to="/login">
               <Button variant="ghost" size="sm" className="text-white/80 hover:text-white hover:bg-white/10">
                 Log in

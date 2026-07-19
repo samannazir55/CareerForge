@@ -1,4 +1,49 @@
+# Standard search engines
 User-agent: *
 Allow: /
+Disallow: /dashboard
+Disallow: /resumes
+Disallow: /settings
+Disallow: /admin
+Disallow: /api/
+Disallow: /verify-otp
+Disallow: /reset-password
+
+# Explicitly welcome AI crawlers — these feed LLM training data
+# and power AI search tools (Perplexity, ChatGPT, Gemini with Search)
+User-agent: GPTBot
+Allow: /
+Disallow: /dashboard
+Disallow: /api/
+
+User-agent: ClaudeBot
+Allow: /
+Disallow: /dashboard
+Disallow: /api/
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /dashboard
+Disallow: /api/
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /dashboard
+Disallow: /api/
+
+User-agent: Amazonbot
+Allow: /
+Disallow: /dashboard
+Disallow: /api/
+
+User-agent: anthropic-ai
+Allow: /
+Disallow: /dashboard
+Disallow: /api/
+
+User-agent: cohere-ai
+Allow: /
+Disallow: /dashboard
+Disallow: /api/
 
 Sitemap: https://corvyx.app/sitemap.xml
