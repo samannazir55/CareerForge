@@ -258,6 +258,17 @@ aiRouter.post(
     const jobDescription = sanitise(body.jobDescription, 20_000);
     if (!resumeId) throw new BadRequestError('resumeId is required.');
 
+    const row = await prisma.resume.findUnique({ where: { id: resumeId } });
+    if (!row || row.ownerId !== req.user!.id) throw new NotFoundError('Resume not found.');
+
+    const { payload: resume } = runMigrations({
+      schemaVersion: row.schemaVersion,
+      migrationVersion: row.migrationVersion,
+      payload: { id: row.id, ownerId: row.ownerId, title: row.title, theme: row.theme, sections: row.sections, schemaVersion: row.schemaVersion, migrationVersion: row.migrationVersion, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() },
+    });
+
+    const result = await aiProvider.scoreATS(resume as any, jobDescription || undefined);
+
     // FREE gets "Basic ATS score (score only, no keyword suggestions)" —
     // Professional/Premium get the full breakdown (see PLAN_LIMITS.fullATS).
     if (!getLimits(req.user!.subscriptionTier as Tier).fullATS) {
