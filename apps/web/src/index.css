@@ -117,6 +117,58 @@
 }
 
 /* ---------------------------------------------------------------------------
+   Blog post body — rendered markdown on the dark .welcome-page background.
+   Mirrors .prose-legal's "no typography plugin" approach, scoped separately
+   since blog posts render on dark backgrounds and need h2 anchor offsets
+   for the table-of-contents jump links.
+---------------------------------------------------------------------------- */
+.prose-blog {
+  @apply text-white/70 leading-relaxed;
+}
+.prose-blog h1 {
+  @apply text-2xl font-bold text-white mt-10 mb-4 first:mt-0;
+}
+.prose-blog h2 {
+  @apply text-xl font-semibold text-white mt-10 mb-3 first:mt-0 scroll-mt-24;
+}
+.prose-blog h3 {
+  @apply text-lg font-semibold text-white/90 mt-7 mb-2 scroll-mt-24;
+}
+.prose-blog p {
+  @apply mb-4;
+}
+.prose-blog ul {
+  @apply list-disc pl-5 space-y-1.5 mb-4;
+}
+.prose-blog ol {
+  @apply list-decimal pl-5 space-y-1.5 mb-4;
+}
+.prose-blog li {
+  @apply text-white/70;
+}
+.prose-blog a {
+  @apply text-indigo-300 hover:text-indigo-200 underline underline-offset-2;
+}
+.prose-blog strong {
+  @apply text-white font-semibold;
+}
+.prose-blog code {
+  @apply bg-white/10 text-indigo-200 rounded px-1.5 py-0.5 text-[0.85em];
+}
+.prose-blog pre {
+  @apply bg-white/5 border border-white/10 rounded-xl p-4 overflow-x-auto mb-4;
+}
+.prose-blog pre code {
+  @apply bg-transparent p-0;
+}
+.prose-blog blockquote {
+  @apply border-l-2 border-indigo-400/50 pl-4 italic text-white/60 mb-4;
+}
+.prose-blog hr {
+  @apply border-white/10 my-8;
+}
+
+/* ---------------------------------------------------------------------------
    Welcome page — neon/floating-square hero treatment.
    Scoped under .welcome-page so it never bleeds into the rest of the app's
    (mostly light, glassmorphism-on-white) design language.

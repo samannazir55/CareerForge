@@ -18,12 +18,14 @@ import {
   ClipboardList,
   Compass,
   ArrowRight,
+  Clock,
 } from 'lucide-react';
 import { useRef } from 'react';
 import { FloatingSquares } from '../../components/welcome/FloatingSquares';
 import { CoverflowGallery } from '../../components/welcome/CoverflowGallery';
 import { type FeatureItem } from '../../components/welcome/FeatureCard';
 import { Button } from '../../components/ui/Button';
+import { ALL_POSTS, CATEGORY_LABELS } from '../../blog';
 
 const FEATURES: FeatureItem[] = [
   { icon: Sparkles, title: 'AI Chat Resume Builder', description: 'Build your resume by chatting — the AI gathers your story and drafts it live.', status: 'live', accent: 'indigo' },
@@ -47,6 +49,7 @@ const FEATURES: FeatureItem[] = [
 export function WelcomePage() {
   const pageRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
+  const recentPosts = ALL_POSTS.slice(0, 3);
 
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
   const heroOpacity = useTransform(scrollYProgress, [0, 1], [1, 0]);
@@ -79,6 +82,11 @@ export function WelcomePage() {
             <span className="text-gradient">Corvyx</span>
           </span>
           <div className="flex items-center gap-3">
+            <Link to="/blog">
+              <Button variant="ghost" size="sm" className="text-white/80 hover:text-white hover:bg-white/10">
+                Blog
+              </Button>
+            </Link>
             <Link to="/login">
               <Button variant="ghost" size="sm" className="text-white/80 hover:text-white hover:bg-white/10">
                 Log in
@@ -185,6 +193,57 @@ export function WelcomePage() {
           <CoverflowGallery features={FEATURES} />
         </div>
       </section>
+
+      {/* From the blog */}
+      {recentPosts.length > 0 && (
+        <section className="relative px-6 pb-24">
+          <div className="max-w-6xl mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-80px' }}
+              transition={{ duration: 0.5 }}
+              className="flex items-end justify-between mb-8"
+            >
+              <div>
+                <h2 className="text-2xl sm:text-3xl font-bold mb-2">From the blog</h2>
+                <p className="text-white/50 text-sm">Resume tips, interview prep, and career advice.</p>
+              </div>
+              <Link to="/blog" className="hidden sm:flex items-center gap-1 text-sm text-white/60 hover:text-white transition-colors">
+                View all <ArrowRight size={14} />
+              </Link>
+            </motion.div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+              {recentPosts.map((post, i) => (
+                <motion.div
+                  key={post.slug}
+                  initial={{ opacity: 0, y: 16 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: '-40px' }}
+                  transition={{ duration: 0.4, delay: i * 0.05 }}
+                >
+                  <Link
+                    to={`/blog/${post.slug}`}
+                    className="group flex flex-col h-full rounded-2xl border border-white/10 bg-white/[0.03] p-5 hover:border-white/20 hover:bg-white/[0.05] transition-colors"
+                  >
+                    <span className="text-[11px] font-medium uppercase tracking-wide text-white/40 mb-2">
+                      {CATEGORY_LABELS[post.category]}
+                    </span>
+                    <h3 className="font-semibold text-white text-sm leading-snug mb-2 group-hover:text-indigo-300 transition-colors">
+                      {post.title}
+                    </h3>
+                    <p className="text-xs text-white/50 line-clamp-2 mb-4 flex-1">{post.description}</p>
+                    <span className="flex items-center gap-1 text-[11px] text-white/40">
+                      <Clock size={11} /> {post.readTime} min read
+                    </span>
+                  </Link>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Final CTA */}
       <section className="relative px-6 pb-24">

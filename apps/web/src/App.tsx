@@ -8,6 +8,8 @@ import { trackPageview } from './lib/analytics';
 
 // Public
 import { WelcomePage } from './pages/welcome/WelcomePage';
+import { BlogIndexPage } from './pages/blog/BlogIndexPage';
+import { BlogPostPage } from './pages/blog/BlogPostPage';
 import { PrivacyPolicyPage } from './pages/legal/PrivacyPolicyPage';
 import { TermsOfServicePage } from './pages/legal/TermsOfServicePage';
 import { RefundPolicyPage } from './pages/legal/RefundPolicyPage';
@@ -71,6 +73,10 @@ export function App() {
           <Routes>
           {/* Public marketing/landing page */}
           <Route path="/" element={<WelcomePage />} />
+
+          {/* Public blog — no auth, markdown files compiled at build time */}
+          <Route path="/blog" element={<BlogIndexPage />} />
+          <Route path="/blog/:slug" element={<BlogPostPage />} />
 
           {/* Public legal pages — no auth, linked from footer + Stripe checkout */}
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
