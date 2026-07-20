@@ -4,6 +4,7 @@ import { ArrowRight, Loader2 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { SEO } from '../../components/seo/SEO';
 import { aiApi, ApiError } from '../../lib/api';
+import { SocialLinks } from '../../components/social/SocialLinks';
 
 interface ATSResult {
   score: number;
@@ -222,6 +223,11 @@ export function FreeATSCheckerPage() {
           </div>
         )}
       </main>
+
+      <footer className="border-t border-white/5 px-6 py-8 text-center text-xs text-white/30">
+        <SocialLinks className="mb-4" />
+        © {new Date().getFullYear()} Corvyx. Built for people building careers.
+      </footer>
     </div>
   );
 }

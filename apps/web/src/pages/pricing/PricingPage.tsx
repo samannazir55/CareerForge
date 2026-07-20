@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/Button';
 import { SEO } from '../../components/seo/SEO';
 import { plansApi, ApiError, type PublicPlan } from '../../lib/api';
 import { getLimits, type Tier } from '@careerforge/schema';
+import { SocialLinks } from '../../components/social/SocialLinks';
 
 // Presentational only — pricing, names, and feature lists come live from
 // plansApi (the same subscription_plans table admins edit and SettingsPage
@@ -161,6 +162,11 @@ export function PricingPage() {
           </Link>
         </div>
       </main>
+
+      <footer className="border-t border-white/5 px-6 py-8 text-center text-xs text-white/30">
+        <SocialLinks className="mb-4" />
+        © {new Date().getFullYear()} Corvyx. Built for people building careers.
+      </footer>
     </div>
   );
 }

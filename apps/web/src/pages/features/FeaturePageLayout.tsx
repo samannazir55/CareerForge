@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { SEO } from '../../components/seo/SEO';
+import { SocialLinks } from '../../components/social/SocialLinks';
 
 export interface FeaturePageContent {
   /** URL slug, e.g. "resume-builder" — page lives at /features/{slug}. */
@@ -114,6 +115,11 @@ export function FeaturePageLayout({ content }: { content: FeaturePageContent }) 
           )}
         </section>
       </main>
+
+      <footer className="border-t border-white/5 px-6 py-8 text-center text-xs text-white/30">
+        <SocialLinks className="mb-4" />
+        © {new Date().getFullYear()} Corvyx. Built for people building careers.
+      </footer>
     </div>
   );
 }

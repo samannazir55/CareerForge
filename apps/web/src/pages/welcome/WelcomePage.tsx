@@ -26,6 +26,7 @@ import { CoverflowGallery } from '../../components/welcome/CoverflowGallery';
 import { type FeatureItem } from '../../components/welcome/FeatureCard';
 import { Button } from '../../components/ui/Button';
 import { ALL_POSTS, CATEGORY_LABELS } from '../../blog';
+import { SocialLinks } from '../../components/social/SocialLinks';
 
 const FEATURES: FeatureItem[] = [
   { icon: Sparkles, title: 'AI Chat Resume Builder', description: 'Build your resume by chatting — the AI gathers your story and drafts it live.', status: 'live', accent: 'indigo' },
@@ -284,6 +285,7 @@ export function WelcomePage() {
           <Link to="/terms" className="hover:text-white/60">Terms</Link>
           <Link to="/refund-policy" className="hover:text-white/60">Refunds</Link>
         </div>
+        <SocialLinks className="mb-4" />
         © {new Date().getFullYear()} Corvyx. Built for people building careers.
       </footer>
     </div>

@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { SEO } from '../../components/seo/SEO';
+import { SocialLinks } from '../../components/social/SocialLinks';
 
 interface FeatureBlock {
   title: string;
@@ -217,6 +218,11 @@ export function AboutPage() {
           </Link>
         </section>
       </main>
+
+      <footer className="border-t border-white/5 px-6 py-8 text-center text-xs text-white/30">
+        <SocialLinks className="mb-4" />
+        © {new Date().getFullYear()} Corvyx. Built for people building careers.
+      </footer>
     </div>
   );
 }
