@@ -234,7 +234,7 @@ export function AppShell({ children }: AppShellProps) {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -8, scale: 0.96 }}
                   transition={{ duration: 0.15 }}
-                  className="absolute right-0 top-full mt-2 w-56 glass-panel rounded-2xl p-2 z-50 shadow-xl"
+                  className="absolute right-0 top-full mt-2 w-56 dropdown-panel rounded-2xl p-2 z-50 shadow-xl"
                 >
                   <div className="px-3 py-2 mb-1">
                     <p className="text-sm font-medium truncate">{user?.fullName ?? 'User'}</p>

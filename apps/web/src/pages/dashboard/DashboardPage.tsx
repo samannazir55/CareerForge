@@ -136,26 +136,26 @@ export function DashboardPage() {
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass-panel rounded-2xl p-4 sm:p-5 flex items-center gap-4 relative"
+            className="glass-panel rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 relative"
           >
-            <div className="h-10 w-10 rounded-xl bg-indigo-500/15 flex items-center justify-center shrink-0">
-              <Globe2 size={18} className="text-indigo-400" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium">
-                🌐 Share your career portfolio — Create your public profile page and share one link with recruiters.
-              </p>
-            </div>
-            <Button size="sm" variant="outline" onClick={() => navigate('/profile')} className="shrink-0">
-              Set up now <ArrowRight size={14} className="ml-1.5" />
-            </Button>
             <button
               onClick={dismissPortfolioNudge}
               aria-label="Dismiss"
-              className="shrink-0 h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+              className="absolute top-3 right-3 sm:static sm:order-last shrink-0 h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
             >
               <X size={15} />
             </button>
+            <div className="flex items-center gap-4 pr-8 sm:pr-0">
+              <div className="h-10 w-10 rounded-xl bg-indigo-500/15 flex items-center justify-center shrink-0">
+                <Globe2 size={18} className="text-indigo-400" />
+              </div>
+              <p className="text-sm font-medium flex-1 min-w-0">
+                🌐 Share your career portfolio — Create your public profile page and share one link with recruiters.
+              </p>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => navigate('/profile')} className="shrink-0 w-full sm:w-auto">
+              Set up now <ArrowRight size={14} className="ml-1.5" />
+            </Button>
           </motion.div>
         )}
 

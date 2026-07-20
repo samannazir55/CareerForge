@@ -39,6 +39,7 @@
     --ai-gradient-end: 280 100% 95%;
     --glass-bg: rgba(255, 255, 255, 0.7);
     --glass-border: rgba(255, 255, 255, 0.5);
+    --dropdown-bg: rgba(255, 255, 255, 0.97);
   }
   .dark {
     color-scheme: dark;
@@ -65,6 +66,7 @@
     --ai-gradient-end: 280 50% 10%;
     --glass-bg: rgba(24, 22, 38, 0.55);
     --glass-border: rgba(255, 255, 255, 0.08);
+    --dropdown-bg: rgba(19, 17, 31, 0.97);
   }
 }
 @layer base {
@@ -79,6 +81,18 @@
 @layer utilities {
   .glass-panel {
     @apply bg-[var(--glass-bg)] backdrop-blur-xl border border-[var(--glass-border)] shadow-sm;
+  }
+  /* Floating dropdown/menu panels (notifications, account menu, etc.) need
+   * much higher opacity than card-style .glass-panel. Those panels often
+   * render directly over large, bold header text (e.g. "Welcome back, Leo")
+   * — at .glass-panel's ~55% dark-mode opacity that text visibly bleeds
+   * through and makes the menu's own text hard to read. This keeps the
+   * same blur/border language but pushes background opacity close to
+   * solid so floating menu content stays legible regardless of what's
+   * behind it. */
+  .dropdown-panel {
+    @apply backdrop-blur-xl border border-[var(--glass-border)] shadow-xl;
+    background-color: var(--dropdown-bg);
   }
   .text-gradient {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500;
