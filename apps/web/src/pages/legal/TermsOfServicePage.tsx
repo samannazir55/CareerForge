@@ -76,7 +76,7 @@ export function TermsOfServicePage() {
       constitutes acceptance of the updated terms.</p>
 
       <h2>12. Governing law</h2>
-      <p>These terms are governed by the laws of REPLACE_WITH_JURISDICTION, without regard to conflict-of-law
+      <p>These terms are governed by the laws of the Federal Republic of Germany, without regard to conflict-of-law
       principles.</p>
 
       <h2>13. Contact us</h2>

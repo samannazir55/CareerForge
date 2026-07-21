@@ -19,8 +19,10 @@ import {
   Compass,
   ArrowRight,
   Clock,
+  Menu,
+  X,
 } from 'lucide-react';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { FloatingSquares } from '../../components/welcome/FloatingSquares';
 import { CoverflowGallery } from '../../components/welcome/CoverflowGallery';
 import { type FeatureItem } from '../../components/welcome/FeatureCard';
@@ -51,6 +53,7 @@ export function WelcomePage() {
   const pageRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
   const recentPosts = ALL_POSTS.slice(0, 3);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
   const heroOpacity = useTransform(scrollYProgress, [0, 1], [1, 0]);
@@ -78,11 +81,13 @@ export function WelcomePage() {
         style={{ backgroundColor: navBg, backdropFilter: navBackdrop }}
         className="sticky top-0 z-30 border-b border-white/5"
       >
-        <div className="max-w-6xl mx-auto flex items-center justify-between px-6 py-4">
+        <div className="max-w-6xl mx-auto flex items-center justify-between px-4 sm:px-6 py-4">
           <span className="font-semibold text-lg tracking-tight">
             <span className="text-gradient">Corvyx</span>
           </span>
-          <div className="flex items-center gap-3">
+
+          {/* Full nav — visible from md up, where there's room for all 5 items */}
+          <div className="hidden md:flex items-center gap-3">
             <Link to="/blog">
               <Button variant="ghost" size="sm" className="text-white/80 hover:text-white hover:bg-white/10">
                 Blog
@@ -109,7 +114,51 @@ export function WelcomePage() {
               </Button>
             </Link>
           </div>
+
+          {/* Mobile nav — below md, only the primary CTA + a hamburger toggle
+              stay in the header row, so there's never a horizontal overflow
+              pushing "Get started" off-screen. */}
+          <div className="flex md:hidden items-center gap-2">
+            <Link to="/register">
+              <Button size="sm" className="bg-white text-black hover:bg-white/90">
+                Get started
+              </Button>
+            </Link>
+            <button
+              onClick={() => setMobileNavOpen((v) => !v)}
+              aria-label={mobileNavOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={mobileNavOpen}
+              className="h-9 w-9 shrink-0 rounded-lg flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+            >
+              {mobileNavOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
+          </div>
         </div>
+
+        {mobileNavOpen && (
+          <div className="md:hidden border-t border-white/5 bg-black/80 backdrop-blur-xl px-4 py-3 flex flex-col gap-1">
+            <Link to="/blog" onClick={() => setMobileNavOpen(false)}>
+              <Button variant="ghost" size="sm" className="w-full justify-start text-white/80 hover:text-white hover:bg-white/10">
+                Blog
+              </Button>
+            </Link>
+            <Link to="/about" onClick={() => setMobileNavOpen(false)}>
+              <Button variant="ghost" size="sm" className="w-full justify-start text-white/80 hover:text-white hover:bg-white/10">
+                About
+              </Button>
+            </Link>
+            <Link to="/pricing" onClick={() => setMobileNavOpen(false)}>
+              <Button variant="ghost" size="sm" className="w-full justify-start text-white/80 hover:text-white hover:bg-white/10">
+                Pricing
+              </Button>
+            </Link>
+            <Link to="/login" onClick={() => setMobileNavOpen(false)}>
+              <Button variant="ghost" size="sm" className="w-full justify-start text-white/80 hover:text-white hover:bg-white/10">
+                Log in
+              </Button>
+            </Link>
+          </div>
+        )}
       </motion.header>
 
       {/* Hero */}
