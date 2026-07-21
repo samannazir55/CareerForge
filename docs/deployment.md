@@ -92,9 +92,13 @@ The Dockerfile installs Chromium and sets `PUPPETEER_EXECUTABLE_PATH=/usr/bin/ch
 - **Publish directory**: `apps/web/dist`
 - **Rewrite rule**: `/*` → `/index.html` (for SPA routing)
 
-Set one environment variable in Render's Static Site settings:
+Set these environment variables in Render's Static Site settings:
 ```
-VITE_API_URL    # not needed if using the Nginx proxy — leave blank
+VITE_API_URL              # not needed if using the Nginx proxy — leave blank
+VITE_GA_MEASUREMENT_ID    # your GA4 measurement ID (starts with G-). Baked in
+                           # at build time — a rebuild is required after
+                           # setting/changing this, not just a redeploy of the
+                           # same build. See apps/web/src/lib/analytics.ts.
 ```
 
 The SPA talks directly to the API's public URL. Since they're on different domains, you need to update `apps/api/src/lib/cookies.ts` to use `sameSite: 'none'` and set `secure: true` (both already safe on HTTPS). Update `FRONTEND_URL` on the API to the web app's URL.
@@ -124,6 +128,7 @@ See `.env.example` at the monorepo root for the full annotated list. The short v
 | `GITHUB_CLIENT_ID/SECRET` | ⚠️ | Required only if GitHub login is enabled |
 | `PUPPETEER_EXECUTABLE_PATH` | ✅ | Set automatically in Dockerfile |
 | `STRIPE_SECRET_KEY` | ⚠️ | Required in Phase 5 (subscriptions) |
+| `VITE_GA_MEASUREMENT_ID` | ⚠️ | Optional (site works fine without it) but silent if forgotten — no error anywhere, GA4 just never receives data. Build-time only, set on the web app's build, not the API |
 
 ---
 
