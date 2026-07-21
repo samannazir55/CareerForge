@@ -24,6 +24,7 @@ import { interviewRouter } from './domain/interview/interview.routes.js';
 import { linkedinRouter } from './domain/linkedin/linkedin.routes.js';
 import { coachRouter } from './domain/coach/coach.routes.js';
 import { notificationsRouter } from './domain/notifications/notifications.routes.js';
+import { referralsRouter } from './domain/referrals/referral.routes.js';
 import { globalRateLimit } from './middleware/rateLimit.js';
 import { prisma } from './lib/prisma.js';
 
@@ -140,6 +141,7 @@ export function createApp() {
   app.use('/api/linkedin', linkedinRouter);
   app.use('/api/coach', coachRouter);
   app.use('/api/notifications', notificationsRouter);
+  app.use('/api/referrals', referralsRouter);
   app.use('/api/contact', contactRouter);
 
   // Serve the React SPA in production.

@@ -52,6 +52,19 @@ model User {
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @default(now()) @updatedAt
 
+  // Referrals — every user gets a unique shareable code at creation.
+  // referredById/referrer is set once, at signup, from the code the new
+  // user arrived with (if any). referralRewardedAt is null until the
+  // referred user verifies their email (or, for OAuth signups, is created
+  // already-verified) — that's the single point where both sides get
+  // their points, and its non-null-ness doubles as the idempotency guard
+  // stopping a double-fire. See domain/referrals/referral.service.ts.
+  referralCode       String    @unique
+  referredById       String?
+  referrer           User?     @relation("Referrals", fields: [referredById], references: [id])
+  referrals          User[]    @relation("Referrals")
+  referralRewardedAt DateTime?
+
   oauthAccounts        OAuthAccount[]
   otpCodes             OtpCode[]
   refreshTokens        RefreshToken[]

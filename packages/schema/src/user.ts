@@ -23,6 +23,7 @@ export const UserPublicSchema = z.object({
   subscriptionTier: SubscriptionTierSchema,
   pointsBalance: z.number().int(),
   hasCompletedOnboarding: z.boolean(),
+  referralCode: z.string(),
   createdAt: z.string().datetime(),
 });
 export type UserPublic = z.infer<typeof UserPublicSchema>;

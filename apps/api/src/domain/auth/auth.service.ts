@@ -11,6 +11,8 @@ import type { RegisterRequest, LoginRequest, UserPublic } from '@careerforge/sch
 import { ensureCareerProfile } from '../profile/profile.service.js';
 import { pointsService } from '../points/points.service.js';
 import { getLimits } from '../../lib/planLimits.js';
+import { generateUniqueReferralCode } from '../../lib/referralCode.js';
+import { findReferrerByCode, awardReferralIfEligible } from '../referrals/referral.service.js';
 export function toPublicUser(user: User): UserPublic {
   return {
     id: user.id,
@@ -21,6 +23,7 @@ export function toPublicUser(user: User): UserPublic {
     subscriptionTier: user.subscriptionTier,
     pointsBalance: user.pointsBalance,
     hasCompletedOnboarding: user.hasCompletedOnboarding,
+    referralCode: user.referralCode,
     createdAt: user.createdAt.toISOString(),
   };
 }
@@ -51,8 +54,15 @@ export async function register(input: RegisterRequest): Promise<{ user: User; to
   }
 
   const passwordHash = await hashPassword(input.password);
+
+  // Attribution is best-effort and silent: an unknown/stale/missing
+  // referral code should never block or error out a signup — it should
+  // just mean this account isn't attributed to anyone.
+  const referrer = input.referralCode ? await findReferrerByCode(input.referralCode) : null;
+  const referralCode = await generateUniqueReferralCode();
+
   const user = await prisma.user.create({
-    data: { email: input.email, fullName: input.fullName, passwordHash },
+    data: { email: input.email, fullName: input.fullName, passwordHash, referralCode, referredById: referrer?.id },
   });
   await ensureCareerProfile(user.id).catch((err) => {
     console.error('[auth] register ensureCareerProfile error:', err);
@@ -108,6 +118,13 @@ export async function verifyEmail(userId: string, code: string): Promise<User> {
   // Welcome email is best-effort: a failure here shouldn't undo verification.
   await emailProvider.sendWelcomeEmail({ to: user.email, fullName: user.fullName }).catch((err) => {
     console.error('[auth] verify-email send-welcome-email error:', err);
+  });
+  // Referral reward fires here, not at signup — this is the point we
+  // chose as "real enough" to pay out on, per REFERRAL_REWARD_POINTS'
+  // comment in referral.service.ts. Best-effort: a failure here must not
+  // undo verification, same as the welcome email above.
+  await awardReferralIfEligible(user.id).catch((err) => {
+    console.error('[auth] verify-email award-referral error:', err);
   });
   return user;
 }
@@ -180,6 +197,7 @@ export async function startOAuth(provider: PrismaOAuthProviderName, state: strin
 export async function completeOAuth(
   provider: PrismaOAuthProviderName,
   code: string,
+  referralCode?: string,
 ): Promise<{ user: User; tokens: SessionTokens }> {
   const profile = await oauthProviders[provider].exchangeCodeForProfile(code);
 
@@ -200,12 +218,18 @@ export async function completeOAuth(
 
   let isNewUser = false;
   if (!user) {
+    // Same silent-on-miss attribution as the password-registration path —
+    // see the comment in register().
+    const referrer = referralCode ? await findReferrerByCode(referralCode) : null;
+    const newReferralCode = await generateUniqueReferralCode();
     user = await prisma.user.create({
       data: {
         email: profile.email,
         fullName: profile.fullName,
         // The provider has already verified this email address.
         isEmailVerified: true,
+        referralCode: newReferralCode,
+        referredById: referrer?.id,
       },
     });
     isNewUser = true;
@@ -216,6 +240,13 @@ export async function completeOAuth(
       .catch((err) => {
         console.error('[auth] oauth signup-bonus error:', err);
       });
+    // OAuth accounts skip the separate email-verification step entirely
+    // (isEmailVerified is already true above), so this is their one and
+    // only equivalent trigger point for the referral reward — there's no
+    // later verifyEmail() call to fall back on for this signup path.
+    await awardReferralIfEligible(user.id).catch((err) => {
+      console.error('[auth] oauth award-referral error:', err);
+    });
   }
   await ensureCareerProfile(user.id).catch((err) => {
     console.error('[auth] oauth ensureCareerProfile error:', err);

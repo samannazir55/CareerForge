@@ -5,6 +5,7 @@ import { ProtectedRoute } from './routes/ProtectedRoute';
 import { AdminRoute } from './routes/AdminRoute';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { trackPageview } from './lib/analytics';
+import { captureReferralCode } from './lib/referral';
 
 // Public
 import { WelcomePage } from './pages/welcome/WelcomePage';
@@ -69,6 +70,7 @@ function RouteChangeTracker() {
   const location = useLocation();
   useEffect(() => {
     trackPageview(location.pathname + location.search);
+    captureReferralCode();
   }, [location.pathname, location.search]);
   return null;
 }

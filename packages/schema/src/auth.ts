@@ -8,6 +8,7 @@ export const RegisterRequestSchema = z.object({
     .string()
     .min(8, 'Password must be at least 8 characters')
     .max(72, 'Password must be at most 72 characters'),
+  referralCode: z.string().trim().max(20).optional(),
 });
 export type RegisterRequest = z.infer<typeof RegisterRequestSchema>;
 

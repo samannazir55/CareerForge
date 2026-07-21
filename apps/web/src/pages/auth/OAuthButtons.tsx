@@ -1,5 +1,15 @@
 import { Github } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
+import { getStoredReferralCode } from '../../lib/referral';
+
+/** OAuth is a full-page redirect flow with no request body to carry a
+ * referral code in, so it rides along as a query param instead — the API
+ * relays it through a short-lived cookie across the provider round-trip
+ * (see GET /api/auth/oauth/:provider in auth.routes.ts). */
+function oauthUrl(provider: 'google' | 'github'): string {
+  const ref = getStoredReferralCode();
+  return ref ? `/api/auth/oauth/${provider}?ref=${encodeURIComponent(ref)}` : `/api/auth/oauth/${provider}`;
+}
 
 // Lucide has no official Google "G" logo icon, so it's drawn inline as a
 // tiny multi-color SVG (Google's actual brand colors) rather than using a
@@ -22,7 +32,7 @@ export function OAuthButtons() {
         type="button"
         variant="outline"
         className="border-white/15 bg-white/[0.02] text-white/90 hover:bg-white/10 gap-2"
-        onClick={() => { window.location.href = '/api/auth/oauth/google'; }}
+        onClick={() => { window.location.href = oauthUrl('google'); }}
       >
         <GoogleIcon /> Google
       </Button>
@@ -30,7 +40,7 @@ export function OAuthButtons() {
         type="button"
         variant="outline"
         className="border-white/15 bg-white/[0.02] text-white/90 hover:bg-white/10 gap-2"
-        onClick={() => { window.location.href = '/api/auth/oauth/github'; }}
+        onClick={() => { window.location.href = oauthUrl('github'); }}
       >
         <Github size={16} /> GitHub
       </Button>

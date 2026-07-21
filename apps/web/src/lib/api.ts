@@ -4,6 +4,7 @@ import type {
   RegisterRequest,
   ResetPasswordRequest,
   UserPublic,
+  ReferralStats,
   Resume,
   ResumeSummary,
   ResumeVersion,
@@ -298,6 +299,10 @@ export interface PublicPlan {
 
 export const plansApi = {
   list: () => request<{ plans: PublicPlan[] }>('/plans'),
+};
+
+export const referralsApi = {
+  getStats: () => request<ReferralStats>('/referrals/me'),
 };
 
 export const pointsApi = {

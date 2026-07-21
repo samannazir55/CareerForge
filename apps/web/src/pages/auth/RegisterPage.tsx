@@ -6,6 +6,7 @@ import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { useAuth } from '../../context/AuthContext';
 import { ApiError } from '../../lib/api';
+import { getStoredReferralCode, clearStoredReferralCode } from '../../lib/referral';
 
 export function RegisterPage() {
   const { register, status, user } = useAuth();
@@ -27,7 +28,9 @@ export function RegisterPage() {
     setError(null);
     setIsSubmitting(true);
     try {
-      await register({ fullName, email, password });
+      const referralCode = getStoredReferralCode();
+      await register({ fullName, email, password, referralCode: referralCode ?? undefined });
+      clearStoredReferralCode();
       navigate('/verify-otp');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');

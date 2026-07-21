@@ -162,6 +162,23 @@ authRouter.get(
       maxAge: 5 * 60 * 1000,
       path: '/api/auth/oauth',
     });
+
+    // Referral attribution has to survive the round-trip to the OAuth
+    // provider and back, and this redirect-based flow has no request body
+    // to carry it in — so it rides the same short-lived-cookie pattern as
+    // cf_oauth_state above, just for a different value. Only set the
+    // cookie when a ref code is actually present; no code, no cookie.
+    const ref = typeof req.query.ref === 'string' ? req.query.ref : undefined;
+    if (ref) {
+      res.cookie('cf_referral_code', ref, {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: 'lax',
+        maxAge: 5 * 60 * 1000,
+        path: '/api/auth/oauth',
+      });
+    }
+
     const url = await authService.startOAuth(provider, state);
     res.redirect(url);
   }),
@@ -181,7 +198,9 @@ authRouter.get(
     }
 
     res.clearCookie('cf_oauth_state', { path: '/api/auth/oauth' });
-    const { tokens } = await authService.completeOAuth(provider, code);
+    const referralCode = req.cookies?.cf_referral_code as string | undefined;
+    if (referralCode) res.clearCookie('cf_referral_code', { path: '/api/auth/oauth' });
+    const { tokens } = await authService.completeOAuth(provider, code, referralCode);
     setRefreshCookie(res, tokens.refreshToken);
 
     // No tokens are ever placed in the URL. The frontend's callback page

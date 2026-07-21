@@ -22,6 +22,7 @@ import { useProfileStore } from '../../store/profile.store';
 import { fetchProfile, fetchOwnPublicProfileSettings } from '../../lib/profileApi';
 import { useAuth } from '../../context/AuthContext';
 import { OnboardingModal } from '../../components/onboarding/OnboardingModal';
+import { ReferralCard } from '../../components/referrals/ReferralCard';
 
 const PORTFOLIO_NUDGE_DISMISSED_KEY = 'corvyx:portfolio-nudge-dismissed';
 
@@ -266,6 +267,8 @@ export function DashboardPage() {
             </div>
           </motion.div>
         </div>
+
+        <ReferralCard />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left: achievements + recent resumes */}
