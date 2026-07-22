@@ -81,7 +81,7 @@ export function createApp() {
             // A vs B) — an unused allowance, not a risk.
             'https://www.googletagmanager.com',
           ],
-          connect-src': ["'self'", 'https://www.google-analytics.com', 'https://*.google-analytics.com', 'https://*.analytics.google.com', 'https://www.googletagmanager.com'],
+          'connect-src': ["'self'", 'https://www.google-analytics.com', 'https://*.google-analytics.com', 'https://*.analytics.google.com', 'https://www.googletagmanager.com'],
           // pdfjs-dist (used client-side to parse PDF resumes on import —
           // see components/import/ImportResumeModal.tsx) spins up its
           // parsing worker from a blob: URL. worker-src isn't in helmet's
