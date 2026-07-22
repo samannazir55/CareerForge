@@ -147,14 +147,23 @@ export function createApp() {
   // Serve the React SPA in production.
   // The Dockerfile builds apps/web and copies its dist here so the API and
   // frontend run from the same process on the same domain — zero CORS needed.
+  //
+  // apps/web's build prerenders public routes (/, /about, /blog/*, etc.) to
+  // real static HTML (see apps/web/scripts/prerender.mjs) — each of those
+  // has its own dist/<route>/index.html, which express.static below serves
+  // directly. index.html at the dist root is itself the prerendered
+  // homepage now, not a generic shell — so the SPA fallback for everything
+  // else (dashboard, login, resumes/:id, etc.) serves app-shell.html
+  // instead, which is the pristine, un-prerendered build output.
   const webDist = join(process.cwd(), 'apps/web/dist');
   if (isProd && existsSync(webDist)) {
     app.use(express.static(webDist));
-    // SPA fallback — any non-API path serves index.html so client-side
-    // routing (/login, /resumes/:id, etc.) works on direct load or refresh.
+    // SPA fallback — any non-API path that isn't a prerendered route serves
+    // the app shell so client-side routing (/login, /resumes/:id, etc.)
+    // works on direct load or refresh.
     app.get('*', (req: Request, res: Response, next: NextFunction) => {
       if (req.path.startsWith('/api/')) return next();
-      res.sendFile(join(webDist, 'index.html'));
+      res.sendFile(join(webDist, 'app-shell.html'));
     });
   }
 
