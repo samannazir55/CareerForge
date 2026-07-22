@@ -95,12 +95,12 @@ export function AboutPage() {
             <span className="text-gradient">Corvyx</span>
           </Link>
           <div className="flex items-center gap-3">
-            <Link to="/blog">
+            <Link to="/blog" className="hidden sm:block">
               <Button variant="ghost" size="sm" className="text-white/80 hover:text-white hover:bg-white/10">
                 Blog
               </Button>
             </Link>
-            <Link to="/pricing">
+            <Link to="/pricing" className="hidden sm:block">
               <Button variant="ghost" size="sm" className="text-white/80 hover:text-white hover:bg-white/10">
                 Pricing
               </Button>

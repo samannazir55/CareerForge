@@ -46,7 +46,7 @@ export function PricingPage() {
             <span className="text-gradient">Corvyx</span>
           </Link>
           <div className="flex items-center gap-3">
-            <Link to="/about">
+            <Link to="/about" className="hidden sm:block">
               <Button variant="ghost" size="sm" className="text-white/80 hover:text-white hover:bg-white/10">
                 About
               </Button>

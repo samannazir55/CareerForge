@@ -151,15 +151,16 @@ export function BlogIndexPage() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-80px' }}
           transition={{ duration: 0.5 }}
-          className="max-w-3xl mx-auto text-center rounded-3xl border border-white/10 bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-pink-500/10 p-12"
+          className="max-w-3xl mx-auto text-center rounded-3xl border border-white/10 bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-pink-500/10 p-6 sm:p-12"
         >
           <h2 className="text-2xl sm:text-3xl font-bold mb-3">Ready to put this into practice?</h2>
           <p className="text-white/50 text-sm mb-8 max-w-md mx-auto">
             Build a resume with Corvyx's AI in minutes — free, no credit card required.
           </p>
           <Link to="/register">
-            <Button size="lg" className="bg-white text-black hover:bg-white/90 group">
-              Get started — it's free
+            <Button size="lg" className="bg-white text-black hover:bg-white/90 group whitespace-nowrap">
+              <span className="sm:hidden">Get started</span>
+              <span className="hidden sm:inline">Get started — it's free</span>
               <ArrowRight size={16} className="ml-1.5 transition-transform group-hover:translate-x-0.5" />
             </Button>
           </Link>
