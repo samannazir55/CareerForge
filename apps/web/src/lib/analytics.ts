@@ -36,7 +36,7 @@ export function initAnalytics() {
   // send_page_view: false — we send pageviews manually via trackPageview on
   // route change instead, since GA4's automatic pageview only fires once
   // for the initial document load and this is a client-side-routed SPA.
-  gtag('config', GA_ID, { send_page_view: false });
+  gtag('config', GA_ID, { send_page_view: true });
 }
 
 /** Call on every route change (see App.tsx) to record a pageview. */
