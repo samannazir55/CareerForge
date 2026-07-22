@@ -4,7 +4,6 @@ import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import { AdminRoute } from './routes/AdminRoute';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { trackPageview } from './lib/analytics';
 import { captureReferralCode } from './lib/referral';
 
 // Public
@@ -63,24 +62,11 @@ import { PublicProfilePage } from './pages/profile/PublicProfilePage';
 import { AdminAuditPage } from './pages/admin/AdminAuditPage';
 import { AdminSeoPage } from './pages/admin/AdminSeoPage';
 
-/** Sends a GA4 pageview on every client-side route change (SPA navigation
- * doesn't trigger a real page load, so GA's automatic pageview only ever
- * fires once without this). No-ops if analytics isn't configured. */
-function RouteChangeTracker() {
-  const location = useLocation();
-  useEffect(() => {
-    trackPageview(location.pathname + location.search);
-    captureReferralCode();
-  }, [location.pathname, location.search]);
-  return null;
-}
-
 export function App() {
   return (
     <ErrorBoundary>
       <BrowserRouter>
-        <AuthProvider>
-          <RouteChangeTracker />
+        <AuthProvider>          
           <Routes>
           {/* Public marketing/landing page */}
           <Route path="/" element={<WelcomePage />} />
