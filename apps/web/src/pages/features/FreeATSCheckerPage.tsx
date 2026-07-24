@@ -82,8 +82,8 @@ export function FreeATSCheckerPage() {
   return (
     <div className="welcome-page min-h-screen w-full overflow-x-hidden">
       <SEO
-        title="Free ATS Resume Checker"
-        description="Check if your resume passes ATS filters for free. Paste your resume, get an instant ATS compatibility score and see exactly which keywords you're missing."
+        title="Free ATS Resume Checker — Instant Score"
+        description="75% of CVs are rejected by ATS software before a human reads them. Check your CV's ATS score free in 30 seconds. No account needed, instant results."
         canonical="/free-ats-checker"
       />
 

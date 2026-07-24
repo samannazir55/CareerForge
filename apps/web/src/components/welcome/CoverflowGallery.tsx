@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { motion, useInView } from 'framer-motion';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import type { FeatureItem } from './FeatureCard';
 
 const ACCENT_HEX: Record<FeatureItem['accent'], string> = {
@@ -128,6 +129,7 @@ interface CoverflowGalleryProps {
 
 export function CoverflowGallery({ features }: CoverflowGalleryProps) {
   const total = features.length;
+  const navigate = useNavigate();
   const [current, setCurrent] = useState(0);
   const [paused, setPaused] = useState(false);
   const dragStartX = useRef(0);
@@ -255,6 +257,7 @@ export function CoverflowGallery({ features }: CoverflowGalleryProps) {
                     marginTop: -cardH / 2,
                     zIndex: 100 - abs,
                     pointerEvents: isFront ? 'auto' : 'none',
+                    cursor: isFront && feature.href ? 'pointer' : undefined,
                   } as CSSProperties
                 }
                 initial={{ opacity: 0, y: 130, scale: 0.55 }}
@@ -281,7 +284,13 @@ export function CoverflowGallery({ features }: CoverflowGalleryProps) {
                   damping: 32,
                   delay: hasEntered ? 0 : 0.1 + abs * 0.06,
                 }}
-                onClick={() => !isFront && goTo(i)}
+                onClick={() => {
+                  if (!isFront) {
+                    goTo(i);
+                  } else if (feature.href) {
+                    navigate(feature.href);
+                  }
+                }}
               >
                 <div
                   className="neon-carousel-card w-full h-full rounded-2xl p-4 sm:p-6 flex flex-col justify-between overflow-hidden"
@@ -332,6 +341,15 @@ export function CoverflowGallery({ features }: CoverflowGalleryProps) {
                         {feature.title}
                       </h3>
                       <p className="text-xs sm:text-sm text-white/55 leading-relaxed">{feature.description}</p>
+                      {feature.href && (
+                        <span
+                          className="inline-flex items-center gap-1 text-xs sm:text-sm font-medium mt-2 sm:mt-3"
+                          style={{ color: hex }}
+                        >
+                          Try it free
+                          <ArrowRight size={13} />
+                        </span>
+                      )}
                     </motion.div>
                   )}
                 </div>

@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
 
 export interface FeatureItem {
@@ -7,6 +8,7 @@ export interface FeatureItem {
   description: string;
   status: 'live' | 'soon';
   accent: 'indigo' | 'purple' | 'pink' | 'cyan';
+  href?: string;
 }
 
 const ACCENT_STYLES: Record<FeatureItem['accent'], { ring: string; iconBg: string; glow: string }> = {
@@ -25,14 +27,14 @@ export function FeatureCard({ feature, index }: FeatureCardProps) {
   const Icon = feature.icon;
   const styles = ACCENT_STYLES[feature.accent];
 
-  return (
+  const content = (
     <motion.div
       initial={{ opacity: 0, y: 24 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-60px' }}
       transition={{ duration: 0.45, delay: (index % 6) * 0.06, ease: 'easeOut' }}
       whileHover={{ y: -4 }}
-      className={`group relative rounded-2xl p-5 bg-white/[0.03] border border-white/10 ring-1 ring-transparent transition-all duration-300 shadow-lg shadow-black/20 ${styles.ring} ${styles.glow}`}
+      className={`group relative rounded-2xl p-5 bg-white/[0.03] border border-white/10 ring-1 ring-transparent transition-all duration-300 shadow-lg shadow-black/20 ${styles.ring} ${styles.glow} ${feature.href ? 'cursor-pointer' : ''}`}
     >
       <div className="flex items-start justify-between mb-4">
         <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${styles.iconBg}`}>
@@ -52,4 +54,9 @@ export function FeatureCard({ feature, index }: FeatureCardProps) {
       <p className="text-xs text-white/50 leading-relaxed">{feature.description}</p>
     </motion.div>
   );
+
+  if (feature.href) {
+    return <Link to={feature.href}>{content}</Link>;
+  }
+  return content;
 }

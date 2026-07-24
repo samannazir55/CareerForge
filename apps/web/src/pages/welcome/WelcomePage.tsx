@@ -36,7 +36,7 @@ const FEATURES: FeatureItem[] = [
   { icon: LayoutTemplate, title: 'Template Marketplace', description: 'Free and premium templates, unlocked with points or a subscription.', status: 'live', accent: 'pink' },
   { icon: Download, title: 'PDF & DOCX Export', description: 'Pixel-faithful exports rendered server-side — what you see is what you download.', status: 'live', accent: 'cyan' },
   { icon: History, title: 'Version History', description: 'Every save is a snapshot. Compare, restore, never lose a draft.', status: 'live', accent: 'indigo' },
-  { icon: Target, title: 'ATS Score Analysis', description: 'AI-scored compatibility with applicant tracking systems, with concrete fixes.', status: 'live', accent: 'purple' },
+  { icon: Target, title: 'Free ATS Score Checker', description: 'Find out if your CV is being rejected by ATS filters before a human reads it. Free, instant, no account needed.', status: 'live', accent: 'purple', href: '/free-ats-checker' },
   { icon: FileSearch, title: 'Job Description Matching', description: 'Paste a job post — see exactly how well you match and what to adjust.', status: 'live', accent: 'pink' },
   { icon: Mail, title: 'AI Cover Letters', description: 'Generated from your resume and the job post, tuned to the tone you want.', status: 'live', accent: 'cyan' },
   { icon: Share2, title: 'Shareable Resume Links', description: 'A public link to your resume — enable or disable it anytime.', status: 'live', accent: 'indigo' },
@@ -86,12 +86,19 @@ export function WelcomePage() {
             <span className="text-gradient">Corvyx</span>
           </span>
 
-          {/* Full nav — visible from md up, where there's room for all 5 items */}
+          {/* Full nav — visible from md up, where there's room for all 6 items */}
           <div className="hidden md:flex items-center gap-3">
             <Link to="/blog">
               <Button variant="ghost" size="sm" className="text-white/80 hover:text-white hover:bg-white/10">
                 Blog
               </Button>
+            </Link>
+            <Link
+              to="/free-ats-checker"
+              className="flex items-center gap-1.5 text-sm text-indigo-300 hover:text-indigo-200 font-medium transition-colors px-3"
+            >
+              <Target size={13} />
+              Free ATS Check
             </Link>
             <Link to="/about">
               <Button variant="ghost" size="sm" className="text-white/80 hover:text-white hover:bg-white/10">
@@ -140,6 +147,12 @@ export function WelcomePage() {
             <Link to="/blog" onClick={() => setMobileNavOpen(false)}>
               <Button variant="ghost" size="sm" className="w-full justify-start text-white/80 hover:text-white hover:bg-white/10">
                 Blog
+              </Button>
+            </Link>
+            <Link to="/free-ats-checker" onClick={() => setMobileNavOpen(false)}>
+              <Button variant="ghost" size="sm" className="w-full justify-start text-indigo-300 hover:text-indigo-200 hover:bg-white/10">
+                <Target size={14} className="mr-1.5" />
+                Free ATS Check
               </Button>
             </Link>
             <Link to="/about" onClick={() => setMobileNavOpen(false)}>
@@ -221,6 +234,22 @@ export function WelcomePage() {
             </Link>
           </motion.div>
 
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            className="mt-4 flex items-center justify-center gap-2"
+          >
+            <span className="text-white/40 text-sm">or</span>
+            <Link
+              to="/free-ats-checker"
+              className="flex items-center gap-1.5 text-sm text-indigo-300 hover:text-indigo-200 underline underline-offset-4 decoration-indigo-400/40 hover:decoration-indigo-300 transition-colors"
+            >
+              <Target size={14} />
+              Check your CV's ATS score — free, no account needed
+            </Link>
+          </motion.div>
+
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -251,6 +280,81 @@ export function WelcomePage() {
 
         <div className="max-w-5xl mx-auto">
           <CoverflowGallery features={FEATURES} />
+        </div>
+      </section>
+
+      {/* Free ATS Checker highlight section */}
+      <section className="relative px-6 pb-20">
+        <div className="max-w-4xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '-80px' }}
+            transition={{ duration: 0.5 }}
+            className="relative rounded-3xl border border-indigo-500/20 bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-transparent p-8 sm:p-12 overflow-hidden"
+          >
+            {/* Glow orb */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-8">
+              {/* Score ring visual */}
+              <div className="shrink-0 flex items-center justify-center w-28 h-28 rounded-full border-4 border-indigo-400/30 bg-indigo-500/10">
+                <div className="text-center">
+                  <span className="text-3xl font-bold text-indigo-300">67</span>
+                  <span className="text-xs text-indigo-400 block -mt-1">/100</span>
+                </div>
+              </div>
+
+              <div className="flex-1">
+                <div className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-indigo-300 bg-indigo-500/10 border border-indigo-400/20 px-3 py-1 rounded-full mb-3">
+                  <Target size={11} />
+                  Free Tool — No Account Needed
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">
+                  Is your CV getting rejected by robots?
+                </h2>
+                <p className="text-white/55 text-sm sm:text-base mb-6 max-w-lg">
+                  75% of CVs are filtered out by ATS software before a human ever reads them.
+                  Paste your CV and find out your score in 30 seconds — completely free,
+                  no sign-up required.
+                </p>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                  <Link to="/free-ats-checker">
+                    <Button
+                      size="lg"
+                      className="bg-indigo-500 hover:bg-indigo-400 text-white shadow-lg shadow-indigo-500/25 group"
+                    >
+                      <Target size={16} className="mr-1.5" />
+                      Check my ATS score free
+                      <ArrowRight size={16} className="ml-1.5 transition-transform group-hover:translate-x-0.5" />
+                    </Button>
+                  </Link>
+                  <span className="text-white/30 text-xs">
+                    Takes 30 seconds · No account · Instant results
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom keywords — shows what ATS looks for */}
+            <div className="relative z-10 mt-8 pt-6 border-t border-white/5">
+              <p className="text-xs text-white/30 mb-3">What we check your CV against:</p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  'Keyword density', 'Section headers', 'Date formatting',
+                  'Contact info', 'File compatibility', 'Skills match',
+                  'Action verbs', 'Quantified results', 'Job title alignment',
+                ].map((tag) => (
+                  <span
+                    key={tag}
+                    className="text-xs px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-white/50"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </motion.div>
         </div>
       </section>
 
