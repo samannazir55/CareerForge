@@ -33,6 +33,21 @@ export function initAnalytics() {
   document.head.appendChild(script);
 
   gtag('js', new Date());
+  // Explicit consent default. Without this, gtag.js's runtime can process
+  // 'config'/'event' calls internally (dataLayer looks correct, gtm.dom/
+  // gtm.load fire) while silently withholding the actual network hit,
+  // since Google's tag platform now expects an explicit analytics_storage
+  // signal rather than assuming granted-by-default. Corvyx doesn't yet
+  // have its own cookie-consent banner, so this grants consent outright
+  // for all visitors — revisit if/when a real consent banner is added,
+  // at which point this should reflect the visitor's actual choice
+  // instead of a blanket grant.
+  gtag('consent', 'default', {
+    analytics_storage: 'granted',
+    ad_storage: 'denied',
+    ad_user_data: 'denied',
+    ad_personalization: 'denied',
+  });
   // send_page_view: false — we send pageviews manually via trackPageview on
   // route change instead, since GA4's automatic pageview only fires once
   // for the initial document load and this is a client-side-routed SPA.
