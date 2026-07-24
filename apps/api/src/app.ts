@@ -93,7 +93,18 @@ export function createApp() {
           // domain/uploads/cloudinary.service.ts) -- the default CSP's
           // img-src is 'self' data: only, which silently blocks the
           // browser from loading them without this.
-          'img-src': ["'self'", 'data:', 'https://res.cloudinary.com'],
+          // https://www.googletagmanager.com is also required here: GA4's
+          // gtag.js sends hits two ways — a fetch/beacon call to
+          // google-analytics.com (covered by connect-src below) AND a
+          // fallback <img> pixel to googletagmanager.com/a and /td. That
+          // second path is governed by img-src, not connect-src — without
+          // it here, every analytics hit sent via the pixel fallback gets
+          // silently blocked by CSP with no visible network error, while
+          // gtag.js itself loads and runs completely normally. Confirmed
+          // via Tag Assistant's CSP diagnostic after dataLayer, gtag
+          // runtime activation (gtm.dom/gtm.load), and connect-src were
+          // all independently verified correct.
+          'img-src': ["'self'", 'data:', 'https://res.cloudinary.com', 'https://www.googletagmanager.com'],
         },
       },
     }),
